@@ -1,0 +1,1107 @@
+// from crate pc-keyboard 0.5.1
+/*
+Copyright (c) 2020 Rust Embedded Community Developers
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+*/
+
+use crate::*;
+use dev::input::keyboard::{KeyCode, KeyState, Key};
+
+const EXTENDED_KEY_CODE: u8 = 0xE0;
+const KEY_RELEASE_CODE: u8 = 0xF0;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum DecodeState {
+    Start,
+    Extended,
+    Release,
+    ExtendedRelease,
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum Error {
+    BadStartBit,
+    BadStopBit,
+    ParityError,
+    UnknownKeyCode,
+    #[doc(hidden)]
+    InvalidState,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct KeyEvent {
+    pub code: KeyCode,
+    pub state: KeyState,
+}
+
+impl KeyEvent {
+    pub fn new(code: KeyCode, state: KeyState) -> KeyEvent {
+        KeyEvent { code, state }
+    }
+}
+
+pub trait ScancodeSet {
+    /// Handles the state logic for the decoding of scan codes into key events.
+    fn advance_state(state: &mut DecodeState, code: u8) -> Result<Option<KeyEvent>, Error>;
+
+    /// Convert a Scan Code set X byte to our 'KeyCode' enum
+    fn map_scancode(code: u8) -> Result<KeyCode, Error>;
+
+    /// Convert a Scan Code Set X extended byte (prefixed E0) to our `KeyCode`
+    /// enum.
+    fn map_extended_scancode(code: u8) -> Result<KeyCode, Error>;
+}
+
+/// Contains the implementation of Scancode Set 1.
+/// See the OS dev wiki: https://wiki.osdev.org/PS/2_Keyboard#Scan_Code_Set_1
+pub struct ScancodeSet1;
+
+impl ScancodeSet for ScancodeSet1 {
+    /// Implements state logic for scancode set 1
+    ///
+    /// Start:
+    /// E0 => Extended
+    /// >= 0x80 => Key Up
+    /// <= 0x7F => Key Down
+    ///
+    /// Extended:
+    /// >= 0x80 => Extended Key Up
+    /// <= 0x7F => Extended Key Down
+    fn advance_state(state: &mut DecodeState, code: u8) -> Result<Option<KeyEvent>, Error> {
+        match *state {
+            DecodeState::Start => {
+                match code {
+                    EXTENDED_KEY_CODE => {
+                        *state = DecodeState::Extended;
+                        Ok(None)
+                    }
+                    0x80..=0xFF => {
+                        // Release codes
+                        Ok(Some(KeyEvent::new(
+                            Self::map_scancode(code - 0x80)?,
+                            KeyState::Up,
+                        )))
+                    }
+                    _ => {
+                        // Normal codes
+                        Ok(Some(KeyEvent::new(
+                            Self::map_scancode(code)?,
+                            KeyState::Down,
+                        )))
+                    }
+                }
+            }
+            DecodeState::Extended => {
+                *state = DecodeState::Start;
+                match code {
+                    0x80..=0xFF => {
+                        // Extended Release codes
+                        Ok(Some(KeyEvent::new(
+                            Self::map_extended_scancode(code - 0x80)?,
+                            KeyState::Up,
+                        )))
+                    }
+                    _ => {
+                        // Normal release codes
+                        Ok(Some(KeyEvent::new(
+                            Self::map_extended_scancode(code)?,
+                            KeyState::Down,
+                        )))
+                    }
+                }
+            }
+            _ => {
+                // Can't get in to this state
+                unimplemented!();
+            }
+        }
+    }
+
+    /// Implements the single byte codes for Set 1.
+    fn map_scancode(code: u8) -> Result<KeyCode, Error> {
+        match code {
+            0x01 => Ok(KeyCode::Escape),             // 01
+            0x02 => Ok(KeyCode::Key1),               // 02
+            0x03 => Ok(KeyCode::Key2),               // 03
+            0x04 => Ok(KeyCode::Key3),               // 04
+            0x05 => Ok(KeyCode::Key4),               // 05
+            0x06 => Ok(KeyCode::Key5),               // 06
+            0x07 => Ok(KeyCode::Key6),               // 07
+            0x08 => Ok(KeyCode::Key7),               // 08
+            0x09 => Ok(KeyCode::Key8),               // 09
+            0x0A => Ok(KeyCode::Key9),               // 0A
+            0x0B => Ok(KeyCode::Key0),               // 0B
+            0x0C => Ok(KeyCode::Minus),              // 0C
+            0x0D => Ok(KeyCode::Equals),             // 0D
+            0x0E => Ok(KeyCode::Backspace),          // 0E
+            0x0F => Ok(KeyCode::Tab),                // 0F
+            0x10 => Ok(KeyCode::Q),                  // 10
+            0x11 => Ok(KeyCode::W),                  // 11
+            0x12 => Ok(KeyCode::E),                  // 12
+            0x13 => Ok(KeyCode::R),                  // 13
+            0x14 => Ok(KeyCode::T),                  // 14
+            0x15 => Ok(KeyCode::Y),                  // 15
+            0x16 => Ok(KeyCode::U),                  // 16
+            0x17 => Ok(KeyCode::I),                  // 17
+            0x18 => Ok(KeyCode::O),                  // 18
+            0x19 => Ok(KeyCode::P),                  // 19
+            0x1A => Ok(KeyCode::BracketSquareLeft),  // 1A
+            0x1B => Ok(KeyCode::BracketSquareRight), // 1B
+            0x1C => Ok(KeyCode::Enter),              // 1C
+            0x1D => Ok(KeyCode::ControlLeft),        // 1D
+            0x1E => Ok(KeyCode::A),                  // 1E
+            0x1F => Ok(KeyCode::S),                  // 1F
+            0x20 => Ok(KeyCode::D),                  // 20
+            0x21 => Ok(KeyCode::F),                  // 21
+            0x22 => Ok(KeyCode::G),                  // 22
+            0x23 => Ok(KeyCode::H),                  // 23
+            0x24 => Ok(KeyCode::J),                  // 24
+            0x25 => Ok(KeyCode::K),                  // 25
+            0x26 => Ok(KeyCode::L),                  // 26
+            0x27 => Ok(KeyCode::SemiColon),          // 27
+            0x28 => Ok(KeyCode::Quote),              // 28
+            0x29 => Ok(KeyCode::BackTick),           // 29
+            0x2A => Ok(KeyCode::ShiftLeft),          // 2A
+            0x2B => Ok(KeyCode::BackSlash),          // 2B
+            0x2C => Ok(KeyCode::Z),                  // 2C
+            0x2D => Ok(KeyCode::X),                  // 2D
+            0x2E => Ok(KeyCode::C),                  // 2E
+            0x2F => Ok(KeyCode::V),                  // 2F
+            0x30 => Ok(KeyCode::B),                  // 30
+            0x31 => Ok(KeyCode::N),                  // 31
+            0x32 => Ok(KeyCode::M),                  // 32
+            0x33 => Ok(KeyCode::Comma),              // 33
+            0x34 => Ok(KeyCode::Fullstop),           // 34
+            0x35 => Ok(KeyCode::Slash),              // 35
+            0x36 => Ok(KeyCode::ShiftRight),         // 36
+            0x37 => Ok(KeyCode::NumpadStar),         // 37
+            0x38 => Ok(KeyCode::AltLeft),            // 38
+            0x39 => Ok(KeyCode::Spacebar),           // 39
+            0x3A => Ok(KeyCode::CapsLock),           // 3A
+            0x3B => Ok(KeyCode::F1),                 // 3B
+            0x3C => Ok(KeyCode::F2),                 // 3C
+            0x3D => Ok(KeyCode::F3),                 // 3D
+            0x3E => Ok(KeyCode::F4),                 // 3E
+            0x3F => Ok(KeyCode::F5),                 // 3F
+            0x40 => Ok(KeyCode::F6),                 // 40
+            0x41 => Ok(KeyCode::F7),                 // 41
+            0x42 => Ok(KeyCode::F8),                 // 42
+            0x43 => Ok(KeyCode::F9),                 // 43
+            0x44 => Ok(KeyCode::F10),                // 44
+            0x45 => Ok(KeyCode::NumpadLock),         // 45
+            0x46 => Ok(KeyCode::ScrollLock),         // 46
+            0x47 => Ok(KeyCode::Numpad7),            // 47
+            0x48 => Ok(KeyCode::Numpad8),            // 48
+            0x49 => Ok(KeyCode::Numpad9),            // 49
+            0x4A => Ok(KeyCode::NumpadMinus),        // 4A
+            0x4B => Ok(KeyCode::Numpad4),            // 4B
+            0x4C => Ok(KeyCode::Numpad5),            // 4C
+            0x4D => Ok(KeyCode::Numpad6),            // 4D
+            0x4E => Ok(KeyCode::NumpadPlus),         // 4E
+            0x4F => Ok(KeyCode::Numpad1),            // 4F
+            0x50 => Ok(KeyCode::Numpad2),            // 50
+            0x51 => Ok(KeyCode::Numpad3),            // 51
+            0x52 => Ok(KeyCode::Numpad0),            // 52
+            0x53 => Ok(KeyCode::NumpadPeriod),       // 53
+            //0x54
+            //0x55
+            //0x56
+            0x57 => Ok(KeyCode::F11), // 57
+            0x58 => Ok(KeyCode::F12), // 58
+            0x81..=0xD8 => Ok(Self::map_scancode(code - 0x80)?),
+            _ => Err(Error::UnknownKeyCode),
+        }
+    }
+
+    /// Implements the extended byte codes for set 1 (prefixed with E0)
+    fn map_extended_scancode(code: u8) -> Result<KeyCode, Error> {
+        match code {
+            0x10 => Ok(KeyCode::PrevTrack), // E010
+            //0x11
+            //0x12
+            //0x13
+            //0x14
+            //0x15
+            //0x16
+            //0x17
+            //0x18
+            0x19 => Ok(KeyCode::NextTrack), // E019
+            //0x1A
+            //0x1B
+            0x1C => Ok(KeyCode::NumpadEnter),  // E01C
+            0x1D => Ok(KeyCode::ControlRight), // E01D
+            //0x1E
+            //0x1F
+            0x20 => Ok(KeyCode::Mute),       // E020
+            0x21 => Ok(KeyCode::Calculator), // E021
+            0x22 => Ok(KeyCode::Play),       // E022
+            //0x23
+            0x24 => Ok(KeyCode::Stop), // E024
+            //0x25
+            //0x26
+            //0x27
+            //0x28
+            //0x29
+            //0x2A
+            //0x2B
+            //0x2C
+            //0x2D
+            0x2E => Ok(KeyCode::VolumeDown), // E02E
+            //0x2F
+            0x30 => Ok(KeyCode::VolumeUp), // E030
+            //0x31
+            0x32 => Ok(KeyCode::WWWHome), // E032
+            //0x33
+            //0x34
+            0x35 => Ok(KeyCode::NumpadSlash), // E035
+            //0x36
+            //0x37
+            0x38 => Ok(KeyCode::AltRight), // E038
+            //0x39
+            //0x3A
+            //0x3B
+            //0x3C
+            //0x3D
+            //0x3E
+            //0x3F
+            //0x40
+            //0x41
+            //0x42
+            //0x43
+            //0x44
+            //0x45
+            //0x46
+            0x47 => Ok(KeyCode::Home),    // E047
+            0x48 => Ok(KeyCode::ArrowUp), // E048
+            0x49 => Ok(KeyCode::PageUp),  // E049
+            //0x4A
+            0x4B => Ok(KeyCode::ArrowLeft), // E04B
+            //0x4C
+            0x4D => Ok(KeyCode::ArrowRight), // E04D
+            //0x4E
+            0x4F => Ok(KeyCode::End),       // E04F
+            0x50 => Ok(KeyCode::ArrowDown), // E050
+            0x51 => Ok(KeyCode::PageDown),  // E051
+            0x52 => Ok(KeyCode::Insert),    // E052
+            0x53 => Ok(KeyCode::Delete),    // E053
+            0x90..=0xED => Ok(Self::map_extended_scancode(code - 0x80)?),
+            _ => Err(Error::UnknownKeyCode),
+        }
+    }
+}
+
+/// Contains the implementation of Scancode Set 2.
+/// See the OS dev wiki: https://wiki.osdev.org/PS/2_Keyboard#Scan_Code_Set_2
+pub struct ScancodeSet2;
+
+impl ScancodeSet for ScancodeSet2 {
+    /// Implements state logic for scancode set 2
+    ///
+    /// Start:
+    /// F0 => Release
+    /// E0 => Extended
+    /// xx => Key Down
+    ///
+    /// Release:
+    /// xxx => Key Up
+    ///
+    /// Extended:
+    /// F0 => Release Extended
+    /// xx => Extended Key Down
+    ///
+    /// Release Extended:
+    /// xxx => Extended Key Up
+    fn advance_state(state: &mut DecodeState, code: u8) -> Result<Option<KeyEvent>, Error> {
+        match *state {
+            DecodeState::Start => match code {
+                EXTENDED_KEY_CODE => {
+                    *state = DecodeState::Extended;
+                    Ok(None)
+                }
+                KEY_RELEASE_CODE => {
+                    *state = DecodeState::Release;
+                    Ok(None)
+                }
+                _ => Ok(Some(KeyEvent::new(
+                    Self::map_scancode(code)?,
+                    KeyState::Down,
+                ))),
+            },
+            DecodeState::Release => {
+                *state = DecodeState::Start;
+                Ok(Some(KeyEvent::new(Self::map_scancode(code)?, KeyState::Up)))
+            }
+            DecodeState::Extended => match code {
+                KEY_RELEASE_CODE => {
+                    *state = DecodeState::ExtendedRelease;
+                    Ok(None)
+                }
+                _ => {
+                    *state = DecodeState::Start;
+                    Ok(Some(KeyEvent::new(
+                        Self::map_extended_scancode(code)?,
+                        KeyState::Down,
+                    )))
+                }
+            },
+            DecodeState::ExtendedRelease => {
+                *state = DecodeState::Start;
+                Ok(Some(KeyEvent::new(
+                    Self::map_extended_scancode(code)?,
+                    KeyState::Up,
+                )))
+            }
+        }
+    }
+
+    /// Implements the single byte codes for Set 2.
+    fn map_scancode(code: u8) -> Result<KeyCode, Error> {
+        match code {
+            0x01 => Ok(KeyCode::F9),                 // 01
+            0x03 => Ok(KeyCode::F5),                 // 03
+            0x04 => Ok(KeyCode::F3),                 // 04
+            0x05 => Ok(KeyCode::F1),                 // 05
+            0x06 => Ok(KeyCode::F2),                 // 06
+            0x07 => Ok(KeyCode::F12),                // 07
+            0x09 => Ok(KeyCode::F10),                // 09
+            0x0A => Ok(KeyCode::F8),                 // 0A
+            0x0B => Ok(KeyCode::F6),                 // 0B
+            0x0C => Ok(KeyCode::F4),                 // 0C
+            0x0D => Ok(KeyCode::Tab),                // 0D
+            0x0E => Ok(KeyCode::BackTick),           // 0E
+            0x11 => Ok(KeyCode::AltLeft),            // 11
+            0x12 => Ok(KeyCode::ShiftLeft),          // 12
+            0x14 => Ok(KeyCode::ControlLeft),        // 14
+            0x15 => Ok(KeyCode::Q),                  // 15
+            0x16 => Ok(KeyCode::Key1),               // 16
+            0x1A => Ok(KeyCode::Z),                  // 1A
+            0x1B => Ok(KeyCode::S),                  // 1B
+            0x1C => Ok(KeyCode::A),                  // 1C
+            0x1D => Ok(KeyCode::W),                  // 1D
+            0x1e => Ok(KeyCode::Key2),               // 1e
+            0x21 => Ok(KeyCode::C),                  // 21
+            0x22 => Ok(KeyCode::X),                  // 22
+            0x23 => Ok(KeyCode::D),                  // 23
+            0x24 => Ok(KeyCode::E),                  // 24
+            0x25 => Ok(KeyCode::Key4),               // 25
+            0x26 => Ok(KeyCode::Key3),               // 26
+            0x29 => Ok(KeyCode::Spacebar),           // 29
+            0x2A => Ok(KeyCode::V),                  // 2A
+            0x2B => Ok(KeyCode::F),                  // 2B
+            0x2C => Ok(KeyCode::T),                  // 2C
+            0x2D => Ok(KeyCode::R),                  // 2D
+            0x2E => Ok(KeyCode::Key5),               // 2E
+            0x31 => Ok(KeyCode::N),                  // 31
+            0x32 => Ok(KeyCode::B),                  // 32
+            0x33 => Ok(KeyCode::H),                  // 33
+            0x34 => Ok(KeyCode::G),                  // 34
+            0x35 => Ok(KeyCode::Y),                  // 35
+            0x36 => Ok(KeyCode::Key6),               // 36
+            0x3A => Ok(KeyCode::M),                  // 3A
+            0x3B => Ok(KeyCode::J),                  // 3B
+            0x3C => Ok(KeyCode::U),                  // 3C
+            0x3D => Ok(KeyCode::Key7),               // 3D
+            0x3E => Ok(KeyCode::Key8),               // 3E
+            0x41 => Ok(KeyCode::Comma),              // 41
+            0x42 => Ok(KeyCode::K),                  // 42
+            0x43 => Ok(KeyCode::I),                  // 43
+            0x44 => Ok(KeyCode::O),                  // 44
+            0x45 => Ok(KeyCode::Key0),               // 45
+            0x46 => Ok(KeyCode::Key9),               // 46
+            0x49 => Ok(KeyCode::Fullstop),           // 49
+            0x4A => Ok(KeyCode::Slash),              // 4A
+            0x4B => Ok(KeyCode::L),                  // 4B
+            0x4C => Ok(KeyCode::SemiColon),          // 4C
+            0x4D => Ok(KeyCode::P),                  // 4D
+            0x4E => Ok(KeyCode::Minus),              // 4E
+            0x52 => Ok(KeyCode::Quote),              // 52
+            0x54 => Ok(KeyCode::BracketSquareLeft),  // 54
+            0x55 => Ok(KeyCode::Equals),             // 55
+            0x58 => Ok(KeyCode::CapsLock),           // 58
+            0x59 => Ok(KeyCode::ShiftRight),         // 59
+            0x5A => Ok(KeyCode::Enter),              // 5A
+            0x5B => Ok(KeyCode::BracketSquareRight), // 5B
+            0x5D => Ok(KeyCode::HashTilde),          // 5D
+            0x61 => Ok(KeyCode::BackSlash),          // 61
+            0x66 => Ok(KeyCode::Backspace),          // 66
+            0x69 => Ok(KeyCode::Numpad1),            // 69
+            0x6B => Ok(KeyCode::Numpad4),            // 6B
+            0x6C => Ok(KeyCode::Numpad7),            // 6C
+            0x70 => Ok(KeyCode::Numpad0),            // 70
+            0x71 => Ok(KeyCode::NumpadPeriod),       // 71
+            0x72 => Ok(KeyCode::Numpad2),            // 72
+            0x73 => Ok(KeyCode::Numpad5),            // 73
+            0x74 => Ok(KeyCode::Numpad6),            // 74
+            0x75 => Ok(KeyCode::Numpad8),            // 75
+            0x76 => Ok(KeyCode::Escape),             // 76
+            0x77 => Ok(KeyCode::NumpadLock),         // 77
+            0x78 => Ok(KeyCode::F11),                // 78
+            0x79 => Ok(KeyCode::NumpadPlus),         // 79
+            0x7A => Ok(KeyCode::Numpad3),            // 7A
+            0x7B => Ok(KeyCode::NumpadMinus),        // 7B
+            0x7C => Ok(KeyCode::NumpadStar),         // 7C
+            0x7D => Ok(KeyCode::Numpad9),            // 7D
+            0x7E => Ok(KeyCode::ScrollLock),         // 7E
+            0x83 => Ok(KeyCode::F7),                 // 83
+            0xAA => Ok(KeyCode::PowerOnTestOk),      // AA
+            _ => Err(Error::UnknownKeyCode),
+        }
+    }
+
+    /// Implements the extended byte codes for set 1 (prefixed with E0)
+    fn map_extended_scancode(code: u8) -> Result<KeyCode, Error> {
+        match code {
+            0x11 => Ok(KeyCode::AltRight),     // E011
+            0x14 => Ok(KeyCode::ControlRight), // E014
+            0x1F => Ok(KeyCode::WindowsLeft),  // E01F
+            0x27 => Ok(KeyCode::WindowsRight), // E027
+            0x2F => Ok(KeyCode::Menus),        // E02F
+            0x4A => Ok(KeyCode::NumpadSlash),  // E04A
+            0x5A => Ok(KeyCode::NumpadEnter),  // E05A
+            0x69 => Ok(KeyCode::End),          // E069
+            0x6B => Ok(KeyCode::ArrowLeft),    // E06B
+            0x6C => Ok(KeyCode::Home),         // E06C
+            0x70 => Ok(KeyCode::Insert),       // E070
+            0x71 => Ok(KeyCode::Delete),       // E071
+            0x72 => Ok(KeyCode::ArrowDown),    // E072
+            0x74 => Ok(KeyCode::ArrowRight),   // E074
+            0x75 => Ok(KeyCode::ArrowUp),      // E075
+            0x7A => Ok(KeyCode::PageDown),     // E07A
+            0x7D => Ok(KeyCode::PageUp),       // E07D
+            _ => Err(Error::UnknownKeyCode),
+        }
+    }
+}
+
+pub fn map_keycode(keycode: KeyCode) -> Key {
+    let map_to_unicode = false;
+    match keycode {
+        KeyCode::BackTick => {
+            if is_shifted() {
+                Key::Unicode('~')
+            } else {
+                Key::Unicode('`')
+            }
+        }
+        KeyCode::Escape => Key::Unicode(0x1B.into()),
+        KeyCode::Key1 => {
+            if is_shifted() {
+                Key::Unicode('!')
+            } else {
+                Key::Unicode('1')
+            }
+        }
+        KeyCode::Key2 => {
+            if is_shifted() {
+                Key::Unicode('@')
+            } else {
+                Key::Unicode('2')
+            }
+        }
+        KeyCode::Key3 => {
+            if is_shifted() {
+                Key::Unicode('#')
+            } else {
+                Key::Unicode('3')
+            }
+        }
+        KeyCode::Key4 => {
+            if is_shifted() {
+                Key::Unicode('$')
+            } else {
+                Key::Unicode('4')
+            }
+        }
+        KeyCode::Key5 => {
+            if is_shifted() {
+                Key::Unicode('%')
+            } else {
+                Key::Unicode('5')
+            }
+        }
+        KeyCode::Key6 => {
+            if is_shifted() {
+                Key::Unicode('^')
+            } else {
+                Key::Unicode('6')
+            }
+        }
+        KeyCode::Key7 => {
+            if is_shifted() {
+                Key::Unicode('&')
+            } else {
+                Key::Unicode('7')
+            }
+        }
+        KeyCode::Key8 => {
+            if is_shifted() {
+                Key::Unicode('*')
+            } else {
+                Key::Unicode('8')
+            }
+        }
+        KeyCode::Key9 => {
+            if is_shifted() {
+                Key::Unicode('(')
+            } else {
+                Key::Unicode('9')
+            }
+        }
+        KeyCode::Key0 => {
+            if is_shifted() {
+                Key::Unicode(')')
+            } else {
+                Key::Unicode('0')
+            }
+        }
+        KeyCode::Minus => {
+            if is_shifted() {
+                Key::Unicode('_')
+            } else {
+                Key::Unicode('-')
+            }
+        }
+        KeyCode::Equals => {
+            if is_shifted() {
+                Key::Unicode('+')
+            } else {
+                Key::Unicode('=')
+            }
+        }
+        KeyCode::Backspace => Key::Unicode(0x08.into()),
+        KeyCode::Tab => Key::Unicode(0x09.into()),
+        KeyCode::Q => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0011}')
+            } else if is_caps() {
+                Key::Unicode('Q')
+            } else {
+                Key::Unicode('q')
+            }
+        }
+        KeyCode::W => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0017}')
+            } else if is_caps() {
+                Key::Unicode('W')
+            } else {
+                Key::Unicode('w')
+            }
+        }
+        KeyCode::E => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0005}')
+            } else if is_caps() {
+                Key::Unicode('E')
+            } else {
+                Key::Unicode('e')
+            }
+        }
+        KeyCode::R => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0012}')
+            } else if is_caps() {
+                Key::Unicode('R')
+            } else {
+                Key::Unicode('r')
+            }
+        }
+        KeyCode::T => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0014}')
+            } else if is_caps() {
+                Key::Unicode('T')
+            } else {
+                Key::Unicode('t')
+            }
+        }
+        KeyCode::Y => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0019}')
+            } else if is_caps() {
+                Key::Unicode('Y')
+            } else {
+                Key::Unicode('y')
+            }
+        }
+        KeyCode::U => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0015}')
+            } else if is_caps() {
+                Key::Unicode('U')
+            } else {
+                Key::Unicode('u')
+            }
+        }
+        KeyCode::I => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0009}')
+            } else if is_caps() {
+                Key::Unicode('I')
+            } else {
+                Key::Unicode('i')
+            }
+        }
+        KeyCode::O => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{000F}')
+            } else if is_caps() {
+                Key::Unicode('O')
+            } else {
+                Key::Unicode('o')
+            }
+        }
+        KeyCode::P => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0010}')
+            } else if is_caps() {
+                Key::Unicode('P')
+            } else {
+                Key::Unicode('p')
+            }
+        }
+        KeyCode::BracketSquareLeft => {
+            if is_shifted() {
+                Key::Unicode('{')
+            } else {
+                Key::Unicode('[')
+            }
+        }
+        KeyCode::BracketSquareRight => {
+            if is_shifted() {
+                Key::Unicode('}')
+            } else {
+                Key::Unicode(']')
+            }
+        }
+        KeyCode::BackSlash => {
+            if is_shifted() {
+                Key::Unicode('|')
+            } else {
+                Key::Unicode('\\')
+            }
+        }
+        KeyCode::A => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0001}')
+            } else if is_caps() {
+                Key::Unicode('A')
+            } else {
+                Key::Unicode('a')
+            }
+        }
+        KeyCode::S => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0013}')
+            } else if is_caps() {
+                Key::Unicode('S')
+            } else {
+                Key::Unicode('s')
+            }
+        }
+        KeyCode::D => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0004}')
+            } else if is_caps() {
+                Key::Unicode('D')
+            } else {
+                Key::Unicode('d')
+            }
+        }
+        KeyCode::F => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0006}')
+            } else if is_caps() {
+                Key::Unicode('F')
+            } else {
+                Key::Unicode('f')
+            }
+        }
+        KeyCode::G => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0007}')
+            } else if is_caps() {
+                Key::Unicode('G')
+            } else {
+                Key::Unicode('g')
+            }
+        }
+        KeyCode::H => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0008}')
+            } else if is_caps() {
+                Key::Unicode('H')
+            } else {
+                Key::Unicode('h')
+            }
+        }
+        KeyCode::J => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{000A}')
+            } else if is_caps() {
+                Key::Unicode('J')
+            } else {
+                Key::Unicode('j')
+            }
+        }
+        KeyCode::K => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{000B}')
+            } else if is_caps() {
+                Key::Unicode('K')
+            } else {
+                Key::Unicode('k')
+            }
+        }
+        KeyCode::L => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{000C}')
+            } else if is_caps() {
+                Key::Unicode('L')
+            } else {
+                Key::Unicode('l')
+            }
+        }
+        KeyCode::SemiColon => {
+            if is_shifted() {
+                Key::Unicode(':')
+            } else {
+                Key::Unicode(';')
+            }
+        }
+        KeyCode::Quote => {
+            if is_shifted() {
+                Key::Unicode('"')
+            } else {
+                Key::Unicode('\'')
+            }
+        }
+        // Enter gives LF, not CRLF or CR
+        KeyCode::Enter => Key::Unicode(10.into()),
+        KeyCode::Z => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{001A}')
+            } else if is_caps() {
+                Key::Unicode('Z')
+            } else {
+                Key::Unicode('z')
+            }
+        }
+        KeyCode::X => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0018}')
+            } else if is_caps() {
+                Key::Unicode('X')
+            } else {
+                Key::Unicode('x')
+            }
+        }
+        KeyCode::C => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0003}')
+            } else if is_caps() {
+                Key::Unicode('C')
+            } else {
+                Key::Unicode('c')
+            }
+        }
+        KeyCode::V => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0016}')
+            } else if is_caps() {
+                Key::Unicode('V')
+            } else {
+                Key::Unicode('v')
+            }
+        }
+        KeyCode::B => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{0002}')
+            } else if is_caps() {
+                Key::Unicode('B')
+            } else {
+                Key::Unicode('b')
+            }
+        }
+        KeyCode::N => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{000E}')
+            } else if is_caps() {
+                Key::Unicode('N')
+            } else {
+                Key::Unicode('n')
+            }
+        }
+        KeyCode::M => {
+            if map_to_unicode && is_ctrl() {
+                Key::Unicode('\u{000D}')
+            } else if is_caps() {
+                Key::Unicode('M')
+            } else {
+                Key::Unicode('m')
+            }
+        }
+        KeyCode::Comma => {
+            if is_shifted() {
+                Key::Unicode('<')
+            } else {
+                Key::Unicode(',')
+            }
+        }
+        KeyCode::Fullstop => {
+            if is_shifted() {
+                Key::Unicode('>')
+            } else {
+                Key::Unicode('.')
+            }
+        }
+        KeyCode::Slash => {
+            if is_shifted() {
+                Key::Unicode('?')
+            } else {
+                Key::Unicode('/')
+            }
+        }
+        KeyCode::Spacebar => Key::Unicode(' '),
+        KeyCode::Delete => Key::Unicode(127.into()),
+        KeyCode::NumpadSlash => Key::Unicode('/'),
+        KeyCode::NumpadStar => Key::Unicode('*'),
+        KeyCode::NumpadMinus => Key::Unicode('-'),
+        KeyCode::Numpad7 => {
+            if is_numlock() {
+                Key::Unicode('7')
+            } else {
+                Key::SpecialKey(KeyCode::Home)
+            }
+        }
+        KeyCode::Numpad8 => {
+            if is_numlock() {
+                Key::Unicode('8')
+            } else {
+                Key::SpecialKey(KeyCode::ArrowUp)
+            }
+        }
+        KeyCode::Numpad9 => {
+            if is_numlock() {
+                Key::Unicode('9')
+            } else {
+                Key::SpecialKey(KeyCode::PageUp)
+            }
+        }
+        KeyCode::NumpadPlus => Key::Unicode('+'),
+        KeyCode::Numpad4 => {
+            if is_numlock() {
+                Key::Unicode('4')
+            } else {
+                Key::SpecialKey(KeyCode::ArrowLeft)
+            }
+        }
+        KeyCode::Numpad5 => Key::Unicode('5'),
+        KeyCode::Numpad6 => {
+            if is_numlock() {
+                Key::Unicode('6')
+            } else {
+                Key::SpecialKey(KeyCode::ArrowRight)
+            }
+        }
+        KeyCode::Numpad1 => {
+            if is_numlock() {
+                Key::Unicode('1')
+            } else {
+                Key::SpecialKey(KeyCode::End)
+            }
+        }
+        KeyCode::Numpad2 => {
+            if is_numlock() {
+                Key::Unicode('2')
+            } else {
+                Key::SpecialKey(KeyCode::ArrowDown)
+            }
+        }
+        KeyCode::Numpad3 => {
+            if is_numlock() {
+                Key::Unicode('3')
+            } else {
+                Key::SpecialKey(KeyCode::PageDown)
+            }
+        }
+        KeyCode::Numpad0 => {
+            if is_numlock() {
+                Key::Unicode('0')
+            } else {
+                Key::SpecialKey(KeyCode::Insert)
+            }
+        }
+        KeyCode::NumpadPeriod => {
+            if is_numlock() {
+                Key::Unicode('.')
+            } else {
+                Key::Unicode(127.into())
+            }
+        }
+        KeyCode::NumpadEnter => Key::Unicode(10.into()),
+        k => Key::SpecialKey(k),
+    }
+}
+
+type S = ScancodeSet1;
+
+static mut DECODE_STATE: DecodeState = DecodeState::Start;
+
+static mut LSHIFT: bool = false;
+static mut RSHIFT: bool = false;
+static mut LCTRL: bool = false;
+static mut RCTRL: bool = false;
+static mut NUM_LOCK: bool = false;
+static mut CAPS_LOCK: bool = false;
+static mut ALT_GR: bool = false;
+
+pub fn is_shifted() -> bool {
+    unsafe { LSHIFT || RSHIFT }
+}
+
+pub fn is_ctrl() -> bool {
+    unsafe { LCTRL || RCTRL }
+}
+
+pub fn is_caps() -> bool {
+    unsafe { CAPS_LOCK || LSHIFT || RSHIFT }
+}
+
+pub fn is_numlock() -> bool {
+    unsafe { NUM_LOCK }
+}
+
+/// Processes an 8-bit byte from the keyboard.
+///
+/// We assume the start, stop and parity bits have been processed and
+/// verified.
+pub fn add_byte(byte: u8) -> Result<Option<KeyEvent>, Error> {
+    unsafe {
+        let r = S::advance_state(&mut DECODE_STATE, byte);
+        r
+    }
+}
+
+/// Processes a `KeyEvent` returned from `add_bit`, `add_byte` or `add_word`
+    /// and produces a decoded key.
+    ///
+    /// For example, the KeyEvent for pressing the '5' key on your keyboard
+    /// gives a Key of unicode character '5', unless the shift key is
+    /// held in which case you get the unicode character '%'.
+    pub fn process_keyevent(ev: KeyEvent) -> Option<Key> {
+        match ev {
+            KeyEvent {
+                code: KeyCode::ShiftLeft,
+                state: KeyState::Down,
+            } => {
+                unsafe { LSHIFT = true; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::ShiftRight,
+                state: KeyState::Down,
+            } => {
+                unsafe { RSHIFT = true; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::ShiftLeft,
+                state: KeyState::Up,
+            } => {
+                unsafe { LSHIFT = false; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::ShiftRight,
+                state: KeyState::Up,
+            } => {
+                unsafe { RSHIFT = false; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::CapsLock,
+                state: KeyState::Down,
+            } => {
+                unsafe { CAPS_LOCK = !CAPS_LOCK; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::NumpadLock,
+                state: KeyState::Down,
+            } => {
+                unsafe { NUM_LOCK = !NUM_LOCK; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::ControlLeft,
+                state: KeyState::Down,
+            } => {
+                unsafe { LCTRL = true; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::ControlLeft,
+                state: KeyState::Up,
+            } => {
+                unsafe { LCTRL = false; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::ControlRight,
+                state: KeyState::Down,
+            } => {
+                unsafe { RCTRL = true; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::ControlRight,
+                state: KeyState::Up,
+            } => {
+                unsafe { RCTRL = false; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::AltRight,
+                state: KeyState::Down,
+            } => {
+                unsafe { ALT_GR = true; }
+                None
+            }
+            KeyEvent {
+                code: KeyCode::AltRight,
+                state: KeyState::Up,
+            } => {
+                unsafe { ALT_GR = false; }
+                None
+            }
+            KeyEvent {
+                code: c,
+                state: KeyState::Down,
+            } => Some(map_keycode(c)),
+            _ => None,
+        }
+    }

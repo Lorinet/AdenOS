@@ -1,0 +1,1 @@
+pub static NEUTRINO_VERSION: &str = "0.2";
