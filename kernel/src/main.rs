@@ -7,8 +7,19 @@
 use neutrino_os::*;
 use core::panic::PanicInfo;
 
-#[no_mangle]
-extern "C" fn _start() -> ! {
+#[cfg(target_arch = "x86_64")]
+use {
+    dev::hal::*,
+    bootloader::{BootInfo, entry_point}
+};
+#[cfg(target_arch = "x86_64")]
+entry_point!(kernel_main);
+#[cfg(target_arch = "x86_64")]
+fn kernel_main(boot_info: &'static BootInfo) -> ! {
+    unsafe { 
+        dev::hal::mem::PHYSICAL_MEMORY_OFFSET = boot_info.physical_memory_offset.try_into().unwrap();
+        dev::hal::mem::BOOT_MEMORY_MAP = Some(&boot_info.memory_map);
+    }
     #[cfg(test)]
     test_main();
     kernel::run_kernel()
@@ -17,6 +28,8 @@ extern "C" fn _start() -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    #[cfg(target_arch = "x86_64")]
+    kernel_console::KERNEL_CONSOLE.lock().disable_cursor();
     neutrino_os::panic::panic(info)
 }
 

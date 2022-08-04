@@ -1,26 +1,13 @@
 #![no_std]
-#![cfg_attr(test, no_main)]
-#![feature(naked_functions)]
-#![feature(abi_x86_interrupt)]
-#![feature(panic_info_message)]
-#![feature(alloc_error_handler)]
+#![no_main]
 #![feature(custom_test_frameworks)]
-#![test_runner(crate::test::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![test_runner(neutrino_os::test::test_runner)]
 
+use neutrino_os::*;
 use core::panic::PanicInfo;
-
-pub mod dev;
-pub mod test;
-pub mod task;
-pub mod panic;
-pub mod kernel;
-pub mod console;
-pub mod sysinfo;
-pub mod syscalls;
-pub mod allocator;
-pub mod userspace;
-pub mod kernel_console;
+use alloc::vec::Vec;
+use alloc::boxed::Box;
 
 extern crate alloc;
 
@@ -45,13 +32,34 @@ fn test_kernel_main(boot_info: &'static BootInfo) -> ! {
     }
 }
 
-#[cfg(test)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    panic::test_panic(info)
+    neutrino_os::panic::test_panic(info)
 }
 
-#[alloc_error_handler]
-fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
-    panic!("\nMEMORY_ALLOCATION_ERROR\n{:#?}", layout)
+#[test_case]
+fn simple_allocation() {
+    let heap_value_1 = Box::new(41);
+    let heap_value_2 = Box::new(13);
+    assert_eq!(*heap_value_1, 41);
+    assert_eq!(*heap_value_2, 13);
+}
+
+#[test_case]
+fn large_vec() {
+    let n = 1000;
+    let mut vec = Vec::new();
+    for i in 0..n {
+        vec.push(i);
+    }
+    assert_eq!(vec.iter().sum::<u64>(), (n - 1) * n / 2);
+}
+
+
+#[test_case]
+fn many_boxes() {
+    for i in 0..dev::hal::mem::KERNEL_HEAP_SIZE {
+        let x = Box::new(i);
+        assert_eq!(*x, i);
+    }
 }

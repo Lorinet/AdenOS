@@ -27,10 +27,10 @@ pub trait StaticDevice {
 
 pub trait Write {
     type T: Copy;
-    fn write_one(&mut self, val: &Self::T) -> Result<(), Error>;
+    fn write_one(&mut self, val: Self::T) -> Result<(), Error>;
     fn write(&mut self, buf: &[Self::T]) -> Result<usize, Error> {
         for v in buf {
-            self.write_one(v)?;
+            self.write_one(*v)?;
         }
         Ok(buf.len())
     }

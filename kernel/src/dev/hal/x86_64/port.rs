@@ -37,15 +37,15 @@ where T: port::PortRead + Copy {
 impl<T> dev::Write for Port<T>
 where T: port::PortWrite + Copy {
     type T = T;
-    fn write_one(&mut self, val: &Self::T) -> Result<(), dev::Error> {
+    fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
         unsafe {
-            self.port.write(*val);
+            self.port.write(val);
         }
         Ok(())
     }
     fn write(&mut self, buf: &[Self::T]) -> Result<usize, dev::Error> {
         for val in buf {
-            self.write_one(val)?;
+            self.write_one(*val)?;
         }
         Ok(buf.len())
     }

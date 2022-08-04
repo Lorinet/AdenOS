@@ -1,6 +1,6 @@
 use crate::*;
 use console;
-use dev::{self, Write, ConsoleDevice};
+use dev::{self, Write, ConsoleDevice, hal::port};
 use core::fmt;
 
 mod tests;
@@ -21,6 +21,8 @@ pub struct VgaTextMode {
     buffer: *mut u8,
     offset: usize,
     color: ColorCode,
+    control_port: port::Port<u8>,
+    data_port: port::Port<u8>,
 }
 
 impl VgaTextMode {
@@ -29,11 +31,25 @@ impl VgaTextMode {
             buffer: 0xb8000 as *mut u8,
             offset: 0,
             color: ColorCode::new(console::Color::LightGray, console::Color::Black),
+            control_port: port::Port::new(0x3D4),
+            data_port: port::Port::new(0x3D5),
         }
     }
 
     fn calc_offset(x: usize, y: usize) -> isize {
         (y * WIDTH + x) as isize
+    }
+
+    fn move_cursor(&mut self) {
+        self.control_port.write_one(0x0F).unwrap();
+        self.data_port.write_one(((self.offset / 2) & 0xFF) as u8).unwrap();
+        self.control_port.write_one(0x0E).unwrap();
+        self.data_port.write_one((((self.offset / 2) >> 8) & 0xFF) as u8).unwrap();
+    }
+
+    pub fn disable_cursor(&mut self) {
+        self.control_port.write_one(0x0A).unwrap();
+        self.data_port.write_one(0x20).unwrap();
     }
 }
 
@@ -48,24 +64,23 @@ impl dev::Device for VgaTextMode {
 
 impl dev::Write for VgaTextMode {
     type T = u8;
-    fn write_one(&mut self, val: &Self::T) -> Result<(), dev::Error> {
+    fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
         match val {
             b'\n' => {
                 self.offset += WIDTH - (self.offset % WIDTH) - 2;
             },
             ch => unsafe {
-                *self.buffer.offset(self.offset as isize) = *val;
+                *self.buffer.offset(self.offset as isize) = val;
                 *self.buffer.offset(self.offset as isize + 1) = self.color.0;
             },
         };
-        if self.offset <= WIDTH * HEIGHT - 2 {
+        if self.offset < WIDTH * HEIGHT - 2 {
             self.offset += 2;
         } else {
             for y in 1..HEIGHT {
                 for x in 0..WIDTH {
                     unsafe {
                         *self.buffer.offset(VgaTextMode::calc_offset(x, y - 1)) = *self.buffer.offset(VgaTextMode::calc_offset(x, y));
-                        //*self.buffer.offset(((y - 1) * WIDTH + x) as isize) = 0;
                     }
                 }
             }
@@ -77,6 +92,7 @@ impl dev::Write for VgaTextMode {
             }
             self.offset = WIDTH * (HEIGHT - 1);
         }
+        self.move_cursor();
         Ok(())
     }
 }
