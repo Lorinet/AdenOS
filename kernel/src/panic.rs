@@ -8,6 +8,8 @@ use dev::hal::cpu;
 
 pub fn panic(info: &PanicInfo) -> ! {
     cpu::grinding_halt();
+    unsafe { kernel_console::deadunlock(); }
+    serial_println!("{}", info);
     kernel_console::set_color(console::Color::LightGray, console::Color::Blue);
     kernel_console::clear_screen();
     print!("\n");

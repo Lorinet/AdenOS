@@ -16,7 +16,7 @@ use x86_64::registers::{model_specific::{Efer, Star}};
 use x86_64::instructions::segmentation::Segment;
 use lazy_static::lazy_static;
 use core::arch::asm;
-use alloc::{self, alloc::Layout};
+use alloc::{alloc::{alloc, dealloc, Layout}};
 
 const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
@@ -30,6 +30,7 @@ struct Selectors {
 }
 
 static mut IDT: idt::InterruptDescriptorTable = idt::InterruptDescriptorTable::new();
+static mut SYSCALL_STACK: [u8; 0x2000] = [0; 0x2000];
 
 lazy_static! {
     static ref TSS: tss::TaskStateSegment = {
@@ -108,56 +109,62 @@ pub unsafe fn enter_user_mode(code_addr: usize, stack_addr: usize) {
     in("rax") ds_idx);
 }
 
-unsafe fn system_call_handler() {
-    asm!("\
-    push rcx // backup registers for sysretq
-    push r11
-    push rbp // save callee-saved registers
-    push rbx
-    push r12
+unsafe extern "x86-interrupt" fn system_call_handler() {
+    // x86-interrupt:
+    /*asm!("\
     push r13
-    push r14
-    push r15
-    mov rbp, rsp // save rsp
-    sub rsp, 0x400 // make some room in the stack
-    push rax // backup syscall params while we get some stack space
+    push r12
+    push r11
+    push r10
+    push r9
+    push r8
     push rdi
     push rsi
     push rdx
-    push r10");
-    let syscall_stack = alloc::alloc::alloc(Layout::from_size_align_unchecked(0x1000, 0x1000));
+    push rcx
+    push rbx
+    push rax
+    sub rsp, 0x198
+    cld");
+    */
     asm!("\
-    pop r10 // restore syscall params to their registers
-    pop rdx
-    pop rsi
-    pop rdi
-    pop rax
-    mov rsp, r12 // move our stack to the newly allocated one
-    sti // enable interrupts",
-    in("r12") syscall_stack);
+    cli
+    add rsp, 0x198
+    push rbp
+    mov r12, rsp
+    mov rsp, r13
+    ",
+    in("r13") (&SYSCALL_STACK as *const u8 as u64));
+    let user_stack_pointer: u64;
     let syscall: u64;
     let arg0: u64;
     let arg1: u64;
     let arg2: u64;
     let arg3: u64;
-    asm!("nop", out("rax") syscall, out("rdi") arg0, out("rsi") arg1, out("rdx") arg2, out("r10") arg3);
+    asm!("nop", out("r12") user_stack_pointer, out("rax") syscall, out("rdi") arg0, out("rsi") arg1, out("rdx") arg2, out("r10") arg3);
     println!("syscall {:x} {} {} {} {}", syscall, arg0, arg1, arg2, arg3);
-    let retval: i64 = 0; // placeholder for the syscall's return value which we need to save and then return in rax
-    asm!("mov rbx, {x} // save return value into rbx so that it's maintained through free
-          cli", x = in(reg) retval);
-    drop(syscall_stack); // we can now drop the syscall temp stack
+    if arg0 == 31 {
+        asm!("nop");
+    }
+    let retval: i64 = 0;
+    asm!("mov r12, {usp}", usp = in(reg) user_stack_pointer);
     asm!("\
-        mov rax, rbx // restore syscall return value from rbx to rax
-        mov rsp, rbp // restore rsp from rbp
-        pop r15 // restore callee-saved registers
-        pop r14
-        pop r13
-        pop r12
+        mov rsp, r12
+        pop rbp
+        //add rsp, 8
+        pop rax
         pop rbx
-        pop rbp // restore stack and registers for sysretq
-        pop r11
         pop rcx
-        sysretq // back to userland");
+        pop rdx
+        pop rsi
+        pop rdi
+        pop r8
+        pop r9
+        pop r10
+        pop r11
+        pop r12
+        pop r13
+        sysretq", in("rax") retval);
 }
 
 pub fn trigger_breakpoint() {

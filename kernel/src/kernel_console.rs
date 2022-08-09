@@ -67,3 +67,8 @@ pub fn _serial_print(args: ::core::fmt::Arguments) {
         SERIAL_CONSOLE.lock().write_fmt(args).expect("Serial console device failure");
     });
 }
+
+pub unsafe fn deadunlock() {
+    KERNEL_CONSOLE.force_unlock();
+    SERIAL_CONSOLE.force_unlock();
+}
