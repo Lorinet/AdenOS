@@ -3,7 +3,7 @@ use console;
 use dev::{self, ConsoleDevice};
 use lazy_static::lazy_static;
 use spin::Mutex;
-use core::fmt;
+use core::fmt::{self, Write};
 use dev::hal::cpu;
 
 lazy_static! {
@@ -17,6 +17,11 @@ pub fn clear_screen() {
 
 pub fn set_color(foreground: console::Color, background: console::Color) {
     KERNEL_CONSOLE.try_lock().expect("DEADLOCKED").set_color(foreground, background);
+}
+
+#[macro_export]
+macro_rules! early_print {
+    ($($arg:tt)*) => ($crate::kernel_console::_early_print(format_args!($($arg)*)));
 }
 
 #[macro_export]
@@ -54,15 +59,18 @@ pub(crate) use serial_println;
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    use core::fmt::Write;
     cpu::atomic_no_interrupts(|| {
-        KERNEL_CONSOLE.try_lock().expect("DEADLOCKED").write_fmt(args).expect("Kernel console device failure");
+        KERNEL_CONSOLE.lock().write_fmt(args).expect("Kernel console device failure");
     });
 }
 
 #[doc(hidden)]
+pub fn _early_print(args: fmt::Arguments) {
+    KERNEL_CONSOLE.lock().write_fmt(args).expect("Kernel console device failure");
+}
+
+#[doc(hidden)]
 pub fn _serial_print(args: ::core::fmt::Arguments) {
-    use core::fmt::Write;
     cpu::atomic_no_interrupts(|| {
         SERIAL_CONSOLE.lock().write_fmt(args).expect("Serial console device failure");
     });

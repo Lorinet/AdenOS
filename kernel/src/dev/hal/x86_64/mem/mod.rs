@@ -16,7 +16,7 @@ pub const KERNEL_HEAP_START: usize = 0x_4444_4444_0000;
 pub const KERNEL_HEAP_SIZE: usize = 64 * 4096;
 
 pub fn init() {
-    println!("Initializing kernel heap...");
+    early_print!("Initializing kernel heap...\n");
     unsafe { frame_allocator::init(BOOT_MEMORY_MAP.unwrap()) };
     println!("Initialized frame allocator");
     init_heap().expect("KERNEL_HEAP_ALLOCATION_FAILED");
@@ -24,23 +24,11 @@ pub fn init() {
 
 pub unsafe fn enable_page_table(page_table: &'static mut PageTable) {
     let phys_addr = page_mapper::translate_addr(page_table as *const PageTable as usize).unwrap();
-    println!("L4 address CR3: {}", phys_addr);
+    println!("L4 address CR3: {:#x}", phys_addr);
     Cr3::write(PhysFrame::from_start_address(PhysAddr::new(phys_addr as u64)).expect("userspace page table not aligned"), Cr3Flags::all());
+    println!("dood");
     tlb::flush_all();
-}
-
-unsafe fn debug_page_tables(page_table: &PageTable) {
-    serial_println!("DEBUG PAGE TABLE");
-    for (i, ent) in page_table.iter().enumerate() {
-        if !ent.is_unused() {
-            serial_println!("L4 entry {}: {:#018o}", i, ent.addr());
-        }
-    }
-}
-
-fn show_which_page_tables(virt_addr: u64) {
-    let l4e = (virt_addr >> 39) & 0o777;
-    println!("Address {:#018x} is in L3 table {}", virt_addr, l4e);
+    println!("flushed tlb");
 }
 
 pub fn init_heap() -> Result<(), MapToError<Size4KiB>> {

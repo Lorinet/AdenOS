@@ -52,8 +52,10 @@ impl Task {
         }
     }
 
-    pub fn save_state(&mut self, context: TaskContext) {
-        self.state = TaskState::Running(context);
+    pub fn save_state(&mut self, context: *const TaskContext) {
+        unsafe { self.state = TaskState::Running((*context).clone()); }
+        if let TaskState::Running(ctx) = &self.state {
+        }
         self.page_table = Cr3::read().0.start_address().as_u64();
     }
 
@@ -63,9 +65,11 @@ impl Task {
             TaskState::Running(ctx) => {
                 unsafe {
                     Cr3::write(PhysFrame::from_start_address_unchecked(PhysAddr::new(self.page_table)), Cr3Flags::all());
+                    let cl = ctx.clone();
+                    println!("RESTORE: {:x}");
                     asm!("mov rsp, {0};\
                     pop rbp; pop rax; pop rbx; pop rcx; pop rdx; pop rsi; pop rdi; pop r8; pop r9;\
-                    pop r10; pop r11; pop r12; pop r13; pop r14; pop r15; iretq;", in(reg) &ctx);
+                    pop r10; pop r11; pop r12; pop r13; pop r14; pop r15; iretq;", in(reg) &cl as *const _ as u64);
                 }
             }
             TaskState::Start(rip, rsp) => {
@@ -86,14 +90,14 @@ impl Task {
                 user_page_table[i] = ent.clone();
             }
         }
-        let user_page_table_phys = user_page_table as *const _ as u64;
+        let kernel_page_table_phys = (kernel_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
+        let user_page_table_phys = page_mapper::translate_addr(user_page_table as *const _ as usize).unwrap();
         enable_page_table(user_page_table);
         let flags = Some(PageTableFlags::WRITABLE | PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE | PageTableFlags::GLOBAL);
         let user_virt_base = 0x40000000000;
         let user_phys_base = page_mapper::translate_addr(application as usize).unwrap();
         page_mapper::map_addr(user_virt_base, user_phys_base, flags).expect("peace");
         page_mapper::map_addr(user_virt_base + 0x1000, user_phys_base + 0x1000, flags).expect("fuck you");
-        //let user_stack = alloc::alloc::alloc(Layout::from_size_align_unchecked(0x1001, 0x1000));
         let user_stack = Vec::<u8>::with_capacity(1000);
         let user_stack_virt_base = 0x60000000000;
         let user_stack_phys_base = page_mapper::translate_addr(user_stack.as_ptr() as usize).unwrap();
@@ -101,15 +105,15 @@ impl Task {
         page_mapper::map_addr(user_stack_virt_base + 0x1000, user_stack_phys_base + 0x1000, flags).expect("capybara");
         let user_entry_point_offset = user_phys_base % 0x1000;
         let user_stack_offset = user_stack_phys_base % 0x1000;
-        enable_page_table(kernel_page_table);
-        SCHEDULER.add_process(Task::new((user_virt_base + user_entry_point_offset + 1) as usize, user_stack_virt_base + user_stack_offset + 0x1000, user_page_table_phys, user_stack));
+        Cr3::write(PhysFrame::from_start_address_unchecked(PhysAddr::new(kernel_page_table_phys)), Cr3Flags::all());
+        SCHEDULER.add_process(Task::new((user_virt_base + user_entry_point_offset + 1) as usize, user_stack_virt_base + user_stack_offset + 0x1000, user_page_table_phys as u64, user_stack));
     }
 }
 
 #[naked]
 #[no_mangle]
 pub unsafe fn timer_handler_save_context() {
-    asm!("push r15; push r14; push r13; push r12; push r11; push r10; push r9;\
+    asm!("cli; push r15; push r14; push r13; push r12; push r11; push r10; push r9;\
     push r8; push rdi; push rsi; push rdx; push rcx; push rbx; push rax; push rbp;\
     mov rdi, rsp; call timer_handler_scheduler_part_2;", options(noreturn));
 }
@@ -117,6 +121,5 @@ pub unsafe fn timer_handler_save_context() {
 #[no_mangle]
 pub unsafe extern "C" fn timer_handler_scheduler_part_2(context: *const TaskContext) {
     pic::end_of_interrupt(interrupts::HardwareInterrupt::Timer);
-    serial_println!("Context switch");
-    SCHEDULER.context_switch(context);
+    SCHEDULER.context_switch(Some(context));
 }

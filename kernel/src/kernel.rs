@@ -19,14 +19,17 @@ pub fn run_kernel() -> ! {
 }
 
 fn init_system() {
-    println!("Linfinity Technologies Neutrino Core OS [Version {}]", sysinfo::NEUTRINO_VERSION);
+    early_print!("Linfinity Technologies Neutrino Core OS [Version {}]\n", sysinfo::NEUTRINO_VERSION);
     dev::hal::init();
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
     kernel_executor::spawn(Task::new(example_task()));
+    println!("Creating processes");
     SCHEDULER.exec(userspace_app_1);
     SCHEDULER.exec(userspace_app_2);
+    println!("Created processes");
+    cpu::enable_scheduler();
     kernel_executor::run();
     println!("System init done!");
 }

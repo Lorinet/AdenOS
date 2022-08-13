@@ -51,8 +51,8 @@ default-features = false
 features = ["alloc"]
 
 [package.metadata.bootimage]
-#run-args = ["-serial", "stdio", "-d", "int", "-s", "-S"]
-run-args = ["-serial", "stdio", "-d", "int"]
+run-args = ["-serial", "stdio", "-d", "int", "-s", "-S"]
+#run-args = ["-serial", "stdio", "-d", "int"]
 #run-args = ["-serial", "stdio"]
 test-args = ["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-serial", "stdio", "-display", "none"]
 test-success-exit-code = 33

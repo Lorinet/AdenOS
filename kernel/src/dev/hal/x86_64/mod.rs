@@ -9,7 +9,7 @@ pub mod task;
 pub mod pic;
 
 pub fn init() {
-    println!("Initializing x86_64 HAL...");
+    early_print!("Initializing x86_64 HAL...\n");
     cpu::init();
     pic::init();
     mem::init();

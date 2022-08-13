@@ -1,9 +1,12 @@
-use super::*;
+use crate::*;
+use dev::hal::{interrupts, pic, task};
+use x86_64::instructions::interrupts::disable;
+use crate::task::scheduler::*;
 use x86_64;
 use x86_64::PrivilegeLevel;
 use x86_64::VirtAddr;
 use x86_64::instructions::tlb;
-use x86_64::registers::model_specific::EferFlags;
+use x86_64::registers::{model_specific::EferFlags, rflags::{self, RFlags}};
 use x86_64::registers::model_specific::LStar;
 use x86_64::registers::segmentation::DS;
 use x86_64::structures::idt;
@@ -16,7 +19,7 @@ use x86_64::registers::{model_specific::{Efer, Star}};
 use x86_64::instructions::segmentation::Segment;
 use lazy_static::lazy_static;
 use core::arch::asm;
-use alloc::{alloc::{alloc, dealloc, Layout}};
+use alloc::{alloc::{alloc, dealloc, Layout}, vec::Vec};
 
 const INTERRUPT_IST_INDEX: u16 = 0;
 const SCHEDULER_INTERRUPT_IST_INDEX: u16 = 0;
@@ -60,8 +63,7 @@ lazy_static! {
 }
 
 pub fn init() {
-    println!("Initializing CPU...");
-    println!("Loading GDT...");
+    early_print!("Initializing CPU...\n");
     GDT.0.load();
     unsafe {
         segmentation::CS::set_reg(GDT.1.kernel_code_selector);
@@ -76,7 +78,6 @@ pub fn init() {
         Star::write(GDT.1.user_code_selector, GDT.1.user_data_selector, GDT.1.kernel_code_selector, GDT.1.kernel_data_selector).expect("GDT_CONFIG_FAILURE");
         Efer::write(Efer::read() | EferFlags::SYSTEM_CALL_EXTENSIONS);
     }
-    println!("Loading IDT...");
     unsafe {
         IDT.breakpoint.set_handler_fn(interrupts::breakpoint::breakpoint_handler).set_stack_index(INTERRUPT_IST_INDEX);
         IDT.double_fault.set_handler_fn(interrupts::double_fault::double_fault_handler).set_stack_index(INTERRUPT_IST_INDEX);
@@ -88,8 +89,6 @@ pub fn init() {
         IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_fn(interrupts::timer::timer_handler).set_stack_index(INTERRUPT_IST_INDEX);
         IDT.load();
     }
-    println!("IDT address: {:#018x}", unsafe { &IDT as *const _ as u64 });
-    println!("TSS address: {:#018x}", unsafe { &TSS as *const _ as u64 });
 }
 
 pub unsafe fn enter_user_mode(code_addr: usize, stack_addr: usize) {
@@ -101,7 +100,6 @@ pub unsafe fn enter_user_mode(code_addr: usize, stack_addr: usize) {
     let (cs_idx, ds_idx) = (cs.0, ds.0);
     tlb::flush_all();
     asm!("cli");
-    IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_addr(VirtAddr::new(task::timer_handler_save_context as u64)).set_stack_index(SCHEDULER_INTERRUPT_IST_INDEX);
     asm!("\
     push rax   // stack segment
     push rsi   // rsp
@@ -116,14 +114,37 @@ pub unsafe fn enter_user_mode(code_addr: usize, stack_addr: usize) {
     in("rax") ds_idx);
 }
 
+pub fn enable_scheduler() {
+    disable_interrupts();
+    unsafe {
+        IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_addr(VirtAddr::new(task::timer_handler_save_context as u64)).set_stack_index(SCHEDULER_INTERRUPT_IST_INDEX);
+        SCHEDULER.context_switch(None);
+    }
+}
+
 #[no_mangle]
 unsafe extern "C" fn system_call_handler_hl() {
     // very sketchy code
     asm!("
         cli
         mov r9, rsp  // save user stack
-        mov rsp, r12 // set syscall stack
-        sti", in("r12") (&SYSCALL_STACK as *const u8 as u64));
+        push r9
+        push r8
+        push rdx
+        push rsi
+        push rdi
+        push rax");
+    let syscall_stack: Vec<u8> = Vec::with_capacity(0x1000);
+    let syscall_stack_addr = syscall_stack.as_ptr() as u64 + 0x1000;
+    asm!("
+        pop rax
+        pop rdi
+        pop rsi
+        pop rdx
+        pop r8
+        pop r9
+        mov rsp, r12 // set syscall stack",
+        in("r12") syscall_stack_addr);
     let syscall: u64;
     let param_0: u64;
     let param_1: u64;
@@ -137,10 +158,12 @@ unsafe extern "C" fn system_call_handler_hl() {
         out("rdx") param_2,
         out("r8")  param_3,
         out("r9")  user_mode_stack);
+    asm!("sti");
+    println!("syscall stack: {:x}", (&SYSCALL_STACK as *const _ as u64));
     println!("syscall {:x} {:x} {} {} {}", syscall, param_0, param_1, param_2, param_3);
     asm!("cli
-    mov rsp, r12 // set user mode stack
-    sti", in("r12") user_mode_stack);
+    mov rsp, r12 // set user mode stack", in("r12") user_mode_stack);
+    drop(syscall_stack);
 }
 
 #[naked]
@@ -175,7 +198,10 @@ pub fn atomic_no_interrupts<F>(f: F)
 where F: FnOnce() {
     disable_interrupts();
     f();
-    enable_interrupts();
+    let flags = rflags::read();
+    if flags.contains(RFlags::INTERRUPT_FLAG) {
+        enable_interrupts();
+    }
 }
 
 pub fn halt() {
@@ -183,16 +209,18 @@ pub fn halt() {
 }
 
 pub fn grinding_halt() -> ! {
-    cpu::disable_interrupts();
+    disable_interrupts();
     loop {
         instructions::hlt();
     }
 }
 
+#[inline(always)]
 pub fn enable_interrupts() {
     instructions::interrupts::enable();
 }
 
+#[inline(always)]
 pub fn disable_interrupts() {
     instructions::interrupts::disable();
 }

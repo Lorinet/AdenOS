@@ -16,7 +16,7 @@ pub const PIC_SLAVE_OFFSET: u8 = PIC_MASTER_OFFSET + 0x08;
 const END_OF_INTERRUPT: u8 = 0x20;
 
 pub fn init() {
-    println!("Initializing PIC8259...");
+    early_print!("Initializing PIC8259...\n");
     let mut master_cmd: port::Port<u8> = port::Port::new(PIC_MASTER_PORT);
     let mut master_data: port::Port<u8> = port::Port::new(PIC_MASTER_PORT + 1);
     let mut slave_cmd: port::Port<u8> = port::Port::new(PIC_SLAVE_PORT);
