@@ -1,10 +1,12 @@
 use crate::*;
+use crate::userspace::{userspace_app_1, userspace_app_2};
 use dev::input::keyboard;
 use dev::StaticDevice;
 use sysinfo;
 use dev;
 use dev::hal::*;
-use task::*;
+use async_task::*;
+use crate::task::scheduler::*;
 
 pub fn run_kernel() -> ! {
     
@@ -23,6 +25,8 @@ fn init_system() {
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
     kernel_executor::spawn(Task::new(example_task()));
+    SCHEDULER.exec(userspace_app_1);
+    SCHEDULER.exec(userspace_app_2);
     kernel_executor::run();
     println!("System init done!");
 }

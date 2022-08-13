@@ -18,7 +18,8 @@ use lazy_static::lazy_static;
 use core::arch::asm;
 use alloc::{alloc::{alloc, dealloc, Layout}};
 
-const DOUBLE_FAULT_IST_INDEX: u16 = 0;
+const INTERRUPT_IST_INDEX: u16 = 0;
+const SCHEDULER_INTERRUPT_IST_INDEX: u16 = 0;
 
 #[derive(Copy, Clone)]
 struct Selectors {
@@ -30,17 +31,19 @@ struct Selectors {
 }
 
 static mut IDT: idt::InterruptDescriptorTable = idt::InterruptDescriptorTable::new();
-static mut SYSCALL_STACK: [u8; 0x2000] = [0; 0x2000];
+static mut SYSCALL_STACK: [u8; 0x4000] = [0; 0x4000];
+static mut INTERRUPT_STACK: [u8; 0x4000] = [0; 0x4000];
+static mut SCHEDULER_INTERRUPT_STACK: [u8; 0x4000] = [0; 0x4000];
 
 lazy_static! {
-    static ref TSS: tss::TaskStateSegment = {
+    #[derive(Debug)]
+    pub static ref TSS: tss::TaskStateSegment = {
         let mut tss = tss::TaskStateSegment::new();
-        tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
-            const STACK_SIZE: usize = 4096 * 5;
-            static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
-            let stack_start = x86_64::VirtAddr::from_ptr(unsafe { &STACK });
-            let stack_end = stack_start + STACK_SIZE;
-            stack_end
+        tss.interrupt_stack_table[INTERRUPT_IST_INDEX as usize] = unsafe { 
+            VirtAddr::new(&INTERRUPT_STACK as *const u8 as u64 + 0x4000)
+        };
+        tss.interrupt_stack_table[SCHEDULER_INTERRUPT_IST_INDEX as usize] = unsafe { 
+            VirtAddr::new(&SCHEDULER_INTERRUPT_STACK as *const u8 as u64 + 0x4000)
         };
         tss
     };
@@ -75,17 +78,18 @@ pub fn init() {
     }
     println!("Loading IDT...");
     unsafe {
-        IDT.breakpoint.set_handler_fn(interrupts::breakpoint::breakpoint_handler);
-        IDT.double_fault.set_handler_fn(interrupts::double_fault::double_fault_handler).set_stack_index(DOUBLE_FAULT_IST_INDEX);
-        IDT.page_fault.set_handler_fn(interrupts::page_fault::page_fault_handler);
-        IDT.general_protection_fault.set_handler_fn(interrupts::general_protection_fault::general_protection_fault_handler);
-        IDT.stack_segment_fault.set_handler_fn(interrupts::stack_segment_fault::stack_segment_fault_handler);
-        IDT.segment_not_present.set_handler_fn(interrupts::segment_not_present::segment_not_present_handler);
-        IDT.invalid_tss.set_handler_fn(interrupts::invalid_tss::invalid_tss_handler);
-        IDT.debug.set_handler_fn(interrupts::debug::debug_handler);
-        IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_fn(interrupts::timer::timer_handler);
+        IDT.breakpoint.set_handler_fn(interrupts::breakpoint::breakpoint_handler).set_stack_index(INTERRUPT_IST_INDEX);
+        IDT.double_fault.set_handler_fn(interrupts::double_fault::double_fault_handler).set_stack_index(INTERRUPT_IST_INDEX);
+        IDT.page_fault.set_handler_fn(interrupts::page_fault::page_fault_handler).set_stack_index(INTERRUPT_IST_INDEX);
+        IDT.general_protection_fault.set_handler_fn(interrupts::general_protection_fault::general_protection_fault_handler).set_stack_index(INTERRUPT_IST_INDEX);
+        IDT.stack_segment_fault.set_handler_fn(interrupts::stack_segment_fault::stack_segment_fault_handler).set_stack_index(INTERRUPT_IST_INDEX);
+        IDT.segment_not_present.set_handler_fn(interrupts::segment_not_present::segment_not_present_handler).set_stack_index(INTERRUPT_IST_INDEX);
+        IDT.debug.set_handler_fn(interrupts::debug::debug_handler).set_stack_index(INTERRUPT_IST_INDEX);
+        IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_fn(interrupts::timer::timer_handler).set_stack_index(INTERRUPT_IST_INDEX);
         IDT.load();
     }
+    println!("IDT address: {:#018x}", unsafe { &IDT as *const _ as u64 });
+    println!("TSS address: {:#018x}", unsafe { &TSS as *const _ as u64 });
 }
 
 pub unsafe fn enter_user_mode(code_addr: usize, stack_addr: usize) {
@@ -96,12 +100,15 @@ pub unsafe fn enter_user_mode(code_addr: usize, stack_addr: usize) {
     DS::set_reg(ds);
     let (cs_idx, ds_idx) = (cs.0, ds.0);
     tlb::flush_all();
+    asm!("cli");
+    IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_addr(VirtAddr::new(task::timer_handler_save_context as u64)).set_stack_index(SCHEDULER_INTERRUPT_IST_INDEX);
     asm!("\
     push rax   // stack segment
     push rsi   // rsp
     push 0x200 // rflags (only interrupt bit set)
     push rdx   // code segment
     push rdi   // ret to virtual addr
+    sti
     iretq",
     in("rdi") code_addr,
     in("rsi") stack_addr,
@@ -109,62 +116,55 @@ pub unsafe fn enter_user_mode(code_addr: usize, stack_addr: usize) {
     in("rax") ds_idx);
 }
 
-unsafe extern "x86-interrupt" fn system_call_handler() {
-    // x86-interrupt:
-    /*asm!("\
+#[no_mangle]
+unsafe extern "C" fn system_call_handler_hl() {
+    // very sketchy code
+    asm!("
+        cli
+        mov r9, rsp  // save user stack
+        mov rsp, r12 // set syscall stack
+        sti", in("r12") (&SYSCALL_STACK as *const u8 as u64));
+    let syscall: u64;
+    let param_0: u64;
+    let param_1: u64;
+    let param_2: u64;
+    let param_3: u64;
+    let user_mode_stack: u64;
+    asm!("nop // load syscall parameters",
+        out("rax") syscall,
+        out("rdi") param_0,
+        out("rsi") param_1,
+        out("rdx") param_2,
+        out("r8")  param_3,
+        out("r9")  user_mode_stack);
+    println!("syscall {:x} {:x} {} {} {}", syscall, param_0, param_1, param_2, param_3);
+    asm!("cli
+    mov rsp, r12 // set user mode stack
+    sti", in("r12") user_mode_stack);
+}
+
+#[naked]
+unsafe fn system_call_handler() {
+    asm!("
+    push rcx // sysretq rip
+    push r11 // sysretq rflags
+    push r15 // callee-saved registers
+    push r14
     push r13
     push r12
-    push r11
-    push r10
-    push r9
-    push r8
-    push rdi
-    push rsi
-    push rdx
-    push rcx
-    push rbx
-    push rax
-    sub rsp, 0x198
-    cld");
-    */
-    asm!("\
-    cli
-    add rsp, 0x198
     push rbp
-    mov r12, rsp
-    mov rsp, r13
-    ",
-    in("r13") (&SYSCALL_STACK as *const u8 as u64));
-    let user_stack_pointer: u64;
-    let syscall: u64;
-    let arg0: u64;
-    let arg1: u64;
-    let arg2: u64;
-    let arg3: u64;
-    asm!("nop", out("r12") user_stack_pointer, out("rax") syscall, out("rdi") arg0, out("rsi") arg1, out("rdx") arg2, out("r10") arg3);
-    println!("syscall {:x} {} {} {} {}", syscall, arg0, arg1, arg2, arg3);
-    if arg0 == 31 {
-        asm!("nop");
-    }
-    let retval: i64 = 0;
-    asm!("mov r12, {usp}", usp = in(reg) user_stack_pointer);
-    asm!("\
-        mov rsp, r12
-        pop rbp
-        //add rsp, 8
-        pop rax
-        pop rbx
-        pop rcx
-        pop rdx
-        pop rsi
-        pop rdi
-        pop r8
-        pop r9
-        pop r10
-        pop r11
-        pop r12
-        pop r13
-        sysretq", in("rax") retval);
+    push rbx
+    call system_call_handler_hl
+    pop rbx
+    pop rbp
+    pop r12
+    pop r13
+    pop r14
+    pop r15
+    pop r11
+    pop rcx
+    sysretq
+    ", options(noreturn));
 }
 
 pub fn trigger_breakpoint() {
@@ -203,6 +203,7 @@ pub fn pic_end_of_interrupt(int: interrupts::HardwareInterrupt) {
 
 pub fn register_interrupt_handler(int: interrupts::HardwareInterrupt, handler: extern "x86-interrupt" fn(idt::InterruptStackFrame)) {
     unsafe {
-        IDT[int.as_usize()].set_handler_fn(handler);
+        IDT[int.as_usize()].set_handler_fn(handler).set_stack_index(INTERRUPT_IST_INDEX);
+        IDT.load();
     }
 }

@@ -2,7 +2,6 @@ pub mod debug;
 pub mod timer;
 pub mod breakpoint;
 pub mod double_fault;
-pub mod invalid_tss;
 pub mod general_protection_fault;
 pub mod stack_segment_fault;
 pub mod segment_not_present;
@@ -25,7 +24,7 @@ pub enum Exception {
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum HardwareInterrupt {
-    Timer = pic::PIC_1_OFFSET,
+    Timer = pic::PIC_MASTER_OFFSET,
     Keyboard,
 }
 

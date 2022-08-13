@@ -20,6 +20,7 @@ pub mod sysinfo;
 pub mod syscalls;
 pub mod allocator;
 pub mod userspace;
+pub mod async_task;
 pub mod kernel_console;
 
 extern crate alloc;

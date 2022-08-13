@@ -7,7 +7,7 @@ use alloc::alloc;
 use x86_64::{structures::paging::{PageTable, PageTableIndex, PageTableFlags, Page, PhysFrame, Size4KiB, page_table::FrameError}, {registers::control::Cr3, VirtAddr}, PhysAddr, {instructions::tlb}};
 
 pub unsafe fn new_l4_table() -> &'static mut PageTable {
-    let table = alloc::alloc(Layout::for_value(&PageTable::new())) as *mut PageTable;
+    let table = alloc::alloc_zeroed(Layout::for_value(&PageTable::new())) as *mut PageTable;
     &mut *table
 }
 
@@ -72,8 +72,13 @@ pub fn translate_addr(virt_addr: usize) -> Option<usize> {
 }
 
 pub unsafe fn table_entry_new_table(page_table: &mut PageTable, entry: PageTableIndex, flags: Option<PageTableFlags>) -> Result<&mut PageTable, FrameError> {
+    let frm_phys = frame_allocator::allocate_frame().unwrap().start_address();
+    let frm_clr = (frm_phys.as_u64() + PHYSICAL_MEMORY_OFFSET) as *mut u8;
+    for i in 0..0x1000 {
+        *frm_clr.offset(i) = 0;
+    }
     if page_table[entry].is_unused() {
-        page_table[entry].set_addr(frame_allocator::allocate_frame().unwrap().start_address(),
+        page_table[entry].set_addr(frm_phys,
         flags.unwrap_or(PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::GLOBAL));
     }
     let virt_table = page_table[entry].frame()?.start_address().as_u64() + PHYSICAL_MEMORY_OFFSET;

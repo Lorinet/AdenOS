@@ -7,9 +7,7 @@ use alloc::{vec::Vec, alloc::alloc};
 use x86_64::{ structures::paging::{mapper::MapToError, Page, PageTable, PhysFrame, PageTableFlags, Size4KiB}, VirtAddr, PhysAddr, registers::control::{Cr3, Cr3Flags}, instructions::tlb };
 
 mod frame_allocator;
-mod page_mapper;
-
-pub static mut USERSPACE_PAGE_TABLE: Option<&'static mut PageTable> = None;
+pub mod page_mapper;
 
 pub static mut PHYSICAL_MEMORY_OFFSET: u64 = 0;
 pub static mut BOOT_MEMORY_MAP: Option<&bootinfo::MemoryMap> = None;
@@ -17,40 +15,14 @@ pub static mut BOOT_MEMORY_MAP: Option<&bootinfo::MemoryMap> = None;
 pub const KERNEL_HEAP_START: usize = 0x_4444_4444_0000;
 pub const KERNEL_HEAP_SIZE: usize = 64 * 4096;
 
-pub unsafe fn create_userspace_page_table(application: fn()) {
-    let phys_mem_offset = VirtAddr::new(PHYSICAL_MEMORY_OFFSET.try_into().unwrap());
-    let level_4_table = active_level_4_table(phys_mem_offset);
-    debug_page_tables(&level_4_table);
-    USERSPACE_PAGE_TABLE = Some(page_mapper::new_l4_table());
-    for (i, ent) in level_4_table.iter().enumerate() {
-        if !ent.is_unused() {
-            USERSPACE_PAGE_TABLE.as_mut().unwrap()[i] = ent.clone();
-        }
-    }
-    enable_page_table(USERSPACE_PAGE_TABLE.as_mut().unwrap());
-    let flags = Some(PageTableFlags::WRITABLE | PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE | PageTableFlags::GLOBAL);
-    let user_virt_base = 0x40000000000;
-    let user_phys_base = page_mapper::translate_addr(application as usize).unwrap();
-    page_mapper::map_addr(user_virt_base, user_phys_base, flags).expect("peace");
-    page_mapper::map_addr(user_virt_base + 0x1000, user_phys_base + 0x1000, flags).expect("fuck you");
-    let user_stack = alloc(Layout::from_size_align_unchecked(0x1001, 0x1000));
-    let user_stack_virt_base = 0x60000000000;
-    let user_stack_phys_base = page_mapper::translate_addr(user_stack as usize).unwrap();
-    page_mapper::map_addr(user_stack_virt_base, user_stack_phys_base, flags).expect("donuts");
-    page_mapper::map_addr(user_stack_virt_base + 0x1000, user_stack_phys_base + 0x1000, flags).expect("capybara");
-    let user_entry_point_offset = user_phys_base % 0x1000;
-    let user_stack_offset = user_stack_phys_base % 0x1000;
-    super::cpu::enter_user_mode((user_virt_base + user_entry_point_offset + 1) as usize, user_stack_virt_base + user_stack_offset + 0x1000);
-}
-
-pub unsafe fn init() {
+pub fn init() {
     println!("Initializing kernel heap...");
-    frame_allocator::init(BOOT_MEMORY_MAP.unwrap());
+    unsafe { frame_allocator::init(BOOT_MEMORY_MAP.unwrap()) };
+    println!("Initialized frame allocator");
     init_heap().expect("KERNEL_HEAP_ALLOCATION_FAILED");
-    create_userspace_page_table(userspace::userspace_app_1);
 }
 
-unsafe fn enable_page_table(page_table: &'static mut PageTable) {
+pub unsafe fn enable_page_table(page_table: &'static mut PageTable) {
     let phys_addr = page_mapper::translate_addr(page_table as *const PageTable as usize).unwrap();
     println!("L4 address CR3: {}", phys_addr);
     Cr3::write(PhysFrame::from_start_address(PhysAddr::new(phys_addr as u64)).expect("userspace page table not aligned"), Cr3Flags::all());
@@ -102,7 +74,7 @@ pub fn init_heap() -> Result<(), MapToError<Size4KiB>> {
     Ok(())
 }
 
-unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable
+pub unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable
 {
     let (level_4_table_frame, _) = Cr3::read();
     let phys = level_4_table_frame.start_address();

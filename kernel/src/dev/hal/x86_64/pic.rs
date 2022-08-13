@@ -1,25 +1,55 @@
-use crate::*;
-use spin;
+use crate::{*, dev::{Read, Write}};
 use super::interrupts;
-use pic8259::ChainedPics;
-use dev::hal::cpu;
+use dev::hal::{cpu, port};
 
-pub const PIC_1_OFFSET: u8 = 32;
-pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+const PIC_MASTER_PORT: u16 = 0x20;
+const PIC_SLAVE_PORT: u16 = 0xA0;
+const WAIT_PORT: u16 = 0x11;
 
-pub static PICS: spin::Mutex<ChainedPics> = spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+const ICW1_ICW4: u8 = 0x01;
+const ICW1_INIT: u8 = 0x10;
+const ICW4_8086: u8 = 0x01;
+
+pub const PIC_MASTER_OFFSET: u8 = 0x20;
+pub const PIC_SLAVE_OFFSET: u8 = PIC_MASTER_OFFSET + 0x08;
+
+const END_OF_INTERRUPT: u8 = 0x20;
 
 pub fn init() {
     println!("Initializing PIC8259...");
-    unsafe { PICS.lock().initialize() };
-    println!("Enabling hardware interrupts...");
-    cpu::enable_interrupts();
+    let mut master_cmd: port::Port<u8> = port::Port::new(PIC_MASTER_PORT);
+    let mut master_data: port::Port<u8> = port::Port::new(PIC_MASTER_PORT + 1);
+    let mut slave_cmd: port::Port<u8> = port::Port::new(PIC_SLAVE_PORT);
+    let mut slave_data: port::Port<u8> = port::Port::new(PIC_SLAVE_PORT + 1);
+    let mut wait_port: port::Port<u8> = port::Port::new(WAIT_PORT);
+    let mut wait = || wait_port.write_one(0).unwrap();
+    let a1 = master_data.read_one().unwrap();
+    let a2 = slave_data.read_one().unwrap();
+    cpu::atomic_no_interrupts(|| {
+        master_cmd.write_one(ICW1_INIT + ICW1_ICW4).unwrap();
+        wait();
+        slave_cmd.write_one(ICW1_INIT + ICW1_ICW4).unwrap();
+        wait();
+        master_data.write_one(PIC_MASTER_OFFSET).unwrap();
+        wait();
+        slave_data.write_one(PIC_SLAVE_OFFSET).unwrap();
+        wait();
+        master_data.write_one(4).unwrap();
+        wait();
+        slave_data.write_one(2).unwrap();
+        wait();
+        master_data.write_one(ICW4_8086).unwrap();
+        wait();
+        slave_data.write_one(ICW4_8086).unwrap();
+        wait();
+        master_data.write_one(a1).unwrap();
+        slave_data.write_one(a2).unwrap();
+    });
 }
 
-pub fn end_of_interrupt(int: interrupts::HardwareInterrupt) {
-    cpu::disable_interrupts();
-    unsafe {
-        PICS.lock().notify_end_of_interrupt(int.as_u8());
+pub fn end_of_interrupt(interrupt_id: interrupts::HardwareInterrupt) {
+    if (interrupt_id as u8) >= PIC_SLAVE_OFFSET && (interrupt_id as u8) < PIC_SLAVE_OFFSET + 8 {
+        port::Port::new(PIC_SLAVE_PORT).write_one(END_OF_INTERRUPT).unwrap();
     }
-    cpu::enable_interrupts();
+    port::Port::new(PIC_MASTER_PORT).write_one(END_OF_INTERRUPT).unwrap();
 }

@@ -12,11 +12,11 @@ lazy_static! {
 }
 
 pub fn clear_screen() {
-    KERNEL_CONSOLE.lock().clear_screen();
+    KERNEL_CONSOLE.try_lock().expect("DEADLOCKED").clear_screen();
 }
 
 pub fn set_color(foreground: console::Color, background: console::Color) {
-    KERNEL_CONSOLE.lock().set_color(foreground, background);
+    KERNEL_CONSOLE.try_lock().expect("DEADLOCKED").set_color(foreground, background);
 }
 
 #[macro_export]
@@ -56,7 +56,7 @@ pub(crate) use serial_println;
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     cpu::atomic_no_interrupts(|| {
-        KERNEL_CONSOLE.lock().write_fmt(args).expect("Kernel console device failure");
+        KERNEL_CONSOLE.try_lock().expect("DEADLOCKED").write_fmt(args).expect("Kernel console device failure");
     });
 }
 

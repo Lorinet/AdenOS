@@ -5,7 +5,7 @@ use dev::hal::cpu;
 use dev::hal::port;
 use dev::hal::interrupts;
 use dev::input::keyboard;
-use task::*;
+use async_task::*;
 use x86_64::structures::idt;
 use conquer_once::spin::OnceCell;
 use crossbeam_queue::ArrayQueue;
@@ -32,6 +32,7 @@ impl PS2KeyboardPIC8259 {
     }
 
     pub extern "x86-interrupt" fn _input_handler(_stack_frame: idt::InterruptStackFrame) {
+        cpu::disable_interrupts();
         unsafe {
             Self::add_scancode(KEYBOARD_PORT.read_one().unwrap());
         }
