@@ -1,1 +1,0 @@
-{"rustc":9720440772869458858,"features":"","target":0,"profile":0,"path":0,"deps":[[8427705233296525817,"build_script_build",false,15723790420195358634]],"local":[{"RerunIfChanged":{"output":"x86_64-neutrino_os/debug/build/compiler_builtins-a64934b9a757e3a9/output","paths":["build.rs"]}}],"rustflags":[],"metadata":0,"config":0,"compile_kind":0}
