@@ -9,7 +9,7 @@ pub struct Uart16550 {
 }
 
 impl Uart16550 {
-    pub fn new(number: u8) -> Uart16550 {
+    pub const fn new(number: u8) -> Uart16550 {
         Uart16550 {
             number,
             port: unsafe { uart_16550::SerialPort::new(0x3F8 + number as u16) },

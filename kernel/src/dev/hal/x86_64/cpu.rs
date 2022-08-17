@@ -1,6 +1,8 @@
 use crate::*;
 use dev::hal::{interrupts, pic, task};
 use x86_64::instructions::interrupts::disable;
+use x86_64::structures::gdt::SegmentSelector;
+use x86_64::structures::idt::InterruptStackFrame;
 use crate::task::scheduler::*;
 use x86_64;
 use x86_64::PrivilegeLevel;
@@ -38,6 +40,8 @@ static mut SYSCALL_STACK: [u8; 0x4000] = [0; 0x4000];
 static mut INTERRUPT_STACK: [u8; 0x4000] = [0; 0x4000];
 static mut SCHEDULER_INTERRUPT_STACK: [u8; 0x4000] = [0; 0x4000];
 
+pub static mut DO_CONTEXT_SWITCH_NEXT_TIME: bool = false;
+
 lazy_static! {
     #[derive(Debug)]
     pub static ref TSS: tss::TaskStateSegment = {
@@ -60,6 +64,18 @@ lazy_static! {
         let user_code_selector = gdt.add_entry(gdt::Descriptor::user_code_segment());
         (gdt, Selectors { kernel_code_selector, kernel_data_selector, tss_selector, user_code_selector, user_data_selector })
     };
+
+    pub static ref USER_CS: u64 = (GDT.1.user_code_selector.0 | PrivilegeLevel::Ring3 as u16) as u64;
+    pub static ref USER_SS: u64 = (GDT.1.user_data_selector.0 | PrivilegeLevel::Ring3 as u16) as u64;
+
+    pub static ref KERNEL_CS: u64 = (GDT.1.kernel_code_selector.0 | PrivilegeLevel::Ring0 as u16) as u64;
+    pub static ref KERNEL_SS: u64 = (GDT.1.kernel_data_selector.0 | PrivilegeLevel::Ring0 as u16) as u64;
+
+    pub static ref USER_DS: SegmentSelector = {
+        let mut sel = GDT.1.user_data_selector;
+        sel.0 |= PrivilegeLevel::Ring3 as u16;
+        sel
+    };
 }
 
 pub fn init() {
@@ -68,7 +84,7 @@ pub fn init() {
     unsafe {
         segmentation::CS::set_reg(GDT.1.kernel_code_selector);
         tables::load_tss(GDT.1.tss_selector);
-        let handler_addr = system_call_handler as *const () as u64;
+        let handler_addr = system_call_trap_handler as *const () as u64;
         asm!("\
         xor rdx, rdx
         mov rax, 0x200
@@ -91,84 +107,28 @@ pub fn init() {
     }
 }
 
-pub unsafe fn enter_user_mode(code_addr: usize, stack_addr: usize) {
-    serial_println!("\n\n\n\n\n\n\n\n\n\nUSER MODE ENTERING:\n\n\n\n");
-    let (mut cs, mut ds) = (GDT.1.user_code_selector, GDT.1.user_data_selector);
-    cs.0 |= PrivilegeLevel::Ring3 as u16;
-    ds.0 |= PrivilegeLevel::Ring3 as u16;
-    DS::set_reg(ds);
-    let (cs_idx, ds_idx) = (cs.0, ds.0);
-    tlb::flush_all();
-    asm!("cli");
-    asm!("\
-    push rax   // stack segment
-    push rsi   // rsp
-    push 0x200 // rflags (only interrupt bit set)
-    push rdx   // code segment
-    push rdi   // ret to virtual addr
-    sti
-    iretq",
-    in("rdi") code_addr,
-    in("rsi") stack_addr,
-    in("rdx") cs_idx, 
-    in("rax") ds_idx);
-}
-
 pub fn enable_scheduler() {
     disable_interrupts();
     unsafe {
         IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_addr(VirtAddr::new(task::timer_handler_save_context as u64)).set_stack_index(SCHEDULER_INTERRUPT_IST_INDEX);
-        SCHEDULER.context_switch(None);
+        Scheduler::context_switch(None);
     }
 }
 
 #[no_mangle]
-unsafe extern "C" fn system_call_handler_hl() {
-    // very sketchy code
-    asm!("
-        cli
-        mov r9, rsp  // save user stack
-        push r9
-        push r8
-        push rdx
-        push rsi
-        push rdi
-        push rax");
-    let syscall_stack: Vec<u8> = Vec::with_capacity(0x1000);
-    let syscall_stack_addr = syscall_stack.as_ptr() as u64 + 0x1000;
-    asm!("
-        pop rax
-        pop rdi
-        pop rsi
-        pop rdx
-        pop r8
-        pop r9
-        mov rsp, r12 // set syscall stack",
-        in("r12") syscall_stack_addr);
-    let syscall: u64;
-    let param_0: u64;
-    let param_1: u64;
-    let param_2: u64;
-    let param_3: u64;
-    let user_mode_stack: u64;
-    asm!("nop // load syscall parameters",
-        out("rax") syscall,
-        out("rdi") param_0,
-        out("rsi") param_1,
-        out("rdx") param_2,
-        out("r8")  param_3,
-        out("r9")  user_mode_stack);
-    asm!("sti");
-    println!("syscall stack: {:x}", (&SYSCALL_STACK as *const _ as u64));
-    println!("syscall {:x} {:x} {} {} {}", syscall, param_0, param_1, param_2, param_3);
-    asm!("cli
-    mov rsp, r12 // set user mode stack", in("r12") user_mode_stack);
-    drop(syscall_stack);
+unsafe extern "C" fn allocate_syscall_stack() -> *const u8 {
+    Vec::<u8>::with_capacity(0x1000).as_ptr()
+}
+
+#[no_mangle]
+unsafe extern "C" fn drop_syscall_stack(syscall_stack: *const u8) {
+    drop(&syscall_stack);
 }
 
 #[naked]
-unsafe fn system_call_handler() {
+unsafe fn system_call_trap_handler() {
     asm!("
+    cli
     push rcx // sysretq rip
     push r11 // sysretq rflags
     push r15 // callee-saved registers
@@ -177,7 +137,29 @@ unsafe fn system_call_handler() {
     push r12
     push rbp
     push rbx
-    call system_call_handler_hl
+    mov r9, rsp  // save user stack
+    push r8  // syscall parameters
+    push rdx
+    push rsi
+    push rdi
+    push rax
+    push r9 // user stack is here
+    call allocate_syscall_stack
+    pop r9  // user stack is here
+    pop rdi      // syscall
+    pop rsi      // arg0
+    pop rdx      // arg1
+    pop rcx      // arg2
+    pop r8       // arg3
+    mov rsp, rax // set syscall stack
+    push r9 // save user stack
+    call system_call
+    pop r9  // user stack
+    mov rdi, rsp // argument to drop_syscall_stack
+    mov rsp, r9  // restore user stack
+    push rax // return value
+    call drop_syscall_stack
+    pop rax
     pop rbx
     pop rbp
     pop r12
@@ -194,11 +176,32 @@ pub fn trigger_breakpoint() {
     instructions::interrupts::int3();
 }
 
+unsafe extern "x86-interrupt" fn flag_preempt(_stack_frame: InterruptStackFrame) {
+    DO_CONTEXT_SWITCH_NEXT_TIME = true;
+    pic::end_of_interrupt(interrupts::HardwareInterrupt::Timer);
+}
+
+pub fn atomic_no_preempt<F>(f: F)
+where F: FnOnce() {
+    unsafe {
+        asm!("cli");
+        IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_addr(VirtAddr::new(flag_preempt as u64));
+        asm!("sti");
+    }
+    f();
+    unsafe {
+        asm!("cli");
+        IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_addr(VirtAddr::new(task::timer_handler_save_context as u64)).set_stack_index(SCHEDULER_INTERRUPT_IST_INDEX);
+        asm!("sti");
+        while DO_CONTEXT_SWITCH_NEXT_TIME {}
+    }
+}
+
 pub fn atomic_no_interrupts<F>(f: F)
 where F: FnOnce() {
+    let flags = rflags::read();
     disable_interrupts();
     f();
-    let flags = rflags::read();
     if flags.contains(RFlags::INTERRUPT_FLAG) {
         enable_interrupts();
     }
@@ -222,11 +225,7 @@ pub fn enable_interrupts() {
 
 #[inline(always)]
 pub fn disable_interrupts() {
-    instructions::interrupts::disable();
-}
-
-pub fn pic_end_of_interrupt(int: interrupts::HardwareInterrupt) {
-    pic::end_of_interrupt(int);
+    unsafe { asm!("cli"); }
 }
 
 pub fn register_interrupt_handler(int: interrupts::HardwareInterrupt, handler: extern "x86-interrupt" fn(idt::InterruptStackFrame)) {

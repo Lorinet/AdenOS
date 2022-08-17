@@ -22,9 +22,9 @@ checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
 name = "bootloader"
-version = "0.9.22"
+version = "0.10.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de78decc37247c7cfac5dbf3495c7298c6ac97cb355161caa7e15969c6648e6c"
+checksum = "f2d9b14b92a825ecc3b24e4c163a578af473fbba5f190bfaf48092b29b604504"
 
 [[package]]
 name = "buddy_system_allocator"
@@ -112,6 +112,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinity"
+version = "0.1.0"
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -154,8 +158,10 @@ dependencies = [
  "crossbeam-queue",
  "executor",
  "futures-util",
+ "infinity",
  "lazy_static",
  "linked_list_allocator",
+ "noto-sans-mono-bitmap",
  "pc-keyboard",
  "pic8259",
  "slab_allocator_rs",
@@ -163,6 +169,12 @@ dependencies = [
  "uart_16550",
  "x86_64",
 ]
+
+[[package]]
+name = "noto-sans-mono-bitmap"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "643bee6617a18c64f5a72ef358a9426d3682dc768db7c320825d3d936e2232d4"
 
 [[package]]
 name = "pc-keyboard"

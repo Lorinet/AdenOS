@@ -2,7 +2,7 @@ use core::alloc::Layout;
 
 use crate::*;
 use allocator;
-use bootloader::bootinfo;
+use bootloader::boot_info;
 use alloc::{vec::Vec, alloc::alloc};
 use x86_64::{ structures::paging::{mapper::MapToError, Page, PageTable, PhysFrame, PageTableFlags, Size4KiB}, VirtAddr, PhysAddr, registers::control::{Cr3, Cr3Flags}, instructions::tlb };
 
@@ -10,7 +10,7 @@ mod frame_allocator;
 pub mod page_mapper;
 
 pub static mut PHYSICAL_MEMORY_OFFSET: u64 = 0;
-pub static mut BOOT_MEMORY_MAP: Option<&bootinfo::MemoryMap> = None;
+pub static mut BOOT_MEMORY_MAP: Option<&boot_info::MemoryRegions> = None;
 
 pub const KERNEL_HEAP_START: usize = 0x_4444_4444_0000;
 pub const KERNEL_HEAP_SIZE: usize = 64 * 4096;
@@ -20,10 +20,14 @@ pub fn init() {
     unsafe { frame_allocator::init(BOOT_MEMORY_MAP.unwrap()) };
     println!("Initialized frame allocator");
     init_heap().expect("KERNEL_HEAP_ALLOCATION_FAILED");
+    let (frame, _) = Cr3::read();
+    let table_virt_addr = frame.start_address().as_u64() + unsafe { PHYSICAL_MEMORY_OFFSET };
+    let table = unsafe { &mut *(table_virt_addr as *mut PageTable) };
+    (&mut table[0]).set_flags(PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::GLOBAL | PageTableFlags::USER_ACCESSIBLE);
 }
 
 pub unsafe fn enable_page_table(page_table: &'static mut PageTable) {
-    let phys_addr = page_mapper::translate_addr(page_table as *const PageTable as usize).unwrap();
+    let phys_addr = (page_table as *const PageTable as usize) - PHYSICAL_MEMORY_OFFSET as usize;
     println!("L4 address CR3: {:#x}", phys_addr);
     Cr3::write(PhysFrame::from_start_address(PhysAddr::new(phys_addr as u64)).expect("userspace page table not aligned"), Cr3Flags::all());
     println!("dood");
@@ -69,4 +73,17 @@ pub unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static
     let virt = physical_memory_offset + phys.as_u64();
     let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
     &mut *page_table_ptr
+}
+
+pub unsafe fn print_page_tables() {
+    let active_page_table = active_level_4_table(VirtAddr::new(PHYSICAL_MEMORY_OFFSET));
+    for ent in active_page_table.iter().enumerate() {
+        if !ent.1.is_unused() {
+            serial_println!("L4 entry {}: {:x?}", ent.0, ent.1);
+        }
+    }
+}
+
+pub unsafe fn show_which_page_tables(address: usize) {
+    page_mapper::show_which_page_tables(address);
 }

@@ -4,11 +4,16 @@ use crate::*;
 use super::frame_allocator;
 use super::PHYSICAL_MEMORY_OFFSET;
 use alloc::alloc;
+use core::arch::asm;
 use x86_64::{structures::paging::{PageTable, PageTableIndex, PageTableFlags, Page, PhysFrame, Size4KiB, page_table::FrameError}, {registers::control::Cr3, VirtAddr}, PhysAddr, {instructions::tlb}};
 
 pub unsafe fn new_l4_table() -> &'static mut PageTable {
-    let table = alloc::alloc_zeroed(Layout::for_value(&PageTable::new())) as *mut PageTable;
-    &mut *table
+    let frame = frame_allocator::allocate_frame().unwrap();
+    let page_table = (frame.start_address().as_u64() + PHYSICAL_MEMORY_OFFSET) as *mut u8;
+    for i in 0..0x1000 {
+        *page_table.offset(i) = 0;
+    }
+    ((frame.start_address().as_u64() + PHYSICAL_MEMORY_OFFSET) as *mut PageTable).as_mut().unwrap()
 }
 
 pub fn map_l1_table(page: Page<Size4KiB>, flags: Option<PageTableFlags>) -> Result<&'static mut PageTable, FrameError> {
@@ -69,6 +74,16 @@ pub fn translate_addr(virt_addr: usize) -> Option<usize> {
         };
     }
     Some((frame.start_address() + u64::from(virt_addr.page_offset())).as_u64() as usize)
+}
+
+pub unsafe fn show_which_page_tables(address: usize) {
+    let virt_addr = VirtAddr::new(address as u64);
+    let table_indexes = [
+        virt_addr.p4_index(), virt_addr.p3_index(), virt_addr.p2_index(), virt_addr.p1_index()
+    ];
+    for i in 0..4 {
+        serial_println!("LEVEL {}: {}", 4 - i, u16::from(table_indexes[i]));
+    }
 }
 
 pub unsafe fn table_entry_new_table(page_table: &mut PageTable, entry: PageTableIndex, flags: Option<PageTableFlags>) -> Result<&mut PageTable, FrameError> {

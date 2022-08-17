@@ -13,16 +13,17 @@ panic = "abort"
 panic = "unwind"
 
 [dependencies]
+bootloader = "0.10.12"
 spin = "0.5.2"
 x86_64 = "0.14.10"
 uart_16550 = "0.2.18"
 pic8259 = "0.10.1"
 pc-keyboard = "0.5.0"
 executor = "0.8.4"
+noto-sans-mono-bitmap = "0.1.5"
 
-[dependencies.bootloader]
-version = "0.9.6"
-features = ["map_physical_memory"]
+[dependencies.infinity]
+path = "../infinity"
 
 [dependencies.slab_allocator_rs]
 version = "1.0.1"
@@ -49,6 +50,10 @@ default-features = false
 version = "0.3.4"
 default-features = false
 features = ["alloc"]
+
+[package.metadata.bootloader]
+map-physical-memory = true
+physical-memory-offset = "0x0000_4000_0000_0000"
 
 [package.metadata.bootimage]
 run-args = ["-serial", "stdio", "-d", "int", "-s", "-S"]

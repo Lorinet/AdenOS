@@ -1,0 +1,76 @@
+use std::process::{Command, exit};
+use std::env;
+use bootloader_locator;
+
+fn main() {
+    println!("Linfinity Neutrino OS Build Tool");
+    println!("<==============================>");
+
+    let args: Vec<String> = env::args().collect();
+    let subcommand = args.get(1).cloned().unwrap_or(String::from("build"));
+    let subcommand = subcommand.as_str();
+
+    match subcommand {
+        "build" => { build(false, None); },
+        "run" => run(build(false, None), false, false, false),
+        "kvm" => run(build(false, None), true, false, false),
+        "debug" => run(build(false, None), false, true, false),
+        "test" => test(args.get(2).cloned()),
+        _ => println!("Usage: n [build|debug|run|kvm|test]"),
+    };
+}
+
+fn build(test: bool, integration: Option<String>) -> String {
+    let bootloader_source_folder = bootloader_locator::locate_bootloader("bootloader").expect("Could not find manifest for crate 'bootloader'");
+    let bootloader_source_folder = bootloader_source_folder.parent().expect("Invalid path for crate 'bootloader'").to_str().unwrap();
+
+    let kernel_build_command = Command::new("cargo").arg("build")
+    .args(if test { vec!["--test"] } else { vec![] })
+    .args(if let Some(integration) = integration { vec![integration] } else { vec![] })
+    .status().expect("Launch failed: 'cargo build'");
+    if !kernel_build_command.success() {
+        panic!("Command 'cargo build' exited with code {}", kernel_build_command.code().unwrap());
+    }
+
+    let mut kernel_manifest_path = env::current_dir().unwrap();
+    kernel_manifest_path.push("Cargo.toml");
+    let kernel_manifest_path = kernel_manifest_path.to_str().unwrap();
+
+    let mut kernel_target_folder = env::current_dir().unwrap();
+    kernel_target_folder.push("target");
+    let mut kernel_output_folder = kernel_target_folder.clone();
+    kernel_output_folder.push("x86_64-neutrino_os");
+    kernel_output_folder.push("debug");
+    let mut kernel_binary_path = kernel_output_folder.clone();
+    kernel_binary_path.push("neutrino_os");
+
+    env::set_current_dir(bootloader_source_folder).unwrap();
+
+    let bootloader_builder_command = Command::new("cargo").arg("builder")
+    .arg("--kernel-manifest").arg(kernel_manifest_path)
+    .arg("--kernel-binary").arg(kernel_binary_path)
+    .arg("--target-dir").arg(kernel_target_folder)
+    .arg("--out-dir").arg(kernel_output_folder.clone()).status().expect("Launch failed: 'cargo builder'");
+    if !bootloader_builder_command.success() {
+        panic!("Command 'cargo builder' exited with status {}", bootloader_builder_command.code().unwrap());
+    }
+
+    kernel_output_folder.push("boot-bios-neutrino_os.img");
+    String::from(kernel_output_folder.to_str().unwrap())
+}
+
+fn run(bootable_image_path: String, kvm: bool, debug: bool, test: bool) {
+    let qemu_command = Command::new("qemu-system-x86_64")
+    .arg("-hda").arg(bootable_image_path)
+    .arg("-serial").arg("stdio")
+    .args(if kvm { vec!["-enable-kvm"] } else { vec![] })
+    .args(if debug { vec!["-s", "-S"] } else { vec![] })
+    .args(if test { vec!["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-display", "none"] } else { vec![] })
+    .arg("-d").arg("int").status().expect("Launch failed: 'qemu-system-x86_64'");
+    exit(qemu_command.code().unwrap());
+}
+
+fn test(integration: Option<String>) {
+    let bootable_image_path = build(true, integration);
+    run(bootable_image_path, false, false, true);
+}

@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use core::sync::atomic::{AtomicU64, Ordering};
 
 pub mod kernel_executor;
+pub mod test_kernel_thread;
 
 unsafe impl Send for Task {}
 unsafe impl Sync for Task {}

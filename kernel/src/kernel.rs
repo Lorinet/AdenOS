@@ -1,5 +1,6 @@
 use crate::*;
-use crate::userspace::{userspace_app_1, userspace_app_2};
+use crate::dev::Write;
+use crate::userspace::*;
 use dev::input::keyboard;
 use dev::StaticDevice;
 use sysinfo;
@@ -26,8 +27,8 @@ fn init_system() {
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
     kernel_executor::spawn(Task::new(example_task()));
     println!("Creating processes");
-    SCHEDULER.exec(userspace_app_1);
-    SCHEDULER.exec(userspace_app_2);
+    Scheduler::exec(userspace_app_1);
+    Scheduler::kexec(kernel_executor::run);
     println!("Created processes");
     cpu::enable_scheduler();
     kernel_executor::run();

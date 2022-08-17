@@ -50,7 +50,7 @@ fn run_ready_tasks() {
     }
 }
 
-pub fn run() -> ! {
+pub fn run() {
     loop {
         run_ready_tasks();
         let task_queue = KERNEL_TASK_QUEUE.try_get().expect("\nKERNEL_EXECUTOR_NOT_INITIALIZED");

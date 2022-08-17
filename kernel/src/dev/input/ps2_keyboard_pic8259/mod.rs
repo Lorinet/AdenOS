@@ -1,15 +1,13 @@
 use crate::*;
 use dev;
 use dev::Read;
-use dev::hal::cpu;
-use dev::hal::port;
-use dev::hal::interrupts;
+use dev::hal::{cpu, pic, port, interrupts};
 use dev::input::keyboard;
 use async_task::*;
 use x86_64::structures::idt;
 use conquer_once::spin::OnceCell;
 use crossbeam_queue::ArrayQueue;
-use core::{pin::Pin, task::{Poll, Context}};
+use core::{pin::Pin, task::{Poll, Context}, arch::asm};
 use futures_util::stream::Stream;
 use futures_util::stream::StreamExt;
 use futures_util::task::AtomicWaker;
@@ -32,11 +30,11 @@ impl PS2KeyboardPIC8259 {
     }
 
     pub extern "x86-interrupt" fn _input_handler(_stack_frame: idt::InterruptStackFrame) {
-        cpu::disable_interrupts();
         unsafe {
+            asm!("cli");
             Self::add_scancode(KEYBOARD_PORT.read_one().unwrap());
         }
-        cpu::pic_end_of_interrupt(interrupts::HardwareInterrupt::Keyboard);
+        pic::end_of_interrupt(interrupts::HardwareInterrupt::Keyboard);
     }
 
     fn add_scancode(scancode: u8) {

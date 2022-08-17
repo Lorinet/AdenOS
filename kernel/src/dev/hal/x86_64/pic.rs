@@ -45,6 +45,14 @@ pub fn init() {
         master_data.write_one(a1).unwrap();
         slave_data.write_one(a2).unwrap();
     });
+    let mut pit_cmd: port::Port<u8> = port::Port::new(0x43);
+    let mut pit_data: port::Port<u8> = port::Port::new(0x40);
+    let divisor: u16 = (1193180 / 100) as u16;
+    cpu::atomic_no_interrupts(|| {
+        pit_cmd.write_one(0x36).unwrap();
+        pit_data.write_one((divisor & 0xFF) as u8).unwrap();
+        pit_data.write_one(((divisor >> 8) & 0xFF) as u8).unwrap();
+    });
 }
 
 pub fn end_of_interrupt(interrupt_id: interrupts::HardwareInterrupt) {

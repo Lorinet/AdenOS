@@ -1,52 +1,74 @@
-use crate::*;
-use alloc::vec::Vec;
-use dev::hal::{task, cpu};
+use crate::{*, dev::hal::mem};
+use alloc::{vec::Vec, boxed::Box};
+use dev::hal::{task};
 use lazy_static::lazy_static;
-use spin::Mutex;
+use spin::{Mutex, MutexGuard};
 
-lazy_static! {
-    pub static ref SCHEDULER: Scheduler = Scheduler::new();
-}
-
+static mut SCHEDULER: Scheduler = Scheduler::new();
+pub static DUMMY: &str = "hello";
 pub struct Scheduler {
-    processes: Mutex<Vec<task::Task>>,
-    current_task: Mutex<Option<usize>>,
+    processes: Vec<task::Task>,
+    current_task: usize,
 }
 
 impl Scheduler {
-    pub fn new() -> Scheduler {
+    pub fn kexec(application: unsafe fn()) {
+        unsafe { SCHEDULER._kexec(application); }
+    }
+
+    pub fn exec(application: unsafe extern "C" fn()) {
+        unsafe { SCHEDULER._exec(application); }
+    }
+
+    #[inline(always)]
+    pub fn context_switch(current_context: Option<task::TaskContext>) {
+        unsafe { SCHEDULER._context_switch(current_context); }
+    }
+
+    #[inline(always)]
+    pub fn next() {
+        unsafe { SCHEDULER._next(); }
+    }
+
+    pub fn add_process(process: task::Task) {
+        unsafe { SCHEDULER._add_process(process); }
+    }
+
+    const fn new() -> Scheduler {
         Scheduler {
-            processes: Mutex::new(Vec::new()),
-            current_task: Mutex::new(None),
+            processes: Vec::new(),
+            current_task: 0,
         }
     }
 
     #[inline(always)]
-    pub unsafe fn context_switch(&self, current_context: Option<*const task::TaskContext>) {
-        let mut processes = self.processes.lock();
-        let mut current_task = self.current_task.lock();
-        let next_task = current_task.map_or_else(|| { 0 }, |pid| {
-            processes[pid].save_state(current_context.unwrap());
-            let mut next = pid + 1;
-            if processes.len() >= next {
-                next = 0;
-            }
-            next
-        });
-        current_task.replace(next_task);
-        let proc_ref = &processes[current_task.unwrap()] as *const task::Task;
-        drop(processes);
-        drop(current_task);
-        (*proc_ref).restore_state();
+    fn _next(&mut self) {
+        self.current_task += 1;
+        if self.processes.len() <= self.current_task {
+            self.current_task = 0;
+        }
     }
 
-    pub fn add_process(&self, process: task::Task) {
-        println!("Adding process");
-        self.processes.lock().push(process);
-        println!("Added process");
+    #[inline(always)]
+    fn _context_switch(&mut self, current_context: Option<task::TaskContext>) {
+        if let Some(ctx) = current_context {
+            self.processes[self.current_task].state = ctx;
+            self.processes[self.current_task].save_state();
+            self._next();
+        }
+        self.processes[self.current_task].restore_state();
+        unsafe { task::restore_registers(&self.processes[self.current_task].state); }
     }
 
-    pub fn exec(&self, application: unsafe fn()) {
+    fn _add_process(&mut self, process: task::Task) {
+        self.processes.push(process);
+    }
+
+    fn _exec(&self, application: unsafe extern "C" fn()) {
         unsafe { task::Task::exec(application); }
+    }
+
+    fn _kexec(&self, application: unsafe fn()) {
+        task::Task::kexec(application);
     }
 }

@@ -3,8 +3,6 @@ use console;
 use dev::{self, Write, ConsoleDevice, hal::port};
 use core::fmt;
 
-mod tests;
-
 static WIDTH: usize = 160;
 static HEIGHT: usize = 25;
 
@@ -68,6 +66,11 @@ impl dev::Write for VgaTextMode {
         match val {
             b'\n' => {
                 self.offset += WIDTH - (self.offset % WIDTH) - 2;
+            },
+            0x08 => {
+                self.offset -= 2;
+                self.write_one(b' ').unwrap();
+                self.offset -= 4;
             },
             ch => unsafe {
                 *self.buffer.offset(self.offset as isize) = val;
