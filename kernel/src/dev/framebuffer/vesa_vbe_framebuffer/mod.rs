@@ -1,7 +1,6 @@
 use crate::*;
 use dev::framebuffer::*;
 use dev::Device;
-use core::ptr;
 
 pub struct VesaVbeFramebuffer {
     buffer: &'static mut [u8],
@@ -22,6 +21,21 @@ impl VesaVbeFramebuffer {
             bytes_per_pixel: bytes_per_pixel,
             line_length,
         }
+    }
+
+    #[inline(always)]
+    fn _recursive_fill(&mut self, start_index: usize, end_index: usize, color: Color) {
+        // very smart algorithm!
+        let pixel_data = color.pixel_data();
+        self.buffer[start_index..(start_index + 4)].copy_from_slice(pixel_data);
+        let mut current_length = 4;
+        let mut current_index = 4 + start_index;
+        while current_index + current_length < end_index {
+            self.buffer.copy_within(start_index..current_length + start_index, current_index);
+            current_index += current_length;
+            current_length *= 2;
+        }
+        self.buffer.copy_within(start_index..(end_index - current_index + start_index), current_index);
     }
 }
 
@@ -53,25 +67,47 @@ impl Framebuffer for VesaVbeFramebuffer {
 
     #[inline(always)]
     fn clear_screen(&mut self, color: Color) {
-        let pixel_data = color.pixel_data(self.pixel_format);
-        let mut pixel_offset: usize;
-        let mut byte_offset: usize;
-        for y in 0..self.height {
-            for x in 0..self.width {
-                pixel_offset = y * self.line_length + x;
-                byte_offset = pixel_offset * self.bytes_per_pixel;
-                self.buffer[byte_offset..(byte_offset + self.bytes_per_pixel)]
-                .copy_from_slice(&pixel_data[..self.bytes_per_pixel]);
-            }
-        }
+        self._recursive_fill(0, self.buffer.len(), color);
+    }
+
+    #[inline(always)]
+    fn raw_buffer(&mut self) -> &mut [u8] {
+        self.buffer.as_mut()
+    }
+
+    #[inline(always)]
+    fn get_line_offset(&self, y: usize) -> usize {
+        self.line_length * y * 4
+    }
+
+    #[inline(always)]
+    fn get_pixel_index(&self, x: usize, y: usize) -> usize {
+        self.get_line_offset(y) + x
     }
 
     #[inline(always)]
     fn set_pixel(&mut self, x: usize, y: usize, color: Color) {
-        let pixel_offset = y * self.line_length + x;
-        let pixel_data = color.pixel_data(self.pixel_format);
-        let byte_offset = pixel_offset * self.bytes_per_pixel;
-        self.buffer[byte_offset..(byte_offset + self.bytes_per_pixel)]
-            .copy_from_slice(&pixel_data[..self.bytes_per_pixel]);
+        let pixel_offset = y * self.line_length * 4 + x * 4;
+        let pixel_data = color.pixel_data();
+        self.buffer[pixel_offset..(pixel_offset + 4)].copy_from_slice(pixel_data);
+    }
+
+    #[inline(always)]
+    fn draw_filled_rectangle(&mut self, rectangle: Rectangle, color: Color) {
+        let (x_start, y_start) = (rectangle.x * 4, rectangle.y);
+        let (mut x_end, y_end) = rectangle.end_coordinates();
+        x_end *= 4;
+        let line_offset_start = self.get_line_offset(y_start);
+        self._recursive_fill(line_offset_start + x_start, line_offset_start + x_end, color);
+        let line_offset_end = self.get_line_offset(y_end);
+        let adder = 4 * self.line_length + x_start;
+        for y in (line_offset_start..line_offset_end).step_by(4 * self.line_length) {
+            self.buffer.copy_within((line_offset_start + x_start)..(line_offset_start + x_end), y + adder);
+        }
+    }
+
+    #[inline(always)]
+    fn draw_rectangle(&mut self, rectangle: Rectangle, color: Color, thickness: usize) {
+        
     }
 }

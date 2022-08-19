@@ -9,9 +9,8 @@ pub mod task;
 pub mod pic;
 
 pub fn init() {
-    early_print!("Initializing x86_64 HAL...\n");
+    early_print!("x86_64 ");
     cpu::init();
     pic::init();
     mem::init();
-    println!("Platform initialization done!");
 }

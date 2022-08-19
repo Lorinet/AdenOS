@@ -1,5 +1,5 @@
 use crate::*;
-use console;
+use console::ConsoleColor;
 use dev::{self, ConsoleDevice, framebuffer::{VesaVbeFramebuffer, PixelFormat}, char::{FramebufferConsole, Uart16550}};
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -16,7 +16,7 @@ pub fn clear_screen() {
     }
 }
 
-pub fn set_color(foreground: console::Color, background: console::Color) {
+pub fn set_color(foreground: ConsoleColor, background: ConsoleColor) {
     unsafe {
         KERNEL_CONSOLE.as_mut().unwrap().set_color(foreground, background);
     }

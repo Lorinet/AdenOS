@@ -1,12 +1,13 @@
 use crate::*;
 use core::fmt;
-use console;
+use console::ConsoleColor;
 use dev::framebuffer::*;
-use dev::{self, Write, ConsoleDevice, hal::port};
-use noto_sans_mono_bitmap::{get_bitmap, get_bitmap_width, BitmapChar, BitmapHeight, FontWeight};
+use dev::{self, Write, ConsoleDevice};
+use lazy_static::lazy_static;
+use font8x8::legacy::BASIC_LEGACY;
 
-const CHARACTER_HEIGHT: usize = 14;
-const CHARACTER_WIDTH: usize = get_bitmap_width(FontWeight::Regular, BitmapHeight::Size14);
+const CHARACTER_HEIGHT: usize = 8;
+const CHARACTER_WIDTH: usize = 8;
 
 pub struct FramebufferConsole<'a, F>
 where F: Framebuffer {
@@ -15,17 +16,55 @@ where F: Framebuffer {
     foreground_color: Color,
     x: usize,
     y: usize,
+    color_palette: [Color; 16],
 }
 
 impl<'a, F> FramebufferConsole<'a, F>
 where F: Framebuffer {
     pub fn new(framebuffer: &'a mut F) -> FramebufferConsole<'a, F> {
+        let pixel_format = framebuffer.get_pixel_format();
         FramebufferConsole {
             framebuffer,
-            background_color: Color::black(),
-            foreground_color: Color::white(),
+            background_color: Color { r: 0, g: 0, b: 0 },
+            foreground_color: Color { r: 0xff, g: 0xff, b: 0xff },
             x: 0,
             y: 0,
+            color_palette: [
+                Color::new(pixel_format, 0x08, 0x08, 0x12), // Black
+                Color::new(pixel_format, 0x00, 0x55, 0xbb), // Blue
+                Color::new(pixel_format, 0x00, 0xed, 0x93), // Green
+                Color::new(pixel_format, 0x00, 0xfa, 0xd3), // Cyan
+                Color::new(pixel_format, 0xe3, 0x4c, 0x4c), // Red
+                Color::new(pixel_format, 0xdc, 0x85, 0xf2), // Magenta
+                Color::new(pixel_format, 0x79, 0x54, 0x43), // Brown
+                Color::new(pixel_format, 0xbb, 0xbb, 0xdd), // LightGray
+                Color::new(pixel_format, 0x68, 0x68, 0x78), // DarkGray
+                Color::new(pixel_format, 0x00, 0xa6, 0xf4), // LightBlue
+                Color::new(pixel_format, 0x5d, 0xf0, 0x67), // LightGreen
+                Color::new(pixel_format, 0x68, 0xf5, 0xd7), // LightCyan
+                Color::new(pixel_format, 0xec, 0x6b, 0x64), // LightRed
+                Color::new(pixel_format, 0xff, 0x9f, 0xb8), // Pink
+                Color::new(pixel_format, 0xef, 0xed, 0x63), // Yellow
+                Color::new(pixel_format, 0xff, 0xff, 0xff), // White
+            ],
+        }
+    }
+    
+    fn _new_line(&mut self) {
+        let (width, height) = self.framebuffer.get_size();
+        self.x = 0;
+        if self.y + CHARACTER_HEIGHT + 1 >= height - (CHARACTER_HEIGHT + 1) {
+            let first_line_offset = self.framebuffer.get_line_offset(CHARACTER_HEIGHT + 1);
+            let last_line_offset = self.framebuffer.get_line_offset(height - 1);
+            self.framebuffer.raw_buffer().copy_within(first_line_offset..=last_line_offset, 0);
+            self.framebuffer.draw_filled_rectangle(Rectangle {
+                x: 0,
+                y: self.y - 1,
+                width: width - 1,
+                height: CHARACTER_HEIGHT + 1,
+            }, self.background_color);
+        } else {
+            self.y += CHARACTER_HEIGHT + 1;
         }
     }
 }
@@ -42,27 +81,37 @@ impl<'a, F> dev::Write for FramebufferConsole<'a, F>
 where F: Framebuffer {
     type T = u8;
     fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
-        let (width, height) = self.framebuffer.get_size();
         match val {
             b'\n' => {
-                self.x = 0;
-                self.y += CHARACTER_HEIGHT;
+                self._new_line();
+            },
+            0x08 => {
+                if self.x < CHARACTER_WIDTH {
+                    self.y -= CHARACTER_HEIGHT + 1;
+                    self.x = self.framebuffer.get_size().0 - (CHARACTER_WIDTH);
+                } else { self.x -= CHARACTER_WIDTH; }
+                self.framebuffer.draw_filled_rectangle(Rectangle {
+                    x: self.x,
+                    y: self.y,
+                    width: CHARACTER_WIDTH,
+                    height: CHARACTER_HEIGHT,
+                }, self.background_color);
             },
             c => {
-                if self.x >= width {
-                    self.x = 0;
-                    self.y += CHARACTER_HEIGHT;
+                if self.x >= self.framebuffer.get_size().0 {
+                    self._new_line();
                 }
-                if self.y >= (height - CHARACTER_WIDTH) {
-                    self.clear_screen();
-                }
-                let bitmap_char = get_bitmap(c as char, FontWeight::Regular, BitmapHeight::Size14).unwrap();
-                for (y, row) in bitmap_char.bitmap().iter().enumerate() {
-                    for (x, bt) in row.iter().enumerate() {
-                        self.framebuffer.set_pixel(self.x + x, self.y + y, Color { R: *bt, G: 0, B: 0, A: 255 });
+                let glyph = BASIC_LEGACY[c as usize];
+                for (y, row) in glyph.iter().enumerate() {
+                    for x in 0..8 {
+                        if ((row >> x) & 1) == 1 {
+                            self.framebuffer.set_pixel(self.x + x, self.y + y, self.foreground_color);
+                            self.framebuffer.set_pixel(self.x + x, self.y + y, self.foreground_color);
+                            self.framebuffer.set_pixel(self.x + x, self.y + y, self.foreground_color);
+                        }
                     }
                 }
-                self.x += bitmap_char.width();
+                self.x += CHARACTER_WIDTH;
             }
         }
         Ok(())
@@ -84,11 +133,14 @@ where F: Framebuffer {
     }
 
     fn clear_screen(&mut self) {
-        self.framebuffer.clear_screen(Color::black());
+        self.x = 0;
+        self.y = 0;
+        self.framebuffer.clear_screen(self.background_color);
     }
 
-    fn set_color(&mut self, foreground: console::Color, background: console::Color) {
-        
+    fn set_color(&mut self, foreground: ConsoleColor, background: ConsoleColor) {
+        self.foreground_color = self.color_palette[foreground as usize].clone();
+        self.background_color = self.color_palette[background as usize].clone();
     }
 }
 

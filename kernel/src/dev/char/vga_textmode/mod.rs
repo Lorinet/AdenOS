@@ -1,5 +1,5 @@
 use crate::*;
-use console;
+use console::ConsoleColor;
 use dev::{self, Write, ConsoleDevice, hal::port};
 use core::fmt;
 
@@ -10,7 +10,7 @@ static HEIGHT: usize = 25;
 struct ColorCode(u8);
 
 impl ColorCode {
-    const fn new(foreground: console::Color, background: console::Color) -> ColorCode {
+    const fn new(foreground: ConsoleColor, background: ConsoleColor) -> ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
     }
 }
@@ -28,7 +28,7 @@ impl VgaTextMode {
         VgaTextMode { 
             buffer: 0xb8000 as *mut u8,
             offset: 0,
-            color: ColorCode::new(console::Color::LightGray, console::Color::Black),
+            color: ColorCode::new(ConsoleColor::LightGray, ConsoleColor::Black),
             control_port: port::Port::new(0x3D4),
             data_port: port::Port::new(0x3D5),
         }
@@ -53,7 +53,7 @@ impl VgaTextMode {
 
 impl dev::Device for VgaTextMode {
     fn init_device(&mut self) -> Result<(), dev::Error> {
-        self.set_color(console::Color::LightGray, console::Color::Black);
+        self.set_color(ConsoleColor::LightGray, ConsoleColor::Black);
         self.clear_screen();
         Ok(())
     }
@@ -124,7 +124,7 @@ impl dev::ConsoleDevice for VgaTextMode {
         self.offset = 0;
     }
 
-    fn set_color(&mut self, foreground: console::Color, background: console::Color) {
+    fn set_color(&mut self, foreground: ConsoleColor, background: ConsoleColor) {
         self.color = ColorCode::new(foreground, background);
     }
 }

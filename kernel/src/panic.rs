@@ -3,7 +3,7 @@ use crate::dev::hal::mem;
 use dev;
 use dev::PowerControl;
 use kernel_console;
-use console;
+use console::ConsoleColor;
 use core::panic::PanicInfo;
 use dev::hal::cpu;
 
@@ -11,8 +11,8 @@ pub fn panic(info: &PanicInfo) -> ! {
     unsafe { kernel_console::deadunlock(); }
     unsafe { mem::print_page_tables(); }
     serial_println!("{}", info);
-    cpu::grinding_halt();
-    kernel_console::set_color(console::Color::LightGray, console::Color::Blue);
+    //cpu::grinding_halt();
+    kernel_console::set_color(ConsoleColor::LightGray, ConsoleColor::Blue);
     kernel_console::clear_screen();
     print!("\n");
     println!(" \\|/ ____ \\|/");

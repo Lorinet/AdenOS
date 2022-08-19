@@ -1,5 +1,5 @@
 use crate::*;
-use console;
+use console::ConsoleColor;
 
 pub mod char;
 pub mod hal;
@@ -60,5 +60,5 @@ pub trait PowerControl {
 pub trait ConsoleDevice {
     fn buffer_size(&self) -> (i32, i32) { (0, 0) }
     fn clear_screen(&mut self) {}
-    fn set_color(&mut self, foreground: console::Color, background: console::Color) {}
+    fn set_color(&mut self, foreground: ConsoleColor, background: ConsoleColor) {}
 }

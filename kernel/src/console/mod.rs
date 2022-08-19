@@ -1,6 +1,7 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use enum_iterator::Sequence;
 #[repr(u8)]
-pub enum Color {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Sequence)]
+pub enum ConsoleColor {
     Black = 0,
     Blue = 1,
     Green = 2,

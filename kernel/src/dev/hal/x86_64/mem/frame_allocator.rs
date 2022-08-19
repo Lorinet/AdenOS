@@ -28,3 +28,11 @@ pub unsafe fn allocate_frame() -> Option<PhysFrame> {
     NEXT_FRAME += 1;
     frame
 }
+
+pub fn free_memory() -> usize {
+    let mut it = usable_frames();
+    unsafe { it.advance_by(NEXT_FRAME); }
+    let it = it.map(|frame| frame.size());
+    let sum: u64 = it.sum();
+    sum as usize
+}

@@ -1,4 +1,5 @@
 use crate::*;
+use console::ConsoleColor;
 use crate::dev::Write;
 use crate::userspace::*;
 use dev::input::keyboard;
@@ -8,10 +9,12 @@ use dev;
 use dev::hal::*;
 use async_task::*;
 use crate::task::scheduler::*;
+use enum_iterator::all;
+use alloc::vec::Vec;
 
 pub fn run_kernel() -> ! {
     
-    kernel_console::set_color(console::Color::LightGray, console::Color::Black);
+    kernel_console::set_color(ConsoleColor::LightGray,  ConsoleColor::Black);
     kernel_console::clear_screen();
     init_system();
     loop {
@@ -22,30 +25,18 @@ pub fn run_kernel() -> ! {
 fn init_system() {
     early_print!("Linfinity Technologies Neutrino Core OS [Version {}]\n", sysinfo::NEUTRINO_VERSION);
     dev::hal::init();
+    early_print!("[{} MB memory available]\n", unsafe { mem::FREE_MEMORY } / 1048576);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
-    kernel_executor::spawn(Task::new(example_task()));
-    println!("Creating processes");
-    Scheduler::exec(userspace_app_1);
+    //Scheduler::exec(userspace_app_1);
     Scheduler::kexec(kernel_executor::run);
-    println!("Created processes");
     cpu::enable_scheduler();
     kernel_executor::run();
-    println!("System init done!");
 }
 
 fn test_input_keyboard(key: keyboard::Key) {
     if let keyboard::Key::Unicode(ch) = key {
         print!("{}", ch);
     }
-}
-
-async fn async_number() -> u32 {
-    42
-}
-
-async fn example_task() {
-    let number = async_number().await;
-    println!("async number: {}", number);
 }

@@ -173,7 +173,6 @@ pub unsafe extern "C" fn timer_handler_scheduler_part_2(context: *const TaskCont
 
 #[inline(always)]
 pub unsafe fn restore_registers(context: &TaskContext) {
-    serial_println!("New context: {:x}, RSP: {:x}", context as *const _ as u64, context.rsp);
     asm!("mov rsp, {0};\
             pop rbp; pop rax; pop rbx; pop rcx; pop rdx; pop rsi; pop rdi; pop r8; pop r9;\
             pop r10; pop r11; pop r12; pop r13; pop r14; pop r15; iretq;", in(reg) context as *const _ as u64);

@@ -70,7 +70,6 @@ impl dev::StaticDevice for PS2KeyboardPIC8259 {
     }
 
     fn init_device() -> Result<(), dev::Error> {
-        println!("Initializing {}...", PS2KeyboardPIC8259::device_name());
         kernel_executor::spawn(Task::new(Self::_input_handler_task()));
         cpu::register_interrupt_handler(interrupts::HardwareInterrupt::Keyboard, PS2KeyboardPIC8259::_input_handler);
         Ok(())

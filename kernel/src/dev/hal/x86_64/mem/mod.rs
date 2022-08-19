@@ -6,19 +6,18 @@ use bootloader::boot_info;
 use alloc::{vec::Vec, alloc::alloc};
 use x86_64::{ structures::paging::{mapper::MapToError, Page, PageTable, PhysFrame, PageTableFlags, Size4KiB}, VirtAddr, PhysAddr, registers::control::{Cr3, Cr3Flags}, instructions::tlb };
 
-mod frame_allocator;
+pub mod frame_allocator;
 pub mod page_mapper;
 
 pub static mut PHYSICAL_MEMORY_OFFSET: u64 = 0;
 pub static mut BOOT_MEMORY_MAP: Option<&boot_info::MemoryRegions> = None;
+pub static mut FREE_MEMORY: usize = 0;
 
 pub const KERNEL_HEAP_START: usize = 0x_4444_4444_0000;
 pub const KERNEL_HEAP_SIZE: usize = 64 * 4096;
 
 pub fn init() {
-    early_print!("Initializing kernel heap...\n");
     unsafe { frame_allocator::init(BOOT_MEMORY_MAP.unwrap()) };
-    println!("Initialized frame allocator");
     init_heap().expect("KERNEL_HEAP_ALLOCATION_FAILED");
     let (frame, _) = Cr3::read();
     let table_virt_addr = frame.start_address().as_u64() + unsafe { PHYSICAL_MEMORY_OFFSET };
@@ -28,11 +27,8 @@ pub fn init() {
 
 pub unsafe fn enable_page_table(page_table: &'static mut PageTable) {
     let phys_addr = (page_table as *const PageTable as usize) - PHYSICAL_MEMORY_OFFSET as usize;
-    println!("L4 address CR3: {:#x}", phys_addr);
     Cr3::write(PhysFrame::from_start_address(PhysAddr::new(phys_addr as u64)).expect("userspace page table not aligned"), Cr3Flags::all());
-    println!("dood");
     tlb::flush_all();
-    println!("flushed tlb");
 }
 
 pub fn init_heap() -> Result<(), MapToError<Size4KiB>> {
@@ -55,12 +51,6 @@ pub fn init_heap() -> Result<(), MapToError<Size4KiB>> {
         allocator::ALLOCATOR.init(KERNEL_HEAP_START, KERNEL_HEAP_SIZE);
         #[cfg(feature = "linked_list_allocator")]
         allocator::ALLOCATOR.lock().init(KERNEL_HEAP_START as *mut u8, KERNEL_HEAP_SIZE);
-    }
-
-    unsafe { 
-        println!("Physical memory virtual base: {:#018x}", PHYSICAL_MEMORY_OFFSET);
-        println!("Kernel heap virtual base: {:#018x}", KERNEL_HEAP_START);
-        println!("Kernel heap size: {:#018x}", KERNEL_HEAP_SIZE);
     }
 
     Ok(())

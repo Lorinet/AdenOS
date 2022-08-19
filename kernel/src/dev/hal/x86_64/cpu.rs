@@ -79,7 +79,6 @@ lazy_static! {
 }
 
 pub fn init() {
-    early_print!("Initializing CPU...\n");
     GDT.0.load();
     unsafe {
         segmentation::CS::set_reg(GDT.1.kernel_code_selector);

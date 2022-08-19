@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 bootloader-locator = "0.0.4"
+sudo = "0.6.0"

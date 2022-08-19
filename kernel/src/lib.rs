@@ -1,7 +1,9 @@
 #![no_std]
 #![cfg_attr(test, no_main)]
 #![feature(naked_functions)]
+#![feature(iter_advance_by)]
 #![feature(abi_x86_interrupt)]
+#![feature(iter_collect_into)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 #![feature(custom_test_frameworks)]
@@ -23,6 +25,7 @@ pub mod userspace;
 pub mod async_task;
 pub mod kernel_console;
 
+extern crate font8x8;
 extern crate alloc;
 
 #[cfg(test)]
@@ -37,6 +40,8 @@ fn test_kernel_main(boot_info: &'static mut BootInfo) -> ! {
     unsafe { 
         dev::hal::mem::PHYSICAL_MEMORY_OFFSET = boot_info.physical_memory_offset.into_option().unwrap();
         dev::hal::mem::BOOT_MEMORY_MAP = Some(&boot_info.memory_regions);
+        let free_mem: usize = 0;
+        dev::hal::mem::FREE_MEMORY = free_mem;
     }
     dev::hal::init();
     #[cfg(test)]

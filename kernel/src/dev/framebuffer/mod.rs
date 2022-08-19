@@ -1,44 +1,72 @@
 mod vesa_vbe_framebuffer;
+use core::ops;
+use core::slice;
 pub use vesa_vbe_framebuffer::VesaVbeFramebuffer;
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug)]
 pub enum PixelFormat {
-    RGBA,
-    BGRA,
+    RGB,
+    BGR,
     Monochrome,
 }
 
 #[repr(C)]
-#[derive(Clone, Debug)]
+#[repr(packed)]
+#[derive(Copy, Clone, Debug)]
 pub struct Color {
-    pub R: u8,
-    pub G: u8,
-    pub B: u8,
-    pub A: u8,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
 }
 
 impl Color {
     #[inline(always)]
-    pub fn pixel_data(&self, pixel_format: PixelFormat) -> [u8; 4] {
+    pub fn new(pixel_format: PixelFormat, R: u8, G: u8, B: u8) -> Color {
         match pixel_format {
-            PixelFormat::RGBA => [self.R, self.G, self.B, self.A],
-            PixelFormat::BGRA => [self.B, self.G, self.R, self.A],
-            PixelFormat::Monochrome => [self.R, 0, 0, 0],
+            PixelFormat::RGB => Color { r: R, g: G, b: B },
+            PixelFormat::BGR => Color { r: B, g: G, b: R },
+            PixelFormat::Monochrome => Color { r: R, g: 0, b: 0 },
         }
     }
 
     #[inline(always)]
-    pub fn black() -> Color { Color { R: 0, G: 0, B: 0, A: 0, } }
+    pub fn pixel_data(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self as *const _ as *const u8, 4) }
+    }
+}
 
-    #[inline(always)]
-    pub fn white() -> Color { Color { R: 255, G: 255, B: 255, A: 255, } }
+impl ops::Mul<u8> for Color {
+    type Output = Color;
+    fn mul(self, rhs: u8) -> Self::Output {
+        Color { r: self.r * rhs, g: self.g * rhs, b: self.b * rhs }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Debug)]
+pub struct Rectangle {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl Rectangle {
+    pub fn end_coordinates(&self) -> (usize, usize) {
+        (self.x + self.width, self.y + self.height)
+    }
 }
 
 pub trait Framebuffer {
     fn get_pixel_format(&self) -> PixelFormat;
     fn get_bytes_per_pixel(&self) -> usize;
     fn get_size(&self) -> (usize, usize);
+    fn get_line_offset(&self, y: usize) -> usize;
+    fn get_pixel_index(&self, x: usize, y: usize) -> usize;
+    fn raw_buffer(&mut self) -> &mut [u8];
     fn set_pixel(&mut self, x: usize, y: usize, color: Color);
     fn clear_screen(&mut self, color: Color);
+    fn draw_rectangle(&mut self, rectangle: Rectangle, color: Color, thickness: usize);
+    fn draw_filled_rectangle(&mut self, rectangle: Rectangle, color: Color);
 }
