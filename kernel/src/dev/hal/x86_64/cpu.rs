@@ -1,6 +1,8 @@
 use crate::*;
 use dev::hal::{interrupts, pic, task};
 use x86_64::instructions::interrupts::disable;
+use x86_64::registers;
+use x86_64::registers::control::Cr3;
 use x86_64::structures::gdt::SegmentSelector;
 use x86_64::structures::idt::InterruptStackFrame;
 use crate::task::scheduler::*;
@@ -25,6 +27,39 @@ use alloc::{alloc::{alloc, dealloc, Layout}, vec::Vec};
 
 const INTERRUPT_IST_INDEX: u16 = 0;
 const SCHEDULER_INTERRUPT_IST_INDEX: u16 = 0;
+
+#[repr(C)]
+#[repr(packed)]
+struct Registers {
+    rax: u64,
+    rbx: u64,
+    rcx: u64,
+    rdx: u64,
+    rbp: u64,
+    rdi: u64,
+    rsi: u64,
+    r8: u64,
+    r9: u64,
+    r10: u64,
+    r11: u64,
+    r12: u64,
+    r13: u64,
+    r14: u64,
+    r15: u64,
+    rsp: u64,
+    rip: u64,
+    rflags: u64,
+    cs: u64,
+    ds: u64,
+    ss: u64,
+    es: u64,
+    fs: u64,
+    gs: u64,
+    cr0: u64,
+    cr2: u64,
+    cr3: u64,
+    cr4: u64,
+}
 
 #[derive(Copy, Clone)]
 struct Selectors {
@@ -104,6 +139,12 @@ pub fn init() {
         IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_fn(interrupts::timer::timer_handler).set_stack_index(INTERRUPT_IST_INDEX);
         IDT.load();
     }
+    let pat_mask: u64 = 1 << 56;
+    let pat_antimask: u64 = !(3 << 57);
+    let mut pat_msr = registers::model_specific::Msr::new(0x277);
+    let pat_val = unsafe { (pat_msr.read() | pat_mask) & pat_antimask };
+    serial_println!("PAT new value: {:#066b}", pat_val);
+    unsafe { pat_msr.write(pat_val) };
 }
 
 pub fn enable_scheduler() {
@@ -115,13 +156,13 @@ pub fn enable_scheduler() {
 }
 
 #[no_mangle]
-unsafe extern "C" fn allocate_syscall_stack() -> *const u8 {
-    Vec::<u8>::with_capacity(0x1000).as_ptr()
+unsafe extern "C" fn allocate_syscall_stack() -> *mut u8 {
+    alloc(Layout::from_size_align_unchecked(0x2000, 0x1000)).offset(0x2000)
 }
 
 #[no_mangle]
-unsafe extern "C" fn drop_syscall_stack(syscall_stack: *const u8) {
-    drop(&syscall_stack);
+unsafe extern "C" fn drop_syscall_stack(syscall_stack: *mut u8) {
+    dealloc(syscall_stack, Layout::from_size_align_unchecked(0x2000, 0x1000));
 }
 
 #[naked]
@@ -154,6 +195,7 @@ unsafe fn system_call_trap_handler() {
     push r9 // save user stack
     call system_call
     pop r9  // user stack
+    sub rsp, 0x2000
     mov rdi, rsp // argument to drop_syscall_stack
     mov rsp, r9  // restore user stack
     push rax // return value

@@ -1,6 +1,6 @@
 #![cfg(target_arch = "x86_64")]
 
-use crate::*;
+use crate::{*, dev::Device};
 pub mod port;
 pub mod cpu;
 pub mod mem;
@@ -13,4 +13,7 @@ pub fn init() {
     cpu::init();
     pic::init();
     mem::init();
+    unsafe {
+        kernel_console::FRAMEBUFFER.as_mut().unwrap().init_device().unwrap();
+    }
 }

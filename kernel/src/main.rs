@@ -20,11 +20,11 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     //loop {}
     unsafe { 
-        dev::hal::mem::PHYSICAL_MEMORY_OFFSET = boot_info.physical_memory_offset.into_option().unwrap();
-        dev::hal::mem::BOOT_MEMORY_MAP = Some(&boot_info.memory_regions);
+        mem::PHYSICAL_MEMORY_OFFSET = boot_info.physical_memory_offset.into_option().unwrap();
+        mem::BOOT_MEMORY_MAP = Some(&boot_info.memory_regions);
         let free_mem = boot_info.memory_regions.iter().map(|reg| reg.end - reg.start);
         let free_mem: u64 = free_mem.sum();
-        dev::hal::mem::FREE_MEMORY = free_mem as usize;
+        mem::FREE_MEMORY = free_mem as usize;
         let bifb = boot_info.framebuffer.as_mut().unwrap();
         let bifbi = bifb.info();
         kernel_console::FRAMEBUFFER = Some(VesaVbeFramebuffer::new(bifb.buffer_mut(), bifbi.horizontal_resolution, bifbi.vertical_resolution,

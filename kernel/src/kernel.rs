@@ -25,11 +25,11 @@ pub fn run_kernel() -> ! {
 fn init_system() {
     early_print!("Linfinity Technologies Neutrino Core OS [Version {}]\n", sysinfo::NEUTRINO_VERSION);
     dev::hal::init();
-    early_print!("[{} MB memory available]\n", unsafe { mem::FREE_MEMORY } / 1048576);
+    early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
-    //Scheduler::exec(userspace_app_1);
+    Scheduler::exec(userspace_app_1);
     Scheduler::kexec(kernel_executor::run);
     cpu::enable_scheduler();
     kernel_executor::run();
@@ -38,5 +38,23 @@ fn init_system() {
 fn test_input_keyboard(key: keyboard::Key) {
     if let keyboard::Key::Unicode(ch) = key {
         print!("{}", ch);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
+        Scheduler::exec(userspace_app_1);
     }
 }

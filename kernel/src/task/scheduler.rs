@@ -1,8 +1,7 @@
-use crate::{*, dev::hal::mem};
-use alloc::{vec::Vec, boxed::Box};
+use crate::*;
+use alloc::{vec::Vec};
 use dev::hal::{task};
-use lazy_static::lazy_static;
-use spin::{Mutex, MutexGuard};
+use core::arch::asm;
 
 static mut SCHEDULER: Scheduler = Scheduler::new();
 pub static DUMMY: &str = "hello";
@@ -30,6 +29,22 @@ impl Scheduler {
         unsafe { SCHEDULER._next(); }
     }
 
+    #[inline(always)]
+    pub fn current_process() -> usize {
+        unsafe {
+            /*if SCHEDULER.current_task == 0 {
+                SCHEDULER.processes.len() - 1
+            } else {
+                SCHEDULER.current_task - 1
+            }*/
+            SCHEDULER.current_task
+        }
+    }
+
+    pub fn terminate(process: usize) {
+        unsafe { SCHEDULER._terminate(process); }
+    }
+
     pub fn add_process(process: task::Task) {
         unsafe { SCHEDULER._add_process(process); }
     }
@@ -52,16 +67,24 @@ impl Scheduler {
     #[inline(always)]
     fn _context_switch(&mut self, current_context: Option<task::TaskContext>) {
         if let Some(ctx) = current_context {
-            self.processes[self.current_task].state = ctx;
-            self.processes[self.current_task].save_state();
-            self._next();
+            let current_process = &mut self.processes[self.current_task];
+            if current_process.zombie {
+                self.processes[self.current_task].die();
+                self.processes.remove(self.current_task);
+                if self.current_task >= self.processes.len() {
+                    self.current_task = 0;
+                }
+            } else {
+                self.processes[self.current_task].state = ctx;
+                self._next();
+            }
         }
         self.processes[self.current_task].restore_state();
         unsafe { task::restore_registers(&self.processes[self.current_task].state); }
     }
 
     fn _add_process(&mut self, process: task::Task) {
-        self.processes.push(process);
+        self.processes.push(process.clone());
     }
 
     fn _exec(&self, application: unsafe extern "C" fn()) {
@@ -69,6 +92,10 @@ impl Scheduler {
     }
 
     fn _kexec(&self, application: unsafe fn()) {
-        task::Task::kexec(application);
+        unsafe { task::Task::kexec(application) };
+    }
+
+    fn _terminate(&mut self, process: usize) {
+        self.processes[process].zombie = true;
     }
 }

@@ -14,9 +14,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     match subcommand {
         "build" => { build(false, None); },
-        "run" => run(build(false, None), false, false, false),
-        "kvm" => run(build(false, None), true, false, false),
-        "debug" => run(build(false, None), false, true, false),
+        "run" => run(build(false, None), false, false, false, &args[2..]),
+        "kvm" => run(build(false, None), true, false, false, &args[2..]),
+        "debug" => run(build(false, None), false, true, false, &args[2..]),
         "test" => test(args.get(2).cloned()),
         "flash" => { flash(args.get(2).cloned().expect("Please provide device name")).or_else(|err| return Err(err)); },
         _ => println!("Usage: n [build|debug|run|kvm|test|flash]"),
@@ -64,20 +64,21 @@ fn build(test: bool, integration: Option<String>) -> String {
     String::from(kernel_output_folder.to_str().unwrap())
 }
 
-fn run(bootable_image_path: String, kvm: bool, debug: bool, test: bool) {
+fn run(bootable_image_path: String, kvm: bool, debug: bool, test: bool, additional_args: &[String]) {
     let qemu_command = Command::new("qemu-system-x86_64")
     .arg("-hda").arg(bootable_image_path)
     .arg("-serial").arg("stdio")
     .args(if kvm { vec!["-enable-kvm"] } else { vec![] })
     .args(if debug { vec!["-s", "-S"] } else { vec![] })
     .args(if test { vec!["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-display", "none"] } else { vec![] })
-    .arg("-d").arg("int").status().expect("Launch failed: 'qemu-system-x86_64'");
+    .arg("-d").arg("int")
+    .args(additional_args).status().expect("Launch failed: 'qemu-system-x86_64'");
     exit(qemu_command.code().unwrap());
 }
 
 fn test(integration: Option<String>) {
     let bootable_image_path = build(true, integration);
-    run(bootable_image_path, false, false, true);
+    run(bootable_image_path, false, false, true, &[]);
 }
 
 fn flash(device_path: String) -> Result<(), Box<dyn Error>> {

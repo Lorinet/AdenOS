@@ -6,6 +6,7 @@ pub const SYSTEM_CALL_READ: usize = 0;
 pub const SYSTEM_CALL_WRITE: usize = 1;
 pub const SYSTEM_CALL_SEEK: usize = 2;
 pub const SYSTEM_CALL_GET_IO_HANDLE: usize = 3;
+pub const SYSTEM_CALL_EXIT: usize = 4;
 
 #[repr(usize)]
 pub enum IOHandle {
@@ -34,5 +35,11 @@ pub extern "C" fn seek<T: ReadOrWrite>(handle: &Handle<T>, offset: usize, relati
 #[inline(always)]
 pub extern "C" fn get_io_handle(process_handle: Handle<Process>, io_handle: IOHandle) -> Handle<Stream> {
     Handle::<Stream>::new(arch::_system_call(SYSTEM_CALL_GET_IO_HANDLE, process_handle.id, io_handle as usize, 0, 0))
+}
+
+#[inline(always)]
+pub extern "C" fn exit() -> ! {
+    arch::_system_call(SYSTEM_CALL_EXIT, 0, 0, 0, 0);
+    loop {}
 }
 

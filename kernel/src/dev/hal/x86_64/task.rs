@@ -1,10 +1,10 @@
 use crate::*;
 use core::arch::asm;
-use alloc::alloc::Layout;
 use dev::hal::{cpu, pic, mem::*, interrupts};
 use task::scheduler::*;
-use alloc::vec::Vec;
-use x86_64::{PhysAddr, VirtAddr, registers::{control::{Cr3, Cr3Flags}, rflags::RFlags, segmentation::{DS, Segment}}, structures::paging::*};
+use x86_64::{PhysAddr,  registers::{control::{Cr3, Cr3Flags}, rflags::RFlags, segmentation::{DS, Segment}}, structures::paging::*, instructions::interrupts::enable};
+
+use super::mem::page_mapper::addr_to_page_table;
 
 #[repr(C, align(2))]
 #[derive(Debug, Clone)]
@@ -57,7 +57,7 @@ impl TaskContext {
         }
     }
 
-    pub fn knew(rip: u64) -> TaskContext {
+    pub fn knew(rip: u64, rsp: u64) -> TaskContext {
         TaskContext {
             rbp: 0,
             rax: 0,
@@ -77,7 +77,7 @@ impl TaskContext {
             rip,
             cs: *cpu::KERNEL_CS,
             rflags: 0x200,
-            rsp: 0,
+            rsp,
             ss: *cpu::KERNEL_SS,
         }
     }
@@ -87,72 +87,69 @@ impl TaskContext {
 pub struct Task {
     pub state: TaskContext,
     pub page_table: u64,
-    _stack_holder: Vec<u8>,
+    pub zombie: bool,
 }
 
 impl Task {
-    pub fn new(code_addr: u64, stack_addr: u64, page_table: u64, _stack_holder: Vec<u8>) -> Task {
+    pub fn new(code_addr: u64, stack_addr: u64, page_table: u64, user_mode: bool) -> Task {
         Task {
-            state: TaskContext::new(code_addr, stack_addr),
+            state: match user_mode {
+                true => TaskContext::new(code_addr, stack_addr),
+                false => TaskContext::knew(code_addr, stack_addr),
+            },
             page_table,
-            _stack_holder,
+            zombie: false,
         }
-    }
-
-    pub fn new_stack(code_addr: u64, stack_size: usize) -> Task {
-        let mut task = Task {
-            state: TaskContext::knew(code_addr),
-            page_table: Cr3::read().0.start_address().as_u64(),
-            _stack_holder: Vec::<u8>::with_capacity(stack_size),
-        };
-        task.state.rsp = &task._stack_holder as *const _ as u64;
-        task
-    }
-
-    pub fn save_state(&mut self) {
-        self.page_table = Cr3::read().0.start_address().as_u64();
     }
 
     #[inline(always)]
     pub fn restore_state(&self) {
         unsafe {
-            Cr3::write(PhysFrame::from_start_address_unchecked(PhysAddr::new(self.page_table)), Cr3Flags::all());
-            //DS::set_reg(*cpu::USER_DS);
+            let val = self.page_table | 0x18;
+            asm!("mov cr3, {0}", in(reg) val);
         }
+    }
+
+    #[inline(always)]
+    pub fn die(&mut self) {
+        unsafe {
+            enable_page_table(addr_to_page_table(KERNEL_PAGE_TABLE));
+        }
+        page_mapper::unmap_userspace_page_tables(self.page_table);
     }
 
     pub unsafe fn exec(application: unsafe extern "C" fn()) {
-        let phys_mem_offset = VirtAddr::new(PHYSICAL_MEMORY_OFFSET.try_into().unwrap());
-        let kernel_page_table = active_level_4_table(phys_mem_offset);
-        let user_page_table = page_mapper::new_l4_table();
-        for (i, ent) in kernel_page_table.iter().enumerate() {
-            if !ent.is_unused() {
-                user_page_table[i] = ent.clone();
-            }
-        }
-        let kernel_page_table_phys = (kernel_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
+        asm!("cli");
+        let user_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
         let user_page_table_phys = (user_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
-        enable_page_table(user_page_table);
-        let flags = Some(PageTableFlags::WRITABLE | PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE | PageTableFlags::GLOBAL);
+        let flags = Some(PageTableFlags::WRITABLE | PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE);
         let user_virt_base = 0x40000000;
         let user_phys_base = page_mapper::translate_addr(application as usize).unwrap();
-        for i in 0..100 {
+        for i in 0..32 {
             let off = i * 0x1000;
-            page_mapper::map_addr(user_virt_base + off, user_phys_base + off, flags).expect("peace");
+            page_mapper::map_addr(user_page_table, user_virt_base + off, user_phys_base + off, flags);
         }
-        let user_stack = Vec::<u8>::with_capacity(1000);
         let user_stack_virt_base = 0x60000000;
-        let user_stack_phys_base = page_mapper::translate_addr(user_stack.as_ptr() as usize).unwrap();
-        page_mapper::map_addr(user_stack_virt_base, user_stack_phys_base, flags).expect("fuck you");
-        page_mapper::map_addr(user_stack_virt_base + 0x1000, user_stack_phys_base + 0x1000, flags).expect("capybara");
+        for i in 0..8 {
+            let stack_frame = FRAME_ALLOCATOR.allocate_frame();
+            page_mapper::map_addr(user_page_table, user_stack_virt_base + (i * 0x1000), stack_frame, flags);
+        }
         let user_entry_point_offset = user_phys_base % 0x1000;
-        let user_stack_offset = user_stack_phys_base % 0x1000;
-        Cr3::write(PhysFrame::from_start_address_unchecked(PhysAddr::new(kernel_page_table_phys)), Cr3Flags::all());
-        Scheduler::add_process(Task::new((user_virt_base + user_entry_point_offset + 1) as u64, (user_stack_virt_base + user_stack_offset + 0x1000) as u64, user_page_table_phys as u64, user_stack));
+        Scheduler::add_process(Task::new((user_virt_base + user_entry_point_offset + 1) as u64, (user_stack_virt_base + 0x8000) as u64, user_page_table_phys, true));
+        asm!("sti");
     }
 
-    pub fn kexec(application: unsafe fn()) {
-        Scheduler::add_process(Task::new_stack(application as u64, 0x1000));
+    pub unsafe fn kexec(application: unsafe fn()) {
+        asm!("cli");
+        let child_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
+        let child_page_table_phys = (child_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
+        let child_stack_virt_base = 0x60000000;
+        for i in 0..8 {
+            let stack_frame = FRAME_ALLOCATOR.allocate_frame();
+            page_mapper::map_addr(child_page_table, child_stack_virt_base + (i * 0x1000), stack_frame, None);
+        }
+        Scheduler::add_process(Task::new(application as u64, (child_stack_virt_base + 0x8000) as u64, child_page_table_phys, false));
+        asm!("sti");
     }
 }
 
@@ -173,6 +170,7 @@ pub unsafe extern "C" fn timer_handler_scheduler_part_2(context: *const TaskCont
 
 #[inline(always)]
 pub unsafe fn restore_registers(context: &TaskContext) {
+    //serial_println!("New context rip: {:x} rsp: {:x}", context.rip, context.rsp);
     asm!("mov rsp, {0};\
             pop rbp; pop rax; pop rbx; pop rcx; pop rdx; pop rsi; pop rdi; pop r8; pop r9;\
             pop r10; pop r11; pop r12; pop r13; pop r14; pop r15; iretq;", in(reg) context as *const _ as u64);

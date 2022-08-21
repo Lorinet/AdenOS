@@ -62,11 +62,13 @@ pub trait Framebuffer {
     fn get_pixel_format(&self) -> PixelFormat;
     fn get_bytes_per_pixel(&self) -> usize;
     fn get_size(&self) -> (usize, usize);
-    fn get_line_offset(&self, y: usize) -> usize;
     fn get_pixel_index(&self, x: usize, y: usize) -> usize;
     fn raw_buffer(&mut self) -> &mut [u8];
     fn set_pixel(&mut self, x: usize, y: usize, color: Color);
     fn clear_screen(&mut self, color: Color);
     fn draw_rectangle(&mut self, rectangle: Rectangle, color: Color, thickness: usize);
     fn draw_filled_rectangle(&mut self, rectangle: Rectangle, color: Color);
+    fn get_line_offset(&self, y: usize) -> usize;
+    fn commit(&mut self);
+    fn commit_area(&mut self, area: Rectangle);
 }

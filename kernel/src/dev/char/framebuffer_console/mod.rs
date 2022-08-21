@@ -30,7 +30,7 @@ where F: Framebuffer {
             x: 0,
             y: 0,
             color_palette: [
-                Color::new(pixel_format, 0x08, 0x08, 0x12), // Black
+                Color::new(pixel_format, 0x11, 0x16, 0x26), // Black
                 Color::new(pixel_format, 0x00, 0x55, 0xbb), // Blue
                 Color::new(pixel_format, 0x00, 0xed, 0x93), // Green
                 Color::new(pixel_format, 0x00, 0xfa, 0xd3), // Cyan
@@ -63,6 +63,7 @@ where F: Framebuffer {
                 width: width - 1,
                 height: CHARACTER_HEIGHT + 1,
             }, self.background_color);
+            self.framebuffer.commit();
         } else {
             self.y += CHARACTER_HEIGHT + 1;
         }
@@ -96,6 +97,13 @@ where F: Framebuffer {
                     width: CHARACTER_WIDTH,
                     height: CHARACTER_HEIGHT,
                 }, self.background_color);
+                self.framebuffer.commit_area(Rectangle {
+                    x: self.x,
+                    y: self.y,
+                    width: CHARACTER_WIDTH,
+                    height: CHARACTER_HEIGHT,
+                });
+                self.x += CHARACTER_WIDTH;
             },
             c => {
                 if self.x >= self.framebuffer.get_size().0 {
@@ -111,6 +119,12 @@ where F: Framebuffer {
                         }
                     }
                 }
+                self.framebuffer.commit_area(Rectangle {
+                    x: self.x,
+                    y: self.y,
+                    width: CHARACTER_WIDTH,
+                    height: CHARACTER_HEIGHT,
+                });
                 self.x += CHARACTER_WIDTH;
             }
         }
