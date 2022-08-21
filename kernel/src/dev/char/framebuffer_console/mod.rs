@@ -2,8 +2,7 @@ use crate::*;
 use core::fmt;
 use console::ConsoleColor;
 use dev::framebuffer::*;
-use dev::{self, Write, ConsoleDevice};
-use lazy_static::lazy_static;
+use dev::{self, Write};
 use font8x8::legacy::BASIC_LEGACY;
 
 const CHARACTER_HEIGHT: usize = 8;
@@ -30,22 +29,22 @@ where F: Framebuffer {
             x: 0,
             y: 0,
             color_palette: [
-                Color::new(pixel_format, 0x11, 0x16, 0x26), // Black
-                Color::new(pixel_format, 0x00, 0x55, 0xbb), // Blue
-                Color::new(pixel_format, 0x00, 0xed, 0x93), // Green
-                Color::new(pixel_format, 0x00, 0xfa, 0xd3), // Cyan
-                Color::new(pixel_format, 0xe3, 0x4c, 0x4c), // Red
-                Color::new(pixel_format, 0xdc, 0x85, 0xf2), // Magenta
-                Color::new(pixel_format, 0x79, 0x54, 0x43), // Brown
-                Color::new(pixel_format, 0xbb, 0xbb, 0xdd), // LightGray
-                Color::new(pixel_format, 0x68, 0x68, 0x78), // DarkGray
-                Color::new(pixel_format, 0x00, 0xa6, 0xf4), // LightBlue
-                Color::new(pixel_format, 0x5d, 0xf0, 0x67), // LightGreen
-                Color::new(pixel_format, 0x68, 0xf5, 0xd7), // LightCyan
-                Color::new(pixel_format, 0xec, 0x6b, 0x64), // LightRed
-                Color::new(pixel_format, 0xff, 0x9f, 0xb8), // Pink
-                Color::new(pixel_format, 0xef, 0xed, 0x63), // Yellow
-                Color::new(pixel_format, 0xff, 0xff, 0xff), // White
+                Color::new(pixel_format, 0x0d, 0x10, 0x1a), // Black n
+                Color::new(pixel_format, 0xbf, 0x61, 0x6a), // Red n
+                Color::new(pixel_format, 0x68, 0x87, 0x4d), // Green n
+                Color::new(pixel_format, 0xf0, 0xdb, 0x54), // Yellow n
+                Color::new(pixel_format, 0x81, 0xa1, 0xc1), // Blue n
+                Color::new(pixel_format, 0xb4, 0x8e, 0xad), // Magenta n
+                Color::new(pixel_format, 0x50, 0x85, 0x94), // Cyan n
+                Color::new(pixel_format, 0xd8, 0xde, 0xe9), // White n
+                Color::new(pixel_format, 0x2e, 0x34, 0x40), // BrightBlack n
+                Color::new(pixel_format, 0xf5, 0x87, 0x87), // BrightRed n
+                Color::new(pixel_format, 0xa3, 0xbe, 0x8c), // BrightGreen n
+                Color::new(pixel_format, 0xeb, 0xc8, 0x8b), // BrightYellow n
+                Color::new(pixel_format, 0xaa, 0xd2, 0xfa), // BrightBlue n
+                Color::new(pixel_format, 0xb4, 0x8e, 0xad), // BrightMagenta
+                Color::new(pixel_format, 0x88, 0xc0, 0xd0), // BrightCyan n
+                Color::new(pixel_format, 0xff, 0xff, 0xff), // BrightWhite n
             ],
         }
     }

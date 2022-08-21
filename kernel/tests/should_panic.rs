@@ -4,7 +4,6 @@
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(neutrino_os::test::test_runner)]
 
-use neutrino_os::*;
 use core::panic::PanicInfo;
 
 #[no_mangle]

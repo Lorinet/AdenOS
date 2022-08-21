@@ -1,6 +1,5 @@
 mod vesa_vbe_framebuffer;
-use core::ops;
-use core::slice;
+use core::{ops, slice};
 pub use vesa_vbe_framebuffer::VesaVbeFramebuffer;
 
 #[repr(u8)]
@@ -22,6 +21,7 @@ pub struct Color {
 
 impl Color {
     #[inline(always)]
+    #[allow(non_snake_case)]
     pub fn new(pixel_format: PixelFormat, R: u8, G: u8, B: u8) -> Color {
         match pixel_format {
             PixelFormat::RGB => Color { r: R, g: G, b: B },

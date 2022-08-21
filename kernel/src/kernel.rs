@@ -1,6 +1,5 @@
 use crate::*;
 use console::ConsoleColor;
-use crate::dev::Write;
 use crate::userspace::*;
 use dev::input::keyboard;
 use dev::StaticDevice;
@@ -9,12 +8,10 @@ use dev;
 use dev::hal::*;
 use async_task::*;
 use crate::task::scheduler::*;
-use enum_iterator::all;
-use alloc::vec::Vec;
 
 pub fn run_kernel() -> ! {
     
-    kernel_console::set_color(ConsoleColor::LightGray,  ConsoleColor::Black);
+    kernel_console::set_color(ConsoleColor::White,  ConsoleColor::BrightBlack);
     kernel_console::clear_screen();
     init_system();
     loop {
@@ -26,6 +23,7 @@ fn init_system() {
     early_print!("Linfinity Technologies Neutrino Core OS [Version {}]\n", sysinfo::NEUTRINO_VERSION);
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
+    kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();

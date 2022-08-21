@@ -1,5 +1,4 @@
 use crate::*;
-use core::arch::asm;
 use super::FRAME_ALLOCATOR;
 use super::PHYSICAL_MEMORY_OFFSET;
 use x86_64::{structures::paging::{page_table::{PageTableEntry, PageTableFlags}, PageTable, PageTableIndex}, {registers::control::Cr3, VirtAddr}, PhysAddr, {instructions::tlb}};
@@ -13,7 +12,7 @@ pub fn unmap_userspace_page_tables(page_table_addr: u64) {
     let page_table = addr_to_page_table(page_table_addr);
     let l3_page_table = addr_to_page_table(page_table[0].addr().as_u64());
     let l2_page_table = addr_to_page_table(l3_page_table[1].addr().as_u64());
-    for (i, ent) in l2_page_table.iter_mut().enumerate() {
+    for (_, ent) in l2_page_table.iter_mut().enumerate() {
         if !ent.is_unused() {
             let l1_page_table = addr_to_page_table(ent.addr().as_u64());
             for (_, ent) in l1_page_table.iter_mut().enumerate() {
@@ -56,12 +55,10 @@ pub fn get_l1_entry(addr: u64) -> Option<&'static mut PageTableEntry> {
 }
 
 pub fn set_write_combining(buffer: *const u8, size: usize) {
-    serial_println!("Set write combining: {:x} +{:x}", buffer as u64, size);
     for addr in ((buffer as u64)..((buffer as u64) + size as u64)).step_by(0x1000) {
         let ent = get_l1_entry(align(addr)).unwrap();
         let flags = ent.flags();
         ent.set_flags(flags | PageTableFlags::WRITE_THROUGH | PageTableFlags::NO_CACHE | PageTableFlags::HUGE_PAGE); // PA7
-        //ent.set_flags(flags | PageTableFlags::NO_CACHE); // PA2
     }
 }
 
@@ -99,25 +96,6 @@ pub unsafe fn table_entry_new_table(page_table: &mut PageTable, entry: PageTable
     Some(&mut *(virt_table as *mut PageTable))
 }
 
-pub unsafe fn table_entry_new_table_test(page_table: &mut PageTable, entry: PageTableIndex, flags: Option<PageTableFlags>) -> Option<&mut PageTable> {
-    let mut new = false;
-    if page_table[entry].is_unused() {
-        page_table[entry].set_addr(PhysAddr::new(new_frame_zeroed()),
-        flags.unwrap_or(PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::GLOBAL));
-        new = true;
-    }
-    let virt_table = page_table[entry].frame().unwrap().start_address().as_u64() + PHYSICAL_MEMORY_OFFSET;
-    tlb::flush(VirtAddr::new(virt_table));
-    let t = &mut *(virt_table as *mut PageTable);
-    if new {
-        for (i, ent) in t.iter().enumerate() {
-            if !ent.is_unused() {
-            }
-        }
-    }
-    Some(t)
-}
-
 pub unsafe fn table_entry(page_table: &mut PageTable, entry: PageTableIndex, frame: u64, flags: Option<PageTableFlags>, flush_addr: Option<u64>) -> Option<u64> {
     if page_table[entry].is_unused() {
         page_table[entry].set_addr(PhysAddr::new(frame), flags.unwrap_or(PageTableFlags::WRITABLE | PageTableFlags::GLOBAL | PageTableFlags::PRESENT));
@@ -140,7 +118,7 @@ pub fn map_l1_table(l4_table: &mut PageTable, page: u64, flags: Option<PageTable
     let virt_addr = VirtAddr::new(page);
     let l3_table = unsafe { table_entry_new_table(l4_table, virt_addr.p4_index(), flags).or_else(|| return None).unwrap() };
     let l2_table = unsafe { table_entry_new_table(l3_table, virt_addr.p3_index(), flags).or_else(|| return None).unwrap() };
-    let l1_table = unsafe { table_entry_new_table_test(l2_table, virt_addr.p2_index(), flags).or_else(|| return None).unwrap() };
+    let l1_table = unsafe { table_entry_new_table(l2_table, virt_addr.p2_index(), flags).or_else(|| return None).unwrap() };
     Some(l1_table)
 }
 

@@ -18,13 +18,13 @@ pub enum IOHandle {
 
 
 #[inline(always)]
-pub extern "C" fn read<T: Read>(handle: &Handle<T>, buffer: &mut [u8], count: usize) {
-    arch::_system_call(SYSTEM_CALL_READ, handle.id, buffer as *const [u8] as *const u8 as usize, count, 0);
+pub extern "C" fn read<T: Read>(handle: &Handle<T>, buffer: *mut u8, count: usize) {
+    arch::_system_call(SYSTEM_CALL_READ, handle.id, buffer as usize, count, 0);
 }
 
 #[inline(always)]
-pub extern "C" fn write<T: Write>(handle: &Handle<T>, buffer: &[u8], count: usize) {
-    arch::_system_call(SYSTEM_CALL_WRITE, handle.id, buffer as *const [u8] as *const u8 as usize, count, 0);
+pub extern "C" fn write<T: Write>(handle: &Handle<T>, buffer: *const u8, count: usize) {
+    arch::_system_call(SYSTEM_CALL_WRITE, handle.id, buffer as usize, count, 0);
 }
 
 #[inline(always)]

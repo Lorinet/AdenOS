@@ -2,7 +2,7 @@ use crate::*;
 use core::arch::asm;
 use dev::hal::{cpu, pic, mem::*, interrupts};
 use task::scheduler::*;
-use x86_64::{PhysAddr,  registers::{control::{Cr3, Cr3Flags}, rflags::RFlags, segmentation::{DS, Segment}}, structures::paging::*, instructions::interrupts::enable};
+use x86_64::structures::paging::PageTableFlags;
 
 use super::mem::page_mapper::addr_to_page_table;
 
@@ -155,7 +155,7 @@ impl Task {
 
 #[naked]
 #[no_mangle]
-pub unsafe fn timer_handler_save_context() {
+pub unsafe extern "C" fn timer_handler_save_context() {
     asm!("cli; push r15; push r14; push r13; push r12; push r11; push r10; push r9;\
     push r8; push rdi; push rsi; push rdx; push rcx; push rbx; push rax; push rbp;\
     mov rdi, rsp; call timer_handler_scheduler_part_2;", options(noreturn));

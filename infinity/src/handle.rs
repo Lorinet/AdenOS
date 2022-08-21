@@ -24,19 +24,19 @@ impl<T> Handle<T> {
 impl<T: Write> Handle<T> {
     #[inline(always)]
     pub fn write(&self, buffer: &[u8], length: usize) {
-        os::write(self, buffer, length);
+        os::write(self, buffer.as_ptr(), length);
     }
 
     #[inline(always)]
     pub fn write_str(&self, buffer: &str, length: usize) {
-        os::write(self, buffer.as_bytes(), length);
+        os::write(self, buffer.as_ptr(), length);
     }
 }
 
 impl<T: Read> Handle<T> {
     #[inline(always)]
     pub fn read(&self, buffer: &mut [u8], count: usize) {
-        os::read(self, buffer, count);
+        os::read(self, buffer.as_mut_ptr(), count);
     }
 }
 

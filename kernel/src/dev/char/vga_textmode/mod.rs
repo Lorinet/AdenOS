@@ -28,7 +28,7 @@ impl VgaTextMode {
         VgaTextMode { 
             buffer: 0xb8000 as *mut u8,
             offset: 0,
-            color: ColorCode::new(ConsoleColor::LightGray, ConsoleColor::Black),
+            color: ColorCode::new(ConsoleColor::White, ConsoleColor::Black),
             control_port: port::Port::new(0x3D4),
             data_port: port::Port::new(0x3D5),
         }
@@ -53,7 +53,7 @@ impl VgaTextMode {
 
 impl dev::Device for VgaTextMode {
     fn init_device(&mut self) -> Result<(), dev::Error> {
-        self.set_color(ConsoleColor::LightGray, ConsoleColor::Black);
+        self.set_color(ConsoleColor::White, ConsoleColor::Black);
         self.clear_screen();
         Ok(())
     }
@@ -73,7 +73,7 @@ impl dev::Write for VgaTextMode {
                 self.offset -= 4;
             },
             ch => unsafe {
-                *self.buffer.offset(self.offset as isize) = val;
+                *self.buffer.offset(self.offset as isize) = ch;
                 *self.buffer.offset(self.offset as isize + 1) = self.color.0;
             },
         };

@@ -4,7 +4,7 @@ use uart_16550;
 use core::fmt::{self, Write};
 
 pub struct Uart16550 {
-    number: u8,
+    pub number: u8,
     port: uart_16550::SerialPort,
 }
 
@@ -48,6 +48,18 @@ impl fmt::Write for Uart16550 {
     }
 }
 
-impl dev::ConsoleDevice for Uart16550 {}
+impl dev::ConsoleDevice for Uart16550 {
+    fn buffer_size(&self) -> (i32, i32) {
+        (0, 0)
+    }
+
+    fn clear_screen(&mut self) {
+        
+    }
+
+    fn set_color(&mut self, _foreground: console::ConsoleColor, _background: console::ConsoleColor) {
+        
+    }
+}
 
 unsafe impl Send for Uart16550 {}

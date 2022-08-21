@@ -1,7 +1,6 @@
-use std::{process::{Command, exit, Stdio}, io::{self, stdin}, error::Error};
+use std::{process::{Command, exit, Stdio}, error::Error};
 use std::env;
 use bootloader_locator;
-use sudo;
 
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Linfinity Neutrino OS Build Tool");
@@ -18,7 +17,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "kvm" => run(build(false, None), true, false, false, &args[2..]),
         "debug" => run(build(false, None), false, true, false, &args[2..]),
         "test" => test(args.get(2).cloned()),
-        "flash" => { flash(args.get(2).cloned().expect("Please provide device name")).or_else(|err| return Err(err)); },
+        "flash" => flash(args.get(2).cloned().expect("Please provide device name")),
         _ => println!("Usage: n [build|debug|run|kvm|test|flash]"),
     };
 
@@ -81,7 +80,7 @@ fn test(integration: Option<String>) {
     run(bootable_image_path, false, false, true, &[]);
 }
 
-fn flash(device_path: String) -> Result<(), Box<dyn Error>> {
+fn flash(device_path: String) {
     let bootable_image_path = build(false, None);
     let sudo_dd_command = Command::new("sudo").arg("dd")
     .arg(format!("if={}", bootable_image_path))
@@ -90,5 +89,4 @@ fn flash(device_path: String) -> Result<(), Box<dyn Error>> {
     if !sudo_dd_command.success() {
         panic!("Flashing Neutrino OS image '{}' to device '{}' failed", bootable_image_path, device_path);
     }
-    Ok(())
 }

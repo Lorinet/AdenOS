@@ -1,8 +1,6 @@
 use crate::*;
 use dev::hal::mem;
 use bootloader::boot_info;
-use alloc::{vec, vec::Vec};
-use x86_64::{ PhysAddr, structures::paging::{ PhysFrame } };
 
 pub struct BitmapFrameAllocator {
     bitmap: *mut u8,

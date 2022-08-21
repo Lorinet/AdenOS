@@ -1,11 +1,8 @@
-use core::alloc::Layout;
-
 use crate::*;
 use allocator;
 use bootloader::boot_info;
 use frame_allocator::*;
-use lazy_static::lazy_static;
-use x86_64::{ structures::paging::{mapper::MapToError, Page, PageTable, PhysFrame, PageTableFlags, Size4KiB}, VirtAddr, PhysAddr, registers::control::{Cr3, Cr3Flags}, instructions::tlb };
+use x86_64::{ structures::paging::{Page, PageTable, PhysFrame, PageTableFlags, Size4KiB}, VirtAddr, PhysAddr, registers::control::{Cr3, Cr3Flags}, instructions::tlb };
 
 use self::page_mapper::addr_to_page_table;
 

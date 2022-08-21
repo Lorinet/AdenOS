@@ -4,14 +4,12 @@ use x86_64;
 use x86_64::instructions::port;
 
 pub struct Port<T> {
-    number: u16,
     port: port::Port<T>,
 }
 
 impl<T> Port<T> {
     pub const fn new(number: u16) -> Port<T> {
         Port {
-            number,
             port: port::Port::new(number),
         }
     }

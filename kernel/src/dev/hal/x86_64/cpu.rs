@@ -1,18 +1,14 @@
 use crate::*;
 use dev::hal::{interrupts, pic, task};
-use x86_64::instructions::interrupts::disable;
 use x86_64::registers;
-use x86_64::registers::control::Cr3;
 use x86_64::structures::gdt::SegmentSelector;
 use x86_64::structures::idt::InterruptStackFrame;
 use crate::task::scheduler::*;
 use x86_64;
 use x86_64::PrivilegeLevel;
 use x86_64::VirtAddr;
-use x86_64::instructions::tlb;
 use x86_64::registers::{model_specific::EferFlags, rflags::{self, RFlags}};
 use x86_64::registers::model_specific::LStar;
-use x86_64::registers::segmentation::DS;
 use x86_64::structures::idt;
 use x86_64::structures::tss;
 use x86_64::structures::gdt;
@@ -23,43 +19,10 @@ use x86_64::registers::{model_specific::{Efer, Star}};
 use x86_64::instructions::segmentation::Segment;
 use lazy_static::lazy_static;
 use core::arch::asm;
-use alloc::{alloc::{alloc, dealloc, Layout}, vec::Vec};
+use alloc::{alloc::{alloc, dealloc, Layout}};
 
 const INTERRUPT_IST_INDEX: u16 = 0;
 const SCHEDULER_INTERRUPT_IST_INDEX: u16 = 0;
-
-#[repr(C)]
-#[repr(packed)]
-struct Registers {
-    rax: u64,
-    rbx: u64,
-    rcx: u64,
-    rdx: u64,
-    rbp: u64,
-    rdi: u64,
-    rsi: u64,
-    r8: u64,
-    r9: u64,
-    r10: u64,
-    r11: u64,
-    r12: u64,
-    r13: u64,
-    r14: u64,
-    r15: u64,
-    rsp: u64,
-    rip: u64,
-    rflags: u64,
-    cs: u64,
-    ds: u64,
-    ss: u64,
-    es: u64,
-    fs: u64,
-    gs: u64,
-    cr0: u64,
-    cr2: u64,
-    cr3: u64,
-    cr4: u64,
-}
 
 #[derive(Copy, Clone)]
 struct Selectors {
@@ -71,7 +34,6 @@ struct Selectors {
 }
 
 static mut IDT: idt::InterruptDescriptorTable = idt::InterruptDescriptorTable::new();
-static mut SYSCALL_STACK: [u8; 0x4000] = [0; 0x4000];
 static mut INTERRUPT_STACK: [u8; 0x4000] = [0; 0x4000];
 static mut SCHEDULER_INTERRUPT_STACK: [u8; 0x4000] = [0; 0x4000];
 
@@ -115,6 +77,7 @@ lazy_static! {
 
 pub fn init() {
     GDT.0.load();
+    
     unsafe {
         segmentation::CS::set_reg(GDT.1.kernel_code_selector);
         tables::load_tss(GDT.1.tss_selector);
@@ -128,6 +91,7 @@ pub fn init() {
         Star::write(GDT.1.user_code_selector, GDT.1.user_data_selector, GDT.1.kernel_code_selector, GDT.1.kernel_data_selector).expect("GDT_CONFIG_FAILURE");
         Efer::write(Efer::read() | EferFlags::SYSTEM_CALL_EXTENSIONS);
     }
+
     unsafe {
         IDT.breakpoint.set_handler_fn(interrupts::breakpoint::breakpoint_handler).set_stack_index(INTERRUPT_IST_INDEX);
         IDT.double_fault.set_handler_fn(interrupts::double_fault::double_fault_handler).set_stack_index(INTERRUPT_IST_INDEX);
@@ -139,11 +103,12 @@ pub fn init() {
         IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_fn(interrupts::timer::timer_handler).set_stack_index(INTERRUPT_IST_INDEX);
         IDT.load();
     }
+
+    // set up write combining (PAT field PA7)
     let pat_mask: u64 = 1 << 56;
     let pat_antimask: u64 = !(3 << 57);
     let mut pat_msr = registers::model_specific::Msr::new(0x277);
     let pat_val = unsafe { (pat_msr.read() | pat_mask) & pat_antimask };
-    serial_println!("PAT new value: {:#066b}", pat_val);
     unsafe { pat_msr.write(pat_val) };
 }
 
@@ -166,7 +131,7 @@ unsafe extern "C" fn drop_syscall_stack(syscall_stack: *mut u8) {
 }
 
 #[naked]
-unsafe fn system_call_trap_handler() {
+unsafe extern "C" fn system_call_trap_handler() {
     asm!("
     cli
     push rcx // sysretq rip

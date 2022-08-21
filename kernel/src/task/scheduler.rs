@@ -1,7 +1,6 @@
 use crate::*;
 use alloc::{vec::Vec};
 use dev::hal::{task};
-use core::arch::asm;
 
 static mut SCHEDULER: Scheduler = Scheduler::new();
 pub static DUMMY: &str = "hello";

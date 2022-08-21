@@ -10,6 +10,7 @@ pub mod page_fault;
 use super::pic;
 
 #[derive(Debug)]
+#[allow(non_camel_case_types)]
 pub enum Exception {
     EXCEPTION_DEBUG,
     EXCEPTION_BREAKPOINT,

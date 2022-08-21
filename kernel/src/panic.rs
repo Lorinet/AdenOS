@@ -3,7 +3,6 @@ use crate::dev::hal::mem;
 use dev;
 use dev::PowerControl;
 use kernel_console;
-use console::ConsoleColor;
 use core::panic::PanicInfo;
 use dev::hal::cpu;
 

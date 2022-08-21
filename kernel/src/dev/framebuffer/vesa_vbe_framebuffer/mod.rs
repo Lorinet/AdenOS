@@ -47,7 +47,6 @@ impl Device for VesaVbeFramebuffer {
         let size = self.line_length * self.height * self.bytes_per_pixel;
         self.ram_buffer = Some(vec![0; size]);
         self.ram_buffer.as_mut().unwrap().copy_from_slice(self.buffer);
-        //page_mapper::set_write_combining(self.ram_buffer.as_ref().unwrap().as_ptr(), size);
         page_mapper::set_write_combining(self.buffer.as_ptr(), size);
         Ok(())
     }
@@ -124,8 +123,8 @@ impl Framebuffer for VesaVbeFramebuffer {
     }
 
     #[inline(always)]
-    fn draw_rectangle(&mut self, rectangle: Rectangle, color: Color, thickness: usize) {
-        
+    fn draw_rectangle(&mut self, _rectangle: Rectangle, _color: Color, _thickness: usize) {
+        // implement me
     }
 
     #[inline(always)]

@@ -1,8 +1,6 @@
 use crate::*;
 use console::ConsoleColor;
-use dev::{self, ConsoleDevice, framebuffer::{VesaVbeFramebuffer, PixelFormat}, char::{FramebufferConsole, Uart16550}};
-use lazy_static::lazy_static;
-use spin::Mutex;
+use dev::{self, ConsoleDevice, framebuffer::{VesaVbeFramebuffer}, char::{FramebufferConsole, Uart16550}};
 use core::fmt::{self, Write};
 use dev::hal::cpu;
 
@@ -66,10 +64,10 @@ macro_rules! serial_println {
 
 
 
-pub(crate) use print;
+/*pub(crate) use print;
 pub(crate) use println;
 pub(crate) use serial_print;
-pub(crate) use serial_println;
+pub(crate) use serial_println;*/
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {

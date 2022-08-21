@@ -19,7 +19,7 @@ entry_point!(kernel_main);
 #[cfg(target_arch = "x86_64")]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     //loop {}
-    unsafe { 
+    unsafe {
         mem::PHYSICAL_MEMORY_OFFSET = boot_info.physical_memory_offset.into_option().unwrap();
         mem::BOOT_MEMORY_MAP = Some(&boot_info.memory_regions);
         let free_mem = boot_info.memory_regions.iter().map(|reg| reg.end - reg.start);
@@ -35,6 +35,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             _ => dev::framebuffer::PixelFormat::RGB,
         }, bifbi.bytes_per_pixel, bifbi.stride));
         kernel_console::KERNEL_CONSOLE = Some(FramebufferConsole::new(kernel_console::FRAMEBUFFER.as_mut().unwrap()));
+        acpi::RSDP_ADDRESS = *boot_info.rsdp_addr.as_ref().unwrap();
     }
     #[cfg(test)]
     test_main();
@@ -44,10 +45,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    #[cfg(target_arch = "x86_64")]
-    unsafe {
-        //kernel_console::KERNEL_CONSOLE.disable_cursor();
-    }
     neutrino_os::panic::panic(info)
 }
 

@@ -58,7 +58,7 @@ pub trait PowerControl {
 }
 
 pub trait ConsoleDevice {
-    fn buffer_size(&self) -> (i32, i32) { (0, 0) }
-    fn clear_screen(&mut self) {}
-    fn set_color(&mut self, foreground: ConsoleColor, background: ConsoleColor) {}
+    fn buffer_size(&self) -> (i32, i32);
+    fn clear_screen(&mut self);
+    fn set_color(&mut self, foreground: ConsoleColor, background: ConsoleColor);
 }

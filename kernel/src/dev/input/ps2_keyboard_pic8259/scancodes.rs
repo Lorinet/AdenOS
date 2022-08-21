@@ -41,6 +41,7 @@ pub enum DecodeState {
     ExtendedRelease,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Error {
     BadStartBit,

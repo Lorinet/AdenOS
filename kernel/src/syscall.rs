@@ -1,10 +1,9 @@
-use crate::{*, dev::{Write, hal::cpu}, task::scheduler::Scheduler};
-use kernel_console;
+use crate::{*, task::scheduler::Scheduler};
 use infinity::os::*;
-use core::slice;
 
 #[no_mangle]
 #[inline(always)]
+#[allow(unused_variables)]
 pub extern "C" fn system_call(syscall: usize, arg0: usize, arg1: usize, arg2: usize, arg3: usize) -> usize {
     //serial_println!("syscall {:x} {:x} {:x} {:x} {:x}", syscall, arg0, arg1, arg2, arg3);
     match syscall {
@@ -17,7 +16,7 @@ pub extern "C" fn system_call(syscall: usize, arg0: usize, arg1: usize, arg2: us
     }
 }
 
-fn _write(handle: usize, buffer: *const u8, count: usize) -> usize {
+fn _write(_handle: usize, _buffer: *const u8, _count: usize) -> usize {
     println!("Hello");
     //unsafe { kernel_console::KERNEL_CONSOLE.as_mut().unwrap().write(slice::from_raw_parts(buffer, count)); }
     0
