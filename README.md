@@ -70,3 +70,9 @@ To boot it, enable CSM and Legacy Boot in the UEFI settings, and boot directly o
 - Heap allocation with SLAB allocator
 - Userspace and kernel threads (with preemptive multitasking)
 - VESA VBE framebuffer (currently text-only, no GUI)
+
+## Credits
+
+https://github.com/phil-opp/blog_os
+
+https://github.com/nikofil/rust-os
