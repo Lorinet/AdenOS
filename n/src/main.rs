@@ -65,6 +65,7 @@ fn build(test: bool, integration: Option<String>) -> String {
 
 fn run(bootable_image_path: String, kvm: bool, debug: bool, test: bool, additional_args: &[String]) {
     let qemu_command = Command::new("qemu-system-x86_64")
+    .arg("-machine").arg("q35")
     .arg("-hda").arg(bootable_image_path)
     .arg("-serial").arg("stdio")
     .args(if kvm { vec!["-enable-kvm"] } else { vec![] })

@@ -8,6 +8,12 @@ pub struct ACPITableSignature {
     bytes: [u8; 4],
 }
 
+impl ACPITableSignature {
+    pub fn to_str(&self) -> &str {
+        str::from_utf8(&self.bytes).expect("INVALID_ACPI_TABLE_SIGNATURE")
+    }
+}
+
 impl fmt::Debug for ACPITableSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", str::from_utf8(&self.bytes).expect("INVALID_ACPI_TABLE"))
@@ -54,11 +60,18 @@ impl ACPITable {
     }
 
     pub fn entry_count(&self) -> usize {
-        ((self.length as usize) - size_of::<ACPITable>()) / 8
+        ((self.length as usize) - size_of::<ACPITable>()) / match self.signature.to_str() {
+            "XSDT" => 8,
+            _ => 4
+        }
     }
 
     pub fn iter(&self) -> ACPITableIterator {
         self.into_iter()
+    }
+
+    pub fn get_table(&self, signature: &str) -> Option<&'static ACPITable> {
+        self.iter().filter(|table| table.signature.to_str() == signature).next()
     }
 }
 
@@ -67,13 +80,15 @@ impl IntoIterator for &ACPITable {
     type IntoIter = ACPITableIterator;
 
     fn into_iter(self) -> Self::IntoIter {
+        let entry_size = match self.signature.to_str() {
+            "XSDT" => 8,
+            _ => 4,
+        };
+        let address = ((self as *const _ as usize) + size_of::<ACPITable>()) as u64;
         ACPITableIterator {
-            address: ((self as *const _ as usize) + size_of::<ACPITable>()) as u64,
-            end_address: ((self as *const _ as usize) + (self.entry_count() * size_of::<ACPITable>())) as u64,
-            entry_size: match str::from_utf8(&self.signature.bytes).expect("INVALID_ACPI_TABLE") {
-                "XSDT" => 8,
-                _ => 4,
-            }
+            address,
+            end_address: address + (self.entry_count() * entry_size) as u64,
+            entry_size
         }
     }
 }
@@ -81,13 +96,13 @@ impl IntoIterator for &ACPITable {
 pub struct ACPITableIterator {
     address: u64,
     end_address: u64,
-    entry_size: u8,
+    entry_size: usize,
 }
 
 impl Iterator for ACPITableIterator {
     type Item = &'static ACPITable;
     fn next(&mut self) -> Option<Self::Item> {
-        if self.address > self.end_address - size_of::<ACPITable>() as u64 {
+        if self.address >= self.end_address {
             None
         } else {
             let address = unsafe {
@@ -97,7 +112,6 @@ impl Iterator for ACPITableIterator {
                 };
                 address + mem::PHYSICAL_MEMORY_OFFSET
             };
-            serial_println!("ACPI Table Address: {:x}", address);
             let sdt = unsafe { (address as *const ACPITable).as_ref().unwrap() };
             self.address += self.entry_size as u64;
             Some(sdt)

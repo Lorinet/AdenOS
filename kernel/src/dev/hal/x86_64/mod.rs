@@ -8,6 +8,7 @@ pub mod acpi;
 pub mod pic;
 pub mod cpu;
 pub mod mem;
+pub mod pci;
 
 pub fn init() {
     early_print!("x86_64 ");

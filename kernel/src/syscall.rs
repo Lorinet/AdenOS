@@ -1,4 +1,4 @@
-use crate::{*, task::scheduler::Scheduler};
+use crate::{*, task::scheduler};
 use infinity::os::*;
 
 #[no_mangle]
@@ -23,6 +23,6 @@ fn _write(_handle: usize, _buffer: *const u8, _count: usize) -> usize {
 }
 
 fn _exit() -> usize {
-    Scheduler::terminate(Scheduler::current_process());
+    scheduler::terminate(scheduler::current_process());
     0
 }

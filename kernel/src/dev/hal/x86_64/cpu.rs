@@ -3,7 +3,7 @@ use dev::hal::{interrupts, pic, task};
 use x86_64::registers;
 use x86_64::structures::gdt::SegmentSelector;
 use x86_64::structures::idt::InterruptStackFrame;
-use crate::task::scheduler::*;
+use crate::task::scheduler;
 use x86_64;
 use x86_64::PrivilegeLevel;
 use x86_64::VirtAddr;
@@ -116,7 +116,7 @@ pub fn enable_scheduler() {
     disable_interrupts();
     unsafe {
         IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_addr(VirtAddr::new(task::timer_handler_save_context as u64)).set_stack_index(SCHEDULER_INTERRUPT_IST_INDEX);
-        Scheduler::context_switch(None);
+        scheduler::context_switch(None);
     }
 }
 

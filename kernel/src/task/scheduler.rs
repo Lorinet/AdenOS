@@ -10,44 +10,6 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
-    pub fn kexec(application: unsafe fn()) {
-        unsafe { SCHEDULER._kexec(application); }
-    }
-
-    pub fn exec(application: unsafe extern "C" fn()) {
-        unsafe { SCHEDULER._exec(application); }
-    }
-
-    #[inline(always)]
-    pub fn context_switch(current_context: Option<task::TaskContext>) {
-        unsafe { SCHEDULER._context_switch(current_context); }
-    }
-
-    #[inline(always)]
-    pub fn next() {
-        unsafe { SCHEDULER._next(); }
-    }
-
-    #[inline(always)]
-    pub fn current_process() -> usize {
-        unsafe {
-            /*if SCHEDULER.current_task == 0 {
-                SCHEDULER.processes.len() - 1
-            } else {
-                SCHEDULER.current_task - 1
-            }*/
-            SCHEDULER.current_task
-        }
-    }
-
-    pub fn terminate(process: usize) {
-        unsafe { SCHEDULER._terminate(process); }
-    }
-
-    pub fn add_process(process: task::Task) {
-        unsafe { SCHEDULER._add_process(process); }
-    }
-
     const fn new() -> Scheduler {
         Scheduler {
             processes: Vec::new(),
@@ -56,7 +18,7 @@ impl Scheduler {
     }
 
     #[inline(always)]
-    fn _next(&mut self) {
+    fn next(&mut self) {
         self.current_task += 1;
         if self.processes.len() <= self.current_task {
             self.current_task = 0;
@@ -64,7 +26,7 @@ impl Scheduler {
     }
 
     #[inline(always)]
-    fn _context_switch(&mut self, current_context: Option<task::TaskContext>) {
+    fn context_switch(&mut self, current_context: Option<task::TaskContext>) {
         if let Some(ctx) = current_context {
             let current_process = &mut self.processes[self.current_task];
             if current_process.zombie {
@@ -75,26 +37,59 @@ impl Scheduler {
                 }
             } else {
                 self.processes[self.current_task].state = ctx;
-                self._next();
+                self.next();
             }
         }
         self.processes[self.current_task].restore_state();
         unsafe { task::restore_registers(&self.processes[self.current_task].state); }
     }
 
-    fn _add_process(&mut self, process: task::Task) {
+    fn add_process(&mut self, process: task::Task) {
         self.processes.push(process.clone());
     }
 
-    fn _exec(&self, application: unsafe extern "C" fn()) {
+    fn exec(&self, application: unsafe extern "C" fn()) {
         unsafe { task::Task::exec(application); }
     }
 
-    fn _kexec(&self, application: unsafe fn()) {
+    fn kexec(&self, application: unsafe fn()) {
         unsafe { task::Task::kexec(application) };
     }
 
-    fn _terminate(&mut self, process: usize) {
+    fn terminate(&mut self, process: usize) {
         self.processes[process].zombie = true;
     }
+}
+
+pub fn kexec(application: unsafe fn()) {
+    unsafe { SCHEDULER.kexec(application); }
+}
+
+pub fn exec(application: unsafe extern "C" fn()) {
+    unsafe { SCHEDULER.exec(application); }
+}
+
+#[inline(always)]
+pub fn context_switch(current_context: Option<task::TaskContext>) {
+    unsafe { SCHEDULER.context_switch(current_context); }
+}
+
+#[inline(always)]
+pub fn next() {
+    unsafe { SCHEDULER.next(); }
+}
+
+#[inline(always)]
+pub fn current_process() -> usize {
+    unsafe {
+        SCHEDULER.current_task
+    }
+}
+
+pub fn terminate(process: usize) {
+    unsafe { SCHEDULER.terminate(process); }
+}
+
+pub fn add_process(process: task::Task) {
+    unsafe { SCHEDULER.add_process(process); }
 }

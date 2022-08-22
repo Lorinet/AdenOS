@@ -1,7 +1,7 @@
 use crate::*;
 use core::arch::asm;
 use dev::hal::{cpu, pic, mem::*, interrupts};
-use task::scheduler::*;
+use task::scheduler;
 use x86_64::structures::paging::PageTableFlags;
 
 use super::mem::page_mapper::addr_to_page_table;
@@ -135,7 +135,7 @@ impl Task {
             page_mapper::map_addr(user_page_table, user_stack_virt_base + (i * 0x1000), stack_frame, flags);
         }
         let user_entry_point_offset = user_phys_base % 0x1000;
-        Scheduler::add_process(Task::new((user_virt_base + user_entry_point_offset + 1) as u64, (user_stack_virt_base + 0x8000) as u64, user_page_table_phys, true));
+        scheduler::add_process(Task::new((user_virt_base + user_entry_point_offset + 1) as u64, (user_stack_virt_base + 0x8000) as u64, user_page_table_phys, true));
         asm!("sti");
     }
 
@@ -148,7 +148,7 @@ impl Task {
             let stack_frame = FRAME_ALLOCATOR.allocate_frame();
             page_mapper::map_addr(child_page_table, child_stack_virt_base + (i * 0x1000), stack_frame, None);
         }
-        Scheduler::add_process(Task::new(application as u64, (child_stack_virt_base + 0x8000) as u64, child_page_table_phys, false));
+        scheduler::add_process(Task::new(application as u64, (child_stack_virt_base + 0x8000) as u64, child_page_table_phys, false));
         asm!("sti");
     }
 }
@@ -165,7 +165,7 @@ pub unsafe extern "C" fn timer_handler_save_context() {
 pub unsafe extern "C" fn timer_handler_scheduler_part_2(context: *const TaskContext) {
     cpu::DO_CONTEXT_SWITCH_NEXT_TIME = false;
     pic::end_of_interrupt(interrupts::HardwareInterrupt::Timer);
-    Scheduler::context_switch(Some((*context).clone()));
+    scheduler::context_switch(Some((*context).clone()));
 }
 
 #[inline(always)]

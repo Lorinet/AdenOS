@@ -1,8 +1,8 @@
-use self::structures::{RSDPHeader, ACPITable};
+use self::tables::{RSDPHeader, ACPITable};
 
-use crate::*;
+use crate::{*, dev::hal::pci::MCFGTable};
 
-pub mod structures;
+pub mod tables;
 
 pub static mut RSDP_ADDRESS: u64 = 0;
 
@@ -13,8 +13,9 @@ pub fn init() {
         0 => ACPITable::from_address(rsdp.rsdt_address as u64),
         _ => ACPITable::from_address(rsdp.xsdt_address),
     };
-    serial_println!("{:#?}", rxsdt);
-    for sdt in rxsdt {
-        serial_println!("{:#?}", sdt);
+    let mcfg: &MCFGTable = rxsdt.get_table("MCFG").unwrap().into();
+    serial_println!("MCFG: {:#?}", mcfg);
+    for ent in mcfg {
+        serial_println!("{:#?}", ent);
     }
 }
