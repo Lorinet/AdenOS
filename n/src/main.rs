@@ -71,7 +71,7 @@ fn run(bootable_image_path: String, kvm: bool, debug: bool, test: bool, addition
     .args(if kvm { vec!["-enable-kvm"] } else { vec![] })
     .args(if debug { vec!["-s", "-S"] } else { vec![] })
     .args(if test { vec!["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-display", "none"] } else { vec![] })
-    .arg("-d").arg("int")
+    //.arg("-d").arg("int")
     .args(additional_args).status().expect("Launch failed: 'qemu-system-x86_64'");
     exit(qemu_command.code().unwrap());
 }

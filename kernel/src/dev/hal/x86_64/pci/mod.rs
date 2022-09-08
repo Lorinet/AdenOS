@@ -4,18 +4,139 @@ use dev::hal::{mem, acpi::tables::*};
 
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug)]
-pub struct PCIDeviceConfiguration {
+pub struct PCIDeviceHeader {
+    pub vendor_id: u16,
+    pub device_id: u16,
+    pub command: u16,
+    pub status: u16,
+    pub revision_id: u8,
+    pub prog_if: u8,
+    pub subclass: u8,
+    pub class: u8,
+    pub cache_line_size: u8,
+    pub latency_timer: u8,
+    pub header_type: u8,
+    pub bist: u8,
+}
+
+impl PCIDeviceHeader {
+    pub fn from_address(address: u64) -> &'static PCIDeviceHeader {
+        unsafe { (address as *const PCIDeviceHeader).as_ref().unwrap() }
+    }
+}
+
+#[derive(Debug)]
+pub struct PCIFunction {
+    function_address: u64,
+}
+
+impl PCIFunction {
+    pub fn device_header(&self) -> &'static PCIDeviceHeader {
+        unsafe { (self.function_address as *const PCIDeviceHeader).as_ref().unwrap() }
+    }
+}
+
+#[derive(Debug)]
+pub struct PCIDeviceIterator {
+    device_address: u64,
+    current_function: u64,
+}
+
+impl Iterator for PCIDeviceIterator {
+    type Item = PCIFunction;
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.current_function < 8 {
+            let function_address = self.device_address + (self.current_function << 12);
+            let head = PCIDeviceHeader::from_address(function_address);
+            if head.device_id == 0 || head.device_id == 0xffff {
+                self.current_function += 1;
+            } else {
+                let retv = Some(PCIFunction {
+                    function_address,
+                });
+                self.current_function += 1;
+                return retv;
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug)]
+pub struct PCIBusIterator {
+    bus_address: u64,
+    current_device: u64,
+}
+
+impl Iterator for PCIBusIterator {
+    type Item = PCIDeviceIterator;
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.current_device < 32 {
+            let device_address = self.bus_address + (self.current_device << 15);
+            let head = PCIDeviceHeader::from_address(device_address);
+            if head.device_id == 0 || head.device_id == 0xffff {
+                self.current_device += 1;
+            } else {
+                let retv = Some(PCIDeviceIterator {
+                    device_address,
+                    current_function: 0,
+                });
+                self.current_device += 1;
+                return retv;
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug)]
+pub struct PCIConfigurationIterator {
     base_address: u64,
-    segment_group: u64,
-    start_bus: u8,
     end_bus: u8,
+    current_bus: u8,
+}
+
+impl Iterator for PCIConfigurationIterator {
+    type Item = PCIBusIterator;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_bus < self.end_bus {
+            let retv = Some(PCIBusIterator {
+                bus_address: self.base_address + ((self.current_bus as u64) << 20),
+                current_device: 0,
+            });
+            self.current_bus += 1;
+            return retv;
+        }
+        None
+    }
+}
+
+#[repr(C, packed)]
+#[derive(Clone, Copy, Debug)]
+pub struct PCIDeviceConfiguration {
+    pub base_address: u64,
+    pub segment_group: u16,
+    pub start_bus: u8,
+    pub end_bus: u8,
     _reserved: u32,
+}
+
+impl IntoIterator for &PCIDeviceConfiguration {
+    type Item = PCIBusIterator;
+    type IntoIter = PCIConfigurationIterator;
+    fn into_iter(self) -> Self::IntoIter {
+        PCIConfigurationIterator {
+            base_address: unsafe { self.base_address + mem::PHYSICAL_MEMORY_OFFSET },
+            current_bus: self.start_bus,
+            end_bus: self.end_bus,
+        }
+    }
 }
 
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug)]
 pub struct MCFGTable {
-    acpi_header: ACPITable,
+    pub acpi_header: ACPITable,
     _reserved: u64,
 }
 
@@ -38,18 +159,18 @@ impl IntoIterator for &MCFGTable {
     type IntoIter = MCFGIterator;
 
     fn into_iter(self) -> Self::IntoIter {
-        let address = (self as *const MCFGTable as u64) + (size_of::<MCFGTable>() as u64) + unsafe { mem::PHYSICAL_MEMORY_OFFSET };
-        serial_println!("MCFG addr: {:x}", address);
+        let address = (self as *const MCFGTable as u64) + (size_of::<MCFGTable>() as u64);
+        let entries = (self.acpi_header.length as u64 - size_of::<MCFGTable>() as u64) / size_of::<PCIDeviceConfiguration>() as u64;
         MCFGIterator {
             address,
-            end_address: address + (self.entry_count() * 8) as u64,
+            end_address: address + entries,
         }
     }
 }
 
 impl From<&'static ACPITable> for &MCFGTable {
     fn from(table: &'static ACPITable) -> Self {
-        unsafe { (table as *const ACPITable as *const Self).as_ref().unwrap() }
+        unsafe { (table as *const ACPITable as *const MCFGTable).as_ref().unwrap() }
     }
 }
 
