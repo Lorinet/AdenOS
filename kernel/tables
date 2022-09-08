@@ -1,8 +1,0 @@
-Building bootloader
-Running: `qemu-system-x86_64 -drive format=raw,file=target/x86_64-neutrino_os/debug/bootimage-neutrino_os.bin -serial stdio`
-DEBUG PAGE TABLE
-L4 entry 0: 0o0000000000020000
-L4 entry 2: 0o0000000022640000
-L4 entry 3: 0o0000000022740000
-L4 entry 31: 0o0000000022700000
-L4 entry 136: 0o0000000012000000
