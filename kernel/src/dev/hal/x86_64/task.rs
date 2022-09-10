@@ -125,7 +125,7 @@ impl Task {
         let flags = Some(PageTableFlags::WRITABLE | PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE);
         let user_virt_base = 0x40000000;
         let user_phys_base = page_mapper::translate_addr(application as usize).unwrap();
-        for i in 0..32 {
+        for i in 0..128 {
             let off = i * 0x1000;
             page_mapper::map_addr(user_page_table, user_virt_base + off, user_phys_base + off, flags);
         }

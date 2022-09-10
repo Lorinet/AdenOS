@@ -2,6 +2,8 @@ use crate::*;
 use core::{iter::Iterator, mem::size_of};
 use dev::hal::{mem, acpi::tables::*};
 
+pub mod id;
+
 #[repr(C, packed)]
 #[derive(Clone, Copy, Debug)]
 pub struct PCIDeviceHeader {
