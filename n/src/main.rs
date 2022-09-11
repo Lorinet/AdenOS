@@ -2,7 +2,7 @@ use std::{process::{Command, exit, Stdio}, error::Error};
 use std::env;
 use bootloader_locator;
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<Box<dyn Error>>> {
     println!("Linfinity Neutrino OS Build Tool");
     println!("<==============================>");
     println!("Working dir: {}", env::current_dir().unwrap().to_str().unwrap());

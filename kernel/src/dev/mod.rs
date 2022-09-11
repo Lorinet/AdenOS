@@ -13,6 +13,7 @@ pub enum Error {
     InitFailure,
     DeinitFailure,
     IOFailure,
+    DriverNotFound,
 }
 
 pub trait Device {
@@ -48,6 +49,37 @@ pub trait Read {
         Ok(buf.len())
     }
 }
+
+pub trait Seek {
+    fn seek(&mut self, position: usize);
+    fn seek_relative(&mut self, offset: usize);
+    fn seek_begin(&mut self);
+    fn seek_end(&mut self);
+    fn offset(&mut self) -> usize;
+}
+
+pub trait ReadFrom: Seek + Read {
+    fn read_from(&mut self, buf: &mut [Self::T], offset: usize) -> Result<usize, Error> {
+        let prev_offset = self.offset();
+        self.seek(offset);
+        let result = self.read(buf);
+        self.seek(prev_offset);
+        result
+    }
+}
+
+pub trait WriteTo: Seek + Write {
+    fn write_to(&mut self, buf: &[Self::T], offset: usize) -> Result<usize, Error> {
+        let prev_offset = self.offset();
+        self.seek(offset);
+        let result = self.write(buf);
+        self.seek(prev_offset);
+        result
+    }
+}
+
+impl<T> ReadFrom for T where T: Seek + Read {}
+impl<T> WriteTo for T where T: Seek + Write {}
 
 pub trait PowerControl {
     fn shutdown(&mut self) -> ! {

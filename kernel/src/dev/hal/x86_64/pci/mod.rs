@@ -27,6 +27,36 @@ impl PCIDeviceHeader {
     }
 }
 
+#[repr(C, packed)]
+#[derive(Copy, Clone, Debug)]
+pub struct PCIHeaderType0 {
+    pub pci_device_header: PCIDeviceHeader,
+    pub bar_0: u32,
+    pub bar_1: u32,
+    pub bar_2: u32,
+    pub bar_3: u32,
+    pub bar_4: u32,
+    pub bar_5: u32,
+    pub cardbus_cis_pointer: u32,
+    pub subsystem_vendor_id: u16,
+    pub subsystem_id: u16,
+    pub expansion_rom_base_address: u32,
+    pub capabilities_pointer: u8,
+    _reserved_0: u8,
+    _reserved_1: u16,
+    _reserved_2: u32,
+    pub interrupt_line: u8,
+    pub interrupt_pin: u8,
+    pub min_grant: u8,
+    pub max_latency: u8,
+}
+
+impl From<&'static PCIDeviceHeader> for &PCIHeaderType0 {
+    fn from(header: &'static PCIDeviceHeader) -> Self {
+        unsafe { ((header as *const PCIDeviceHeader) as *const PCIHeaderType0).as_ref().unwrap() }
+    }
+}
+
 #[derive(Debug)]
 pub struct PCIFunction {
     function_address: u64,

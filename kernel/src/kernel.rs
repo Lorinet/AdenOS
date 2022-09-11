@@ -1,4 +1,6 @@
 use crate::*;
+use crate::dev::{ReadFrom, WriteTo, Device};
+use alloc::{vec, vec::Vec};
 use console::ConsoleColor;
 use userspace::*;
 use dev::input::keyboard;
@@ -8,7 +10,7 @@ use dev;
 use dev::hal::*;
 use async_task::*;
 use crate::task::scheduler;
-use alloc::boxed::Box;
+use alloc::string::String;
 
 pub fn run_kernel() -> ! {
     
@@ -24,9 +26,9 @@ fn init_system() {
     early_print!("Linfinity Technologies Neutrino Core OS [Version {}]\n", sysinfo::NEUTRINO_VERSION);
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
-    println!("Initializing devices...");
+    println!("");
     for dev in devices::get_devices() {
-        devices::get_device(dev.clone()).map_or((), |device| match device.init_device() {
+        devices::get_device_non_generic(dev.clone()).map_or((), |device| match device.init_device() {
             Ok(()) => println!("{} initialized successfully", dev),
             Err(err) => println!("{} initialization failed: {:?}", dev, err),
         });
