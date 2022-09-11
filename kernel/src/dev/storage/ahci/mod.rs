@@ -64,6 +64,7 @@ pub enum PortType {
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug)]
+#[allow(dead_code)]
 enum FISType {
     RegH2D = 0x27,
     RegD2H = 0x34,

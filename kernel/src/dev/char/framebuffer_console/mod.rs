@@ -108,7 +108,11 @@ where F: Framebuffer {
                 if self.x >= self.framebuffer.get_size().0 {
                     self._new_line();
                 }
-                let glyph = BASIC_LEGACY[c as usize];
+                let mut ci = c as usize;
+                if ci > 127 {
+                    ci = 0x2E;
+                }
+                let glyph = BASIC_LEGACY[ci];
                 for (y, row) in glyph.iter().enumerate() {
                     for x in 0..8 {
                         if ((row >> x) & 1) == 1 {

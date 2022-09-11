@@ -1,11 +1,11 @@
-use crate::{*, dev::hal::mem::page_mapper};
+use crate::{*, dev::hal::mem::{self, page_mapper}};
 use dev::framebuffer::*;
 use alloc::{vec, vec::Vec};
 use dev::Device;
 
 pub struct VesaVbeFramebuffer {
     buffer: &'static mut [u8],
-    ram_buffer: Option<Vec<u8>>,
+    ram_buffer: Option<&'static mut [u8]>,
     width: usize,
     height: usize,
     pixel_format: PixelFormat,
@@ -45,7 +45,17 @@ impl VesaVbeFramebuffer {
 impl Device for VesaVbeFramebuffer {
     fn init_device(&mut self) -> Result<(), dev::Error> {
         let size = self.line_length * self.height * self.bytes_per_pixel;
-        self.ram_buffer = Some(vec![0; size]);
+        let pages_needed = (size / 0x1000) + 1;
+        // this works only with frames each after one another... so init it ASAP
+        let virt_addr = unsafe { mem::FRAME_ALLOCATOR.allocate_frame() + mem::PHYSICAL_MEMORY_OFFSET };
+        //serial_println!("{:x}", virt_addr);
+        unsafe {
+            for _ in 1..pages_needed {
+                let frm = mem::FRAME_ALLOCATOR.allocate_frame();
+                //serial_println!("{:x}", frm);
+            }
+        }
+        self.ram_buffer = Some(unsafe { slice::from_raw_parts_mut(virt_addr as *mut u8, size) });
         self.ram_buffer.as_mut().unwrap().copy_from_slice(self.buffer);
         page_mapper::set_write_combining(self.buffer.as_ptr(), size);
         Ok(())

@@ -16,7 +16,7 @@ pub static mut FRAME_ALLOCATOR: BitmapFrameAllocator = BitmapFrameAllocator::new
 pub static mut KERNEL_PAGE_TABLE: u64 = 0;
 
 pub const KERNEL_HEAP_START: usize = 0x_4444_4444_0000;
-pub const KERNEL_HEAP_SIZE: usize = 0x4000 * 0x1000;
+pub const KERNEL_HEAP_SIZE: usize = 0x1000 * 64;
 
 pub fn init() {
     let (pt, _) = Cr3::read();

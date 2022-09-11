@@ -1,6 +1,6 @@
 use crate::*;
-use crate::dev::{ReadFrom, WriteTo, Device};
-use alloc::{vec, vec::Vec};
+use crate::dev::ReadFrom;
+use alloc::vec;
 use console::ConsoleColor;
 use userspace::*;
 use dev::input::keyboard;
@@ -32,6 +32,15 @@ fn init_system() {
             Ok(()) => println!("{} initialized successfully", dev),
             Err(err) => println!("{} initialization failed: {:?}", dev, err),
         });
+    }
+    for dev in devices::get_devices() {
+        println!("{}", dev);
+    }
+    let mut buffer = vec![0; 2048];
+    let drv = devices::get_device::<dev::storage::AHCIDrive>(String::from("Drives/AHCI0")).expect("Drive full of crap");
+    drv.read_from(buffer.as_mut_slice(), 0).expect("Could not read from disk because it is full of shit.");
+    for c in buffer {
+        print!("{}", c as char);
     }
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();

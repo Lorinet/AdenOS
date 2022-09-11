@@ -1,11 +1,12 @@
 use crate::*;
 use self::tables::{RSDPHeader, ACPITable};
-use dev::{hal::pci::{self, *}, storage};
+use dev::{hal::pci::*, storage};
 
 pub mod tables;
 
 pub static mut RSDP_ADDRESS: u64 = 0;
 
+#[allow(unused_variables)]
 pub fn init() {
     let rsdp = RSDPHeader::from_address(unsafe { RSDP_ADDRESS });
     let rxsdt = match rsdp.revision {
