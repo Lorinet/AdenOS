@@ -2,6 +2,7 @@
 #![cfg_attr(test, no_main)]
 #![feature(naked_functions)]
 #![feature(iter_advance_by)]
+#![feature(const_btree_new)]
 #![feature(abi_x86_interrupt)]
 #![feature(iter_collect_into)]
 #![feature(panic_info_message)]
@@ -21,6 +22,7 @@ pub mod kernel;
 pub mod console;
 pub mod sysinfo;
 pub mod syscall;
+pub mod devices;
 pub mod allocator;
 pub mod userspace;
 pub mod async_task;

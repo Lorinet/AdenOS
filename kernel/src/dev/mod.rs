@@ -5,6 +5,7 @@ pub mod char;
 pub mod hal;
 pub mod power;
 pub mod input;
+pub mod storage;
 pub mod framebuffer;
 
 #[derive(Debug)]

@@ -8,6 +8,7 @@ use dev;
 use dev::hal::*;
 use async_task::*;
 use crate::task::scheduler;
+use alloc::boxed::Box;
 
 pub fn run_kernel() -> ! {
     
@@ -23,6 +24,13 @@ fn init_system() {
     early_print!("Linfinity Technologies Neutrino Core OS [Version {}]\n", sysinfo::NEUTRINO_VERSION);
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
+    println!("Initializing devices...");
+    for dev in devices::get_devices() {
+        devices::get_device(dev.clone()).map_or((), |device| match device.init_device() {
+            Ok(()) => println!("{} initialized successfully", dev),
+            Err(err) => println!("{} initialization failed: {:?}", dev, err),
+        });
+    }
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);

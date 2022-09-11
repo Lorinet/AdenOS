@@ -1,5 +1,6 @@
+use crate::*;
 use self::tables::{RSDPHeader, ACPITable};
-use crate::{*, dev::hal::pci::{self, MCFGTable}};
+use dev::{hal::pci::{self, *}, storage};
 
 pub mod tables;
 
@@ -17,11 +18,24 @@ pub fn init() {
             for dev in bus {
                 for func in dev {
                     let head = func.device_header();
-                    let cls = head.class;
-                    let subc = head.subclass;
-                    let ven = head.vendor_id;
-                    let devi = head.device_id;
-                    println!("{} / {} / {} / {:x}", pci::id::get_vendor_name(ven), pci::id::get_class_name(cls), pci::id::get_subclass_name(cls, subc), devi);
+                    let class = head.class;
+                    let subclass = head.subclass;
+                    let prog_if = head.prog_if;
+                    let vendor_id = head.vendor_id;
+                    let device_id = head.device_id;
+                    //println!("{} / {} / {} / {:x}", pci::id::get_vendor_name(vendor_id), pci::id::get_class_name(class), pci::id::get_subclass_name(class, subclass), device_id);
+                    match class {
+                        0x01 => match subclass {     // Mass storage controller
+                            0x06 => match prog_if {  // SATA controller
+                                0x01 => {            // AHCI 1.0
+                                    devices::register_device(storage::AHCI::new(head));
+                                }
+                                _ => (),
+                            },
+                            _ => (),
+                        },
+                        _ => (),
+                    }
                 }
             }
         }
