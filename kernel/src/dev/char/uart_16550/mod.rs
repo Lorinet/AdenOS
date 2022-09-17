@@ -37,7 +37,7 @@ impl dev::Read for Uart16550 {
 impl dev::Write for Uart16550 {
     type T = u8;
     fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
-        self.port.write_char(val as char).or_else(|_| Result::Err(dev::Error::IOFailure))
+        self.port.write_char(val as char).or_else(|_| Result::Err(dev::Error::WriteFailure))
     }
 }
 

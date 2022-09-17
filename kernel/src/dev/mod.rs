@@ -10,10 +10,12 @@ pub mod framebuffer;
 
 #[derive(Debug)]
 pub enum Error {
-    InitFailure,
-    DeinitFailure,
-    IOFailure,
-    DriverNotFound,
+    InitFailure(&'static str),
+    DeinitFailure(&'static str),
+    IOFailure(&'static str),
+    ReadFailure,
+    WriteFailure,
+    DriverNotFound(&'static str),
 }
 
 pub trait Device {

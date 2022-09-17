@@ -4,6 +4,10 @@ use dev::hal::{cpu, port};
 
 const PIC_MASTER_PORT: u16 = 0x20;
 const PIC_SLAVE_PORT: u16 = 0xA0;
+
+const PIC_MASTER_DISABLE_PORT: u16 = 0xa1;
+const PIC_SLAVE_DISABLE_PORT: u16 = 0x21;
+
 const WAIT_PORT: u16 = 0x11;
 
 const ICW1_ICW4: u8 = 0x01;
@@ -52,6 +56,13 @@ pub fn init() {
         pit_data.write_one((divisor & 0xFF) as u8).unwrap();
         pit_data.write_one(((divisor >> 8) & 0xFF) as u8).unwrap();
     });
+}
+
+pub fn deinit() {
+    let mut master_cmd: port::Port<u8> = port::Port::new(PIC_MASTER_DISABLE_PORT);
+    let mut slave_cmd: port::Port<u8> = port::Port::new(PIC_SLAVE_DISABLE_PORT);
+    master_cmd.write_one(0xff);
+    slave_cmd.write_one(0xff);
 }
 
 pub fn end_of_interrupt(interrupt_id: interrupts::HardwareInterrupt) {

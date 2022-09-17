@@ -224,3 +224,15 @@ impl Iterator for MCFGIterator {
         }
     }
 }
+
+pub fn bar_to_struct<T>(bar: u32) -> &'static T {
+    unsafe {
+        ((bar as u64 + mem::PHYSICAL_MEMORY_OFFSET) as *const T).as_ref().unwrap()
+    }
+}
+
+pub fn bar_to_struct_64<T>(bar_l: u32, bar_h: u32) -> &'static mut T {
+    unsafe {
+        (((((bar_h as u64) << 32) | bar_l as u64) as u64 + mem::PHYSICAL_MEMORY_OFFSET) as *mut T).as_mut().unwrap()
+    }
+}

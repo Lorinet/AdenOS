@@ -36,16 +36,21 @@ fn init_system() {
     for dev in devices::get_devices() {
         println!("{}", dev);
     }
-    let mut buffer = vec![0; 2048];
+    /*let mut buffer = vec![0; 2048];
     let drv = devices::get_device::<dev::storage::AHCIDrive>(String::from("Drives/AHCI0")).expect("Drive full of crap");
     drv.read_from(buffer.as_mut_slice(), 0).expect("Could not read from disk because it is full of shit.");
     for c in buffer {
         print!("{}", c as char);
-    }
+    }*/
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
+    scheduler::exec(userspace_app_1);
+    scheduler::exec(userspace_app_1);
+    scheduler::exec(userspace_app_1);
+    scheduler::exec(userspace_app_1);
+    scheduler::exec(userspace_app_1);
     scheduler::exec(userspace_app_1);
     scheduler::kexec(kernel_executor::run);
     cpu::enable_scheduler();

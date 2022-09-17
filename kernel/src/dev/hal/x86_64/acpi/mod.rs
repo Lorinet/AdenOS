@@ -33,6 +33,12 @@ pub fn init() {
                                 }
                                 _ => (),
                             },
+                            0x08 => match prog_if {  // NVM controller
+                                0x02 => {            // NVMe
+                                    devices::register_device(storage::NVME::new(head));
+                                }
+                                _ => (),
+                            },
                             _ => (),
                         },
                         _ => (),

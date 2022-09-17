@@ -50,7 +50,7 @@ impl Read for AHCIDrive {
     fn read_one(&mut self) -> Result<Self::T, dev::Error> {
         let sector = self.offset / 512;
         let mut buffer: Vec<u8> = Vec::with_capacity(512);
-        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::IOFailure)?;
+        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::ReadFailure)?;
         let buf_off = self.offset % 512;
         Ok(buffer[buf_off])
     }
@@ -59,7 +59,7 @@ impl Read for AHCIDrive {
         let sector = self.offset / 512;
         let count = (((self.offset + buf.len()) / 512) - sector) + 1;
         let mut buffer: Vec<u8> = vec![0; count * 512];
-        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, count as u16, buffer.as_mut_ptr()).map_err(|_| dev::Error::IOFailure)?;
+        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, count as u16, buffer.as_mut_ptr()).map_err(|_| dev::Error::ReadFailure)?;
         let buf_off = self.offset % 512;
         buf.copy_from_slice(&buffer[buf_off..buf_off + buf.len()]);
         Ok(buf.len())
@@ -71,10 +71,10 @@ impl Write for AHCIDrive {
     fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
         let sector = self.offset / 512;
         let mut buffer: Vec<u8> = Vec::with_capacity(512);
-        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::IOFailure)?;
+        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::ReadFailure)?;
         let buf_off = self.offset % 512;
         buffer[buf_off] = val;
-        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Write, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::IOFailure)?;
+        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Write, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::WriteFailure)?;
         Ok(())
     }
 
@@ -82,10 +82,10 @@ impl Write for AHCIDrive {
         let sector = self.offset / 512;
         let count = (((self.offset + buf.len()) / 512) - sector) + 1;
         let mut buffer: Vec<u8> = vec![0; count * 512];
-        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, count as u16, buffer.as_mut_ptr()).map_err(|_| dev::Error::IOFailure)?;
+        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, count as u16, buffer.as_mut_ptr()).map_err(|_| dev::Error::ReadFailure)?;
         let buf_off = self.offset % 512;
         buffer[buf_off..buf_off + buf.len()].copy_from_slice(&buf[0..buf.len()]);
-        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Write, sector as u64, count as u16, buffer.as_mut_ptr()).map_err(|_| dev::Error::IOFailure)?;
+        self.driver.as_mut().unwrap().ports[self.port].expect("Disk not present").diskio(DiskIO::Write, sector as u64, count as u16, buffer.as_mut_ptr()).map_err(|_| dev::Error::WriteFailure)?;
         Ok(buf.len())
     }
 }
@@ -102,7 +102,7 @@ impl Device for AHCIDrive {
             self.driver = Some(driver);
             Ok(())
         } else {
-            Err(Error::DriverNotFound)
+            Err(Error::DriverNotFound("Storage/AHCI"))
         }
     }
 

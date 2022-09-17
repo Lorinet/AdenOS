@@ -317,11 +317,11 @@ pub struct AHCI {
 }
 
 impl AHCI {
-    pub fn new(pci_device: &'static pci::PCIDeviceHeader) -> AHCI {
-        let head0: &PCIHeaderType0 = pci_device.into();
-        let abar = unsafe { ((head0.bar_5 as u64 + mem::PHYSICAL_MEMORY_OFFSET) as *const HBAMemory).as_ref().unwrap() };
+    pub fn new(pci_device_header: &'static pci::PCIDeviceHeader) -> AHCI {
+        let head0: &PCIHeaderType0 = pci_device_header.into();
+        let abar = pci::bar_to_struct::<HBAMemory>(head0.bar_5);
         AHCI {
-            pci_device_header: pci_device,
+            pci_device_header,
             abar,
             port_count: 0,
             ports: [None; 32],

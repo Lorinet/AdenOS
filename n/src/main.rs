@@ -59,6 +59,9 @@ fn build(test: bool, integration: Option<String>) -> String {
         panic!("Command 'cargo builder' exited with status {}", bootloader_builder_command.code().unwrap());
     }
 
+    let mut second_drive_img_path = kernel_output_folder.clone();
+    second_drive_img_path.push("drive_2.img");
+
     kernel_output_folder.push("boot-bios-neutrino_os.img");
     String::from(kernel_output_folder.to_str().unwrap())
 }
@@ -66,8 +69,10 @@ fn build(test: bool, integration: Option<String>) -> String {
 fn run(bootable_image_path: String, kvm: bool, debug: bool, test: bool, additional_args: &[String]) {
     let qemu_command = Command::new("qemu-system-x86_64")
     .arg("-machine").arg("q35")
-    .arg("-hda").arg(bootable_image_path)
+    //.arg("-hda").arg(&bootable_image_path)
     .arg("-serial").arg("stdio")
+    .arg("-drive").arg(String::from("file=") + &bootable_image_path + ",if=none,id=nvm")
+    .arg("-device").arg("nvme,serial=deadbeef,drive=nvm")
     .args(if kvm { vec!["-enable-kvm"] } else { vec![] })
     .args(if debug { vec!["-s", "-S"] } else { vec![] })
     .args(if test { vec!["-device", "isa-debug-exit,iobase=0xf4,iosize=0x04", "-display", "none"] } else { vec![] })
