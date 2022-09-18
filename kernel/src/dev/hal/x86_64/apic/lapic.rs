@@ -1,15 +1,14 @@
 #![allow(unaligned_references)]
 
-use crate::{*, dev::hal::mem};
+use crate::{*, dev::hal::{mem, pic}};
 use core::arch::asm;
-use super::pic;
 
 const IA32_APIC_BASE_MSR: u32 = 0x1B;
 const IA32_APIC_BASE_MSR_ENABLE: u32 = 0x800;
 
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]
-pub struct APICRegisters {
+struct LAPICRegisters {
     _reserved_0: [u64; 4],
     lapic_id: u32,
     _reserved_1: [u32; 3],
@@ -60,21 +59,26 @@ pub struct APICRegisters {
     _reserved_22: [u32; 7],
 }
 
+#[derive(Debug)]
 pub struct LAPIC {
-    registers: * mut APICRegisters,
+    registers: *mut LAPICRegisters,
+    disable_pic_on_init: bool,
 }
 
 impl LAPIC {
-    pub fn new() -> LAPIC {
+    pub fn new(base_address: u32, disable_pic_on_init: bool) -> LAPIC {
         LAPIC {
-            registers: 0 as *mut APICRegisters,
+            registers: unsafe { (base_address as u64 + mem::PHYSICAL_MEMORY_OFFSET) as *mut LAPICRegisters },
+            disable_pic_on_init
         }
     }
 }
 
 impl dev::Device for LAPIC {
     fn init_device(&mut self) -> Result<(), dev::Error> {
-        pic::deinit();
+        if self.disable_pic_on_init {
+            pic::deinit();
+        }
         let high: u32;
         let low: u32;
         unsafe {
@@ -87,10 +91,8 @@ impl dev::Device for LAPIC {
         let low = ((apic_base_address >> 32) & 0x0f) as u32;
         unsafe {
             asm!("wrmsr", in("ecx") IA32_APIC_BASE_MSR, in("rax") high, in("rdx") low);
-            self.registers = (apic_base_address + mem::PHYSICAL_MEMORY_OFFSET) as *mut APICRegisters;
             (*self.registers).task_priority = 0;
-            (*self.registers).task_priority = 0;
-            (*self.registers).spurious_interrupt_vector = 0x100 | 0xff;
+            (*self.registers).spurious_interrupt_vector = 0x100;
         }
         Ok(())
     }

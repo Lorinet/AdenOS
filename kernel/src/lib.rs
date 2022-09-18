@@ -8,6 +8,7 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 #![feature(custom_test_frameworks)]
+#![feature(arbitrary_enum_discriminant)]
 #![test_runner(crate::test::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 

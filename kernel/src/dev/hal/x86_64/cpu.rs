@@ -20,6 +20,7 @@ use x86_64::instructions::segmentation::Segment;
 use lazy_static::lazy_static;
 use core::arch::asm;
 use alloc::{alloc::{alloc, dealloc, Layout}};
+use raw_cpuid::{CpuId, CpuIdResult};
 
 const INTERRUPT_IST_INDEX: u16 = 0;
 const SCHEDULER_INTERRUPT_IST_INDEX: u16 = 0;
@@ -110,6 +111,18 @@ pub fn init() {
     let mut pat_msr = registers::model_specific::Msr::new(0x277);
     let pat_val = unsafe { (pat_msr.read() | pat_mask) & pat_antimask };
     unsafe { pat_msr.write(pat_val) };
+}
+
+pub fn cpuid() -> CpuId {
+    CpuId::with_cpuid_fn(|a, c| {
+        let result = unsafe { core::arch::x86_64::__cpuid_count(a, c) };
+        CpuIdResult {
+            eax: result.eax,
+            ebx: result.ebx,
+            ecx: result.ecx,
+            edx: result.edx,
+        }
+    })
 }
 
 pub fn enable_scheduler() {
