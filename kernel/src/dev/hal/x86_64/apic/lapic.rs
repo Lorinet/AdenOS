@@ -79,18 +79,12 @@ impl dev::Device for LAPIC {
         if self.disable_pic_on_init {
             pic::deinit();
         }
-        serial_println!("Here it gets fucked");
         let mut rax: u32;
         let mut rdx: u32;
         unsafe {
             asm!("rdmsr", in("rcx") IA32_APIC_BASE_MSR, out("rax") rax, out("rdx") rdx);
-            asm!("wrmsr", in("rcx") IA32_APIC_BASE_MSR, in("rax") rax, in("rdx") (rdx | IA32_APIC_BASE_MSR_ENABLE));
-            //asm!("rdmsr", in("rcx") IA32_APIC_BASE_MSR, out("rax") high, out("rdx") low);
-        }
-        let apic_msr: u64 = ((rdx as u64) << 32) | rax as u64;
-        serial_println!("{:#b}", apic_msr);
-        serial_println!("{:#x}", apic_msr);
-        unsafe {
+            rax |= IA32_APIC_BASE_MSR_ENABLE;
+            asm!("wrmsr", in("rcx") IA32_APIC_BASE_MSR, in("rax") rax, in("rdx") rdx);
             (*self.registers).spurious_interrupt_vector = 0x100;
         }
         Ok(())
