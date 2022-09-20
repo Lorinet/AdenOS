@@ -4,7 +4,7 @@ use crate::{*, dev::hal::{mem, pic}};
 use core::arch::asm;
 
 const IA32_APIC_BASE_MSR: u32 = 0x1B;
-const IA32_APIC_BASE_MSR_ENABLE: u32 = 0x800;
+const IA32_APIC_BASE_MSR_ENABLE: u32 = 0b100000000000;
 
 #[repr(C, packed)]
 #[derive(Copy, Clone, Debug)]
@@ -79,19 +79,18 @@ impl dev::Device for LAPIC {
         if self.disable_pic_on_init {
             pic::deinit();
         }
-        let high: u32;
-        let low: u32;
+        serial_println!("Here it gets fucked");
+        let mut high: u32;
+        let mut low: u32;
         unsafe {
-            asm!("mov rcx, r10
-            rdmsr
-            mov r11, rbx", in("r10") IA32_APIC_BASE_MSR, out("rax") high, out("r11") low);
+            asm!("rdmsr", in("rcx") IA32_APIC_BASE_MSR, out("rax") high, out("rdx") low);
+            asm!("wrmsr", in("rcx") IA32_APIC_BASE_MSR, in("rax") high, in("rdx") (low | IA32_APIC_BASE_MSR_ENABLE));
+            //asm!("rdmsr", in("rcx") IA32_APIC_BASE_MSR, out("rax") high, out("rdx") low);
         }
-        let apic_base_address: u64 = ((high & 0xfffff000) as u64) | ((low as u64 & 0x0f) << 32);
-        let high = ((apic_base_address & 0xfffff0000) as u32) | IA32_APIC_BASE_MSR_ENABLE;
-        let low = ((apic_base_address >> 32) & 0x0f) as u32;
+        let apic_msr: u64 = ((low as u64) << 32) | high as u64;
+        serial_println!("{:#b}", apic_msr);
+        serial_println!("{:#x}", apic_msr);
         unsafe {
-            asm!("wrmsr", in("ecx") IA32_APIC_BASE_MSR, in("rax") high, in("rdx") low);
-            (*self.registers).task_priority = 0;
             (*self.registers).spurious_interrupt_vector = 0x100;
         }
         Ok(())
