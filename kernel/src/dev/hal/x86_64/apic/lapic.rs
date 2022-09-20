@@ -1,6 +1,8 @@
 #![allow(unaligned_references)]
 
-use crate::{*, dev::hal::{mem, pic}};
+use x86_64::structures::paging::PageTableFlags;
+
+use crate::{*, dev::hal::{mem::{self, page_mapper}, pic}};
 use core::arch::asm;
 
 const IA32_APIC_BASE_MSR: u32 = 0x1B;
@@ -82,10 +84,26 @@ impl dev::Device for LAPIC {
         let mut rax: u32;
         let mut rdx: u32;
         unsafe {
+            let phys_addr = self.registers as u64 - mem::PHYSICAL_MEMORY_OFFSET;
+            let virt_addr = 0x90000000;
+            serial_println!("peace");
+            page_mapper::map_addr(page_mapper::get_l4_table(), virt_addr, phys_addr, Some(PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_CACHE));
+            serial_println!("pizza");
+            self.registers = virt_addr as *mut LAPICRegisters;
+            serial_println!("capybara");
             asm!("rdmsr", in("rcx") IA32_APIC_BASE_MSR, out("rax") rax, out("rdx") rdx);
             rax |= IA32_APIC_BASE_MSR_ENABLE;
             asm!("wrmsr", in("rcx") IA32_APIC_BASE_MSR, in("rax") rax, in("rdx") rdx);
-            (*self.registers).spurious_interrupt_vector = 0x100;
+            (*self.registers).task_priority = 0x20;
+            (*self.registers).lvt_timer = 0x10000;
+            (*self.registers).lvt_performance_monitoring_counters = 0x10000;
+            (*self.registers).lvt_error = 0x10000;
+            (*self.registers).lvt_lint0 = 0x8700;
+            (*self.registers).lvt_lint1 = 0x400;
+            (*self.registers).spurious_interrupt_vector = 0x10;
+            (*self.registers).lvt_lint0 = 0x8700;
+            (*self.registers).lvt_lint1 = 0x400;
+            serial_println!("{:#x?}", *self.registers);
         }
         Ok(())
     }

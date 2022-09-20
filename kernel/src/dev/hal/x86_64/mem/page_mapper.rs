@@ -54,11 +54,27 @@ pub fn get_l1_entry(addr: u64) -> Option<&'static mut PageTableEntry> {
     Some(ent)
 }
 
+pub fn get_l4_table() -> &'static mut PageTable {
+    let (frame, _) = Cr3::read();
+    let frame = frame.start_address().as_u64() + unsafe { PHYSICAL_MEMORY_OFFSET };
+    unsafe {
+        (frame as *mut PageTable).as_mut().unwrap()
+    }
+}
+
 pub fn set_write_combining(buffer: *const u8, size: usize) {
+    set_flags(buffer, size, PageTableFlags::WRITE_THROUGH | PageTableFlags::NO_CACHE | PageTableFlags::HUGE_PAGE)
+}
+
+pub fn set_uncacheable(buffer: *const u8, size: usize) {
+    set_flags(buffer, size, PageTableFlags::NO_CACHE)
+}
+
+pub fn set_flags(buffer: *const u8, size: usize, add_flags: PageTableFlags) {
     for addr in ((buffer as u64)..((buffer as u64) + size as u64)).step_by(0x1000) {
         let ent = get_l1_entry(align(addr)).unwrap();
         let flags = ent.flags();
-        ent.set_flags(flags | PageTableFlags::WRITE_THROUGH | PageTableFlags::NO_CACHE | PageTableFlags::HUGE_PAGE); // PA7
+        ent.set_flags(flags | add_flags); // PA7
     }
 }
 
