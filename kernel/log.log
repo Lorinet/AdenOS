@@ -1,0 +1,7 @@
+Linfinity Neutrino OS Build Tool
+<==============================>
+Working dir: /home/linfinity/GitHub/NeutrinoCoreOS/kernel
+Created bootable disk image at /home/linfinity/GitHub/NeutrinoCoreOS/kernel/target/x86_64-neutrino_os/debug/boot-bios-neutrino_os.img
+IOAPIC Version: 0x11
+IOAPIC Redirection entries: 24
+11111110111000000000100000000000
