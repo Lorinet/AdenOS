@@ -1,10 +1,11 @@
 #![allow(unaligned_references)]
 
-use crate::{*, dev::hal::{mem, cpu}};
+use crate::{*, dev::hal::{mem::{self, page_mapper}, cpu}};
 use alloc::{string::*, vec};
 use modular_bitfield::{*, specifiers::*};
 use alloc::vec::*;
 use super::madt::MADTEntryIOAPICInterruptSourceOverride;
+use x86_64::structures::paging::PageTableFlags;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
@@ -146,6 +147,17 @@ impl IOAPIC {
 
 impl dev::Device for IOAPIC {
     fn init_device(&mut self) -> Result<(), dev::Error> {
+        unsafe {
+            // remap the IOAPIC to strong uncacheable (UC)
+            let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_CACHE | PageTableFlags::WRITE_THROUGH;
+            let phys_addr = self.io_register_select as u64 - mem::PHYSICAL_MEMORY_OFFSET;
+            serial_println!("{:#x}", phys_addr);
+            let virt_addr = 0x90002000;
+            page_mapper::map_addr(page_mapper::get_l4_table(), virt_addr, phys_addr, Some(flags));
+            self.io_register_select = virt_addr as *mut u32;
+            self.io_register_window = (virt_addr + 0x10) as *mut u32;
+        }
+
         self.version = self.read_register(0x01) as u8;
         self.redirection_entries = ((self.read_register(0x01) >> 16) + 1) as u8;
         serial_println!("IOAPIC Version: {:#x}", self.version);
@@ -175,6 +187,9 @@ impl dev::Device for IOAPIC {
             let redir_table_index = over.global_system_interrupt - self.interrupt_base;
             serial_println!("Redir int {}", redir_table_index);
             self.write_redirection_table_entry(redir_table_index, entry)
+        }
+        for i in 0..self.redirection_entries {
+            serial_println!("{:#x?}", self.read_redirection_table_entry(i.into()));
         }
         Ok(())
     }

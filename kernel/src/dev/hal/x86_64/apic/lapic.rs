@@ -1,6 +1,7 @@
 #![allow(unaligned_references)]
 
 use x86_64::structures::paging::PageTableFlags;
+use modular_bitfield::{bitfield, specifiers::*};
 
 use crate::{*, dev::hal::{mem::{self, page_mapper}, pic}};
 use core::arch::asm;
@@ -35,30 +36,104 @@ struct LAPICRegisters {
     in_service_register: [u32; 32],
     trigger_mode_register: [u32; 32],
     interrupt_request: [u32; 32],
-    error_status: u32,
+    error_status: LAPICError,
     _reserved_11: [u32; 27],
     lvt_corrected_machine_check_interrupt: u32,
     _reserved_12: [u32; 3],
-    interrupt_command: [u32; 5],
+    interrupt_command_low: u32,
     _reserved_13: [u32; 3],
-    lvt_timer: u32,
+    interrupt_command_high: u32,
     _reserved_14: [u32; 3],
-    lvt_thermal_sensor: u32,
+    lvt_timer: u32,
     _reserved_15: [u32; 3],
-    lvt_performance_monitoring_counters: u32,
+    lvt_thermal_sensor: u32,
     _reserved_16: [u32; 3],
-    lvt_lint0: u32,
+    lvt_performance_monitoring_counters: u32,
     _reserved_17: [u32; 3],
-    lvt_lint1: u32,
+    lvt_lint0: u32,
     _reserved_18: [u32; 3],
-    lvt_error: u32,
+    lvt_lint1: u32,
     _reserved_19: [u32; 3],
-    timer_initial_count: u32,
+    lvt_error: u32,
     _reserved_20: [u32; 3],
+    timer_initial_count: u32,
+    _reserved_21: [u32; 3],
     timer_current_count: u32,
-    _reserved_21: [u32; 19],
+    _reserved_22: [u32; 19],
     timer_divide_configuration: u32,
-    _reserved_22: [u32; 7],
+    _reserved_23: [u32; 7],
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
+enum TriggerMode {
+    Edge = 0,
+    Level = 1,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
+enum DestinationMode {
+    Physical = 0,
+    Logical = 1,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
+enum DeliveryMode {
+    Fixed = 0,
+    LowestPriority = 1,
+    SMI = 2,
+    NMI = 4,
+    Init = 5,
+    StartUp = 6,
+}
+
+#[repr(u8)]
+#[derive(Clone, Copy, Debug)]
+enum DestinationShorthand {
+    None = 0,
+    OnlySelf = 1,
+    AllIncludingSelf = 2,
+    AllExcludingSelf = 3,
+}
+
+#[bitfield]
+#[repr(C, packed)]
+#[derive(Copy, Clone, Debug)]
+pub struct LAPICInterrupt {
+    pub vector: u8,
+    pub delivery_mode: B3,
+    pub destination_mode: bool,
+    pub delivery_status: bool,
+    _reserved_0: bool,
+    pub level: bool,
+    pub trigger_mode: bool,
+    _reserved_1: B2,
+    pub destination_shorthand: B2,
+    _reserved_2: B12,
+}
+
+#[repr(C, packed)]
+#[derive(Copy, Clone)]
+union LAPICInterruptUnion {
+    int: LAPICInterrupt,
+    data: (u32, u32),
+}
+
+#[bitfield]
+#[repr(C, packed, u32)]
+#[derive(Copy, Clone, Debug)]
+pub struct LAPICError {
+    pub send_checksum_error: bool,
+    pub receive_checksum_error: bool,
+    pub send_accept_error: bool,
+    pub receive_access_error: bool,
+    pub redirectable_ipi: bool,
+    pub send_illegal_vector: bool,
+    pub received_illegal_vector: bool,
+    pub illegal_register_address: bool,
+    _reserved: B24,
 }
 
 #[derive(Debug)]
@@ -74,6 +149,17 @@ impl LAPIC {
             disable_pic_on_init
         }
     }
+
+    fn send_interrupt(&mut self, int: LAPICInterrupt) {
+        let un = LAPICInterruptUnion {
+            int,
+        };
+        unsafe {
+            let (low, high) = un.data;
+            (*self.registers).interrupt_command_high = high;
+            (*self.registers).interrupt_command_low = low;
+        }
+    }
 }
 
 impl dev::Device for LAPIC {
@@ -86,24 +172,15 @@ impl dev::Device for LAPIC {
         unsafe {
             let phys_addr = self.registers as u64 - mem::PHYSICAL_MEMORY_OFFSET;
             let virt_addr = 0x90000000;
-            serial_println!("peace");
+            // map to strong UC memory
             page_mapper::map_addr(page_mapper::get_l4_table(), virt_addr, phys_addr, Some(PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_CACHE));
-            serial_println!("pizza");
             self.registers = virt_addr as *mut LAPICRegisters;
-            serial_println!("capybara");
             asm!("rdmsr", in("rcx") IA32_APIC_BASE_MSR, out("rax") rax, out("rdx") rdx);
             rax |= IA32_APIC_BASE_MSR_ENABLE;
             asm!("wrmsr", in("rcx") IA32_APIC_BASE_MSR, in("rax") rax, in("rdx") rdx);
-            (*self.registers).task_priority = 0x20;
-            (*self.registers).lvt_timer = 0x10000;
-            (*self.registers).lvt_performance_monitoring_counters = 0x10000;
-            (*self.registers).lvt_error = 0x10000;
-            (*self.registers).lvt_lint0 = 0x8700;
-            (*self.registers).lvt_lint1 = 0x400;
-            (*self.registers).spurious_interrupt_vector = 0x10;
-            (*self.registers).lvt_lint0 = 0x8700;
-            (*self.registers).lvt_lint1 = 0x400;
-            serial_println!("{:#x?}", *self.registers);
+            (*self.registers).task_priority = 0;
+            (*self.registers).spurious_interrupt_vector = 0x100;
+            serial_println!("{:#x?}", (*self.registers).error_status);
         }
         Ok(())
     }
