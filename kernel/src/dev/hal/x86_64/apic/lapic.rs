@@ -165,7 +165,7 @@ impl LAPIC {
 impl dev::Device for LAPIC {
     fn init_device(&mut self) -> Result<(), dev::Error> {
         if self.disable_pic_on_init {
-            pic::deinit();
+            //pic::deinit();
         }
         let mut rax: u32;
         let mut rdx: u32;
@@ -179,8 +179,7 @@ impl dev::Device for LAPIC {
             rax |= IA32_APIC_BASE_MSR_ENABLE;
             asm!("wrmsr", in("rcx") IA32_APIC_BASE_MSR, in("rax") rax, in("rdx") rdx);
             (*self.registers).task_priority = 0;
-            (*self.registers).spurious_interrupt_vector = 0x100;
-            serial_println!("{:#x?}", (*self.registers).error_status);
+            (*self.registers).spurious_interrupt_vector = 0b00000000000000000000000111111111;
         }
         Ok(())
     }

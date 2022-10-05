@@ -48,6 +48,10 @@ pub fn init() {
         master_data.write_one(a1).unwrap();
         slave_data.write_one(a2).unwrap();
     });
+    // mask everything except timer and keyboard
+    for i in 2..16 {
+        //mask(i);
+    }
     let mut pit_cmd: port::Port<u8> = port::Port::new(0x43);
     let mut pit_data: port::Port<u8> = port::Port::new(0x40);
     let divisor: u16 = (1193180 / 100) as u16;
@@ -56,6 +60,32 @@ pub fn init() {
         pit_data.write_one((divisor & 0xFF) as u8).unwrap();
         pit_data.write_one(((divisor >> 8) & 0xFF) as u8).unwrap();
     });
+}
+
+pub fn mask(irq: u8) {
+    let mut port: port::Port<u8>;
+    let mut irq = irq;
+    if irq < 8 {
+        port = port::Port::new(PIC_MASTER_PORT + 1);
+    } else {
+        port = port::Port::new(PIC_SLAVE_PORT + 1);
+        irq -= 8;
+    }
+    let val = port.read_one().unwrap() | (1 << irq);
+    port.write_one(val).unwrap();
+}
+
+pub fn unmask(irq: u8) {
+    let mut port: port::Port<u8>;
+    let mut irq = irq;
+    if irq < 8 {
+        port = port::Port::new(PIC_MASTER_PORT + 1);
+    } else {
+        port = port::Port::new(PIC_SLAVE_PORT + 1);
+        irq -= 8;
+    }
+    let val = port.read_one().unwrap() & !(1 << irq);
+    port.write_one(val).unwrap();
 }
 
 pub fn deinit() {

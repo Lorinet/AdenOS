@@ -1,6 +1,7 @@
 use crate::*;
 use core::{iter::Iterator, mem::size_of};
 use dev::hal::{mem, acpi::tables::*};
+use modular_bitfield::{bitfield, specifiers::{B2, B30, B3, B29, B10, B11, B28}};
 
 pub mod id;
 
@@ -225,6 +226,81 @@ impl Iterator for MCFGIterator {
     }
 }
 
+#[bitfield]
+#[repr(C, packed)]
+#[derive(Clone, Copy, Debug)]
+pub struct BAR {
+    _bar_space: bool,
+    pub bar_type: B2,
+    pub prefetchable: bool,
+    pub address: B28,
+}
+
+impl From<&u32> for BAR {
+    fn from(reg: &u32) -> Self {
+        unsafe {
+            *(reg as *const _ as *const BAR)
+        }
+    }
+}
+
+#[repr(C, packed)]
+#[derive(Clone, Copy, Debug)]
+pub struct MSIXTableEntry {
+    message_address: u64,
+    message_data: u32,
+    vector_control: u32,
+}
+
+#[bitfield]
+#[repr(C, packed)]
+#[derive(Clone, Copy, Debug)]
+pub struct MSIXCapability {
+    pub capability_id: u8,
+    pub next_pointer: u8,
+    pub table_size: B11,
+    pub _reserved: B3,
+    pub function_mask: bool,
+    pub enable: bool,
+    pub bir: B3,
+    _table_offset: B29,
+    pub pending_bit_bir: B3,
+    _pending_bit_offset: B29,
+}
+
+impl MSIXCapability {
+    pub fn from_address(virt_addr: u64) -> &'static mut MSIXCapability {
+        unsafe {
+            (virt_addr as *mut MSIXCapability).as_mut().unwrap()
+        }
+    }
+
+    pub fn table_offset(&self) -> u32 {
+        self._table_offset() << 3
+    }
+
+    pub fn pending_bit_offset(&self) -> u32 {
+        self._pending_bit_offset() << 3
+    }
+
+    pub fn init(&mut self, header_addr: u64) {
+        *self = self.with_enable(true);
+        let bar_l = header_addr as u64 + (self.bir() as u64 * 4) + 0x10;
+        let bar_h = bar_l + 4;
+        unsafe {
+            let bar_l = *(bar_l as *const u32);
+            let bar_h = *(bar_h as *const u32);
+            let table_addr = (bar_l & 0xFFFFFFF0) as u64 + (((bar_h & 0xFFFFFFFF) as u64) << 32) + self.table_offset() as u64 + mem::PHYSICAL_MEMORY_OFFSET;
+            serial_println!("MSI-X table: {:#x}", table_addr);
+            serial_println!("Entries: {}", self.table_size());
+            let table = table_addr as *const MSIXTableEntry;
+            for i in 0..self.table_size() {
+                serial_println!("{:#x?}", *table.offset(i as isize));
+            }
+        }
+    }
+}
+
 pub fn bar_to_struct<T>(bar: u32) -> &'static T {
     unsafe {
         ((bar as u64 + mem::PHYSICAL_MEMORY_OFFSET) as *const T).as_ref().unwrap()
@@ -233,6 +309,8 @@ pub fn bar_to_struct<T>(bar: u32) -> &'static T {
 
 pub fn bar_to_struct_64<T>(bar_l: u32, bar_h: u32) -> &'static mut T {
     unsafe {
-        (((((bar_h as u64) << 32) | bar_l as u64) as u64 + mem::PHYSICAL_MEMORY_OFFSET) as *mut T).as_mut().unwrap()
+        let addr = (((bar_h as u64) << 32) | bar_l as u64) as u64;
+        serial_println!("bar_to_struct_64 BAR: {:#x}", addr);
+        ((addr + mem::PHYSICAL_MEMORY_OFFSET) as *mut T).as_mut().unwrap()
     }
 }

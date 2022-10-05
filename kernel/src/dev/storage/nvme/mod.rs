@@ -141,9 +141,6 @@ impl NVME {
 
 impl Device for NVME {
     fn init_device(&mut self) -> Result<(), dev::Error> {
-        return Ok(());
-        serial_println!("Initializing {}", self.device_name());
-
         const reg_offset_controller_configuration: u64 = 0x14;
         const reg_offset_controller_status: u64 = 0x1C;
         const shutdown_status_normal: u8 = 0b00;
@@ -152,7 +149,7 @@ impl Device for NVME {
 
         let config = unsafe { (((self.mbar as *const _ as u64) + reg_offset_controller_configuration) as *mut ControllerConfiguration).as_mut().unwrap() };
         let status = unsafe { (((self.mbar as *const _ as u64) + reg_offset_controller_status) as *mut ControllerStatus).as_mut().unwrap() };
-        serial_println!("{:#x?}\n{:#x?}", config, status);
+        //serial_println!("{:#x?}\n{:#x?}", config, status);
 
         if status.ready() || status.controller_fatal_state() {
             // shutdown controller
@@ -251,29 +248,15 @@ impl Device for NVME {
 
         for _ in 0..10000000 {}
 
-        serial_println!("{:#x?}", self.admin_queue.dequeue());
-
-        unsafe {
-            let prp = mem::FRAME_ALLOCATOR.allocate_frame();
-            self.admin_queue.admin_identify(prp, 0xffffffff, 0, 0x01, 1);
+        //serial_println!("{:#x?}", self.admin_queue.dequeue());
+        //self.admin_queue.print_all();
+        serial_println!("{:#x}", self.pci_device_header.capabilities_pointer);
+        let mut cap = pci::MSIXCapability::from_address(self.pci_device_header as *const _ as u64 + self.pci_device_header.capabilities_pointer as u64);
+        while cap.capability_id() != 0x11 {
+            cap = pci::MSIXCapability::from_address(self.pci_device_header as *const _ as u64 + cap.next_pointer() as u64);
         }
-
-        for _ in 0..10000000 {}
-
-        serial_println!("{:#x?}", self.admin_queue.dequeue());
-
-        unsafe {
-            let prp = mem::FRAME_ALLOCATOR.allocate_frame();
-            self.admin_queue.admin_identify(prp, 0xffffffff, 0, 0x01, 2);
-        }
-
-        for _ in 0..10000000 {}
-
-        serial_println!("{:#x?}", self.admin_queue.dequeue());
-        self.admin_queue.print_all();
-
-        serial_println!("{:x}", self.pci_device_header.capabilities_pointer);
-        serial_println!("{:#x?}", status);
+        cap.init(self.pci_device_header as *const _ as u64);
+        //serial_println!("{:#x} {:#x} {:#x} {:#x} {} {} {:#x} {:#x} {:#x} {:#x}", cap.capability_id(), cap.next_pointer(), cap.table_size(), cap._reserved(), cap.function_mask(), cap.enable(), cap.bir(), cap.table_offset(), cap.pending_bit_bir(), cap.pending_bit_offset());
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 use crate::*;
 use self::tables::{RSDPHeader, ACPITable};
-use dev::{hal::{apic::{madt::*, lapic::*, ioapic::*}, pci::*}, storage};
+use dev::{hal::{apic::{madt::*, lapic::*}, pci::*}, storage};
 use alloc::{format, string::*};
 
 pub mod tables;
@@ -21,24 +21,8 @@ pub fn init() {
     for apic in madt {
         match apic.entry_type {
             MADTEntryType::LAPIC => {},
-            MADTEntryType::IOAPIC => {
-                let ioapic_ent: &MADTEntryIOAPIC = apic.into();
-                devices::register_device(IOAPIC::new(ioapic_ent.ioapic_address, ioapic_ent.ioapic_id, ioapic_ent.global_system_interrupt_base));
-                ioapics += 1;
-            },
-            MADTEntryType::IOAPICInterruptSourceOverride => {
-                let ioapic_ent: &MADTEntryIOAPICInterruptSourceOverride = apic.into();
-                let mut the_ioapic_we_need = devices::get_device::<IOAPIC>(String::from("System/IOAPIC0")).expect(&format!("IOAPIC 0 not found."));
-                for i in 0..ioapics {
-                    let ioapic = devices::get_device::<IOAPIC>(String::from("System/IOAPIC") + &i.to_string()).expect(&format!("IOAPIC {} not found.", i));
-                    if ioapic.interrupt_base <= ioapic_ent.global_system_interrupt {
-                        the_ioapic_we_need = ioapic;
-                    } else {
-                        break;
-                    }
-                }
-                the_ioapic_we_need.interrupt_source_overrides.push(ioapic_ent.clone());
-            },
+            MADTEntryType::IOAPIC => {},
+            MADTEntryType::IOAPICInterruptSourceOverride => {},
             MADTEntryType::IOAPICNMISource => {},
             MADTEntryType::LAPICNonMaskableInterrupts => {},
             MADTEntryType::LAPICAddressOverride => {
