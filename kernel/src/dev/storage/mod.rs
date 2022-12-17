@@ -6,6 +6,8 @@ mod nvme;
 pub use nvme::NVME;
 pub use nvme::drive::NVMEDrive;
 
-pub trait Drive {
+use crate::dev::*;
+
+pub trait Drive: Seek + Read + Write {
     fn capacity(&mut self) -> usize;
 }

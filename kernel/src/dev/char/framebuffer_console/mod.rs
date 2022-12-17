@@ -79,8 +79,7 @@ where F: Framebuffer {
 
 impl<'a, F> dev::Write for FramebufferConsole<'a, F>
 where F: Framebuffer {
-    type T = u8;
-    fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
+    fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
         match val {
             b'\n' => {
                 self._new_line();

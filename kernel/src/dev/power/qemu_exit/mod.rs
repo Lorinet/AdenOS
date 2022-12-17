@@ -8,7 +8,7 @@ enum QemuExitCode {
 }
 
 pub struct QemuExit {
-    port: port::Port<u32>,
+    port: port::Port,
 }
 
 impl QemuExit {
@@ -27,11 +27,11 @@ impl dev::Device for QemuExit {
 
 impl dev::PowerControl for QemuExit {
     fn reboot(&mut self) -> ! {
-        self.port.write_one(QemuExitCode::Failure as u32).unwrap();
+        self.port.write_one(QemuExitCode::Failure as u8).unwrap();
         loop {}
     }
     fn shutdown(&mut self) -> ! {
-        self.port.write_one(QemuExitCode::Success as u32).unwrap();
+        self.port.write_one(QemuExitCode::Success as u8).unwrap();
         loop {}
     }
 }

@@ -28,15 +28,13 @@ impl dev::Device for Uart16550 {
 }
 
 impl dev::Read for Uart16550 {
-    type T = u8;
-    fn read_one(&mut self) -> Result<Self::T, dev::Error> {
+    fn read_one(&mut self) -> Result<u8, dev::Error> {
         Ok(self.port.receive())
     }
 }
 
 impl dev::Write for Uart16550 {
-    type T = u8;
-    fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
+    fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
         self.port.write_char(val as char).or_else(|_| Result::Err(dev::Error::WriteFailure))
     }
 }

@@ -15,7 +15,7 @@ use futures_util::task::AtomicWaker;
 mod scancodes;
 
 static mut KEYBOARD_HANDLER: Option<fn(keyboard::Key)> = None;
-static mut KEYBOARD_PORT: port::Port<u8> = port::Port::new(0x60);
+static mut KEYBOARD_PORT: port::Port = port::Port::new(0x60);
 
 static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 static WAKER: AtomicWaker = AtomicWaker::new();

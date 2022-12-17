@@ -20,11 +20,11 @@ pub const PIC_SLAVE_OFFSET: u8 = PIC_MASTER_OFFSET + 0x08;
 const END_OF_INTERRUPT: u8 = 0x20;
 
 pub fn init() {
-    let mut master_cmd: port::Port<u8> = port::Port::new(PIC_MASTER_PORT);
-    let mut master_data: port::Port<u8> = port::Port::new(PIC_MASTER_PORT + 1);
-    let mut slave_cmd: port::Port<u8> = port::Port::new(PIC_SLAVE_PORT);
-    let mut slave_data: port::Port<u8> = port::Port::new(PIC_SLAVE_PORT + 1);
-    let mut wait_port: port::Port<u8> = port::Port::new(WAIT_PORT);
+    let mut master_cmd: port::Port = port::Port::new(PIC_MASTER_PORT);
+    let mut master_data: port::Port = port::Port::new(PIC_MASTER_PORT + 1);
+    let mut slave_cmd: port::Port = port::Port::new(PIC_SLAVE_PORT);
+    let mut slave_data: port::Port = port::Port::new(PIC_SLAVE_PORT + 1);
+    let mut wait_port: port::Port = port::Port::new(WAIT_PORT);
     let mut wait = || wait_port.write_one(0).unwrap();
     let a1 = master_data.read_one().unwrap();
     let a2 = slave_data.read_one().unwrap();
@@ -52,8 +52,8 @@ pub fn init() {
     for i in 2..16 {
         //mask(i);
     }
-    let mut pit_cmd: port::Port<u8> = port::Port::new(0x43);
-    let mut pit_data: port::Port<u8> = port::Port::new(0x40);
+    let mut pit_cmd: port::Port = port::Port::new(0x43);
+    let mut pit_data: port::Port = port::Port::new(0x40);
     let divisor: u16 = (1193180 / 100) as u16;
     cpu::atomic_no_interrupts(|| {
         pit_cmd.write_one(0x36).unwrap();
@@ -63,7 +63,7 @@ pub fn init() {
 }
 
 pub fn mask(irq: u8) {
-    let mut port: port::Port<u8>;
+    let mut port: port::Port;
     let mut irq = irq;
     if irq < 8 {
         port = port::Port::new(PIC_MASTER_PORT + 1);
@@ -76,7 +76,7 @@ pub fn mask(irq: u8) {
 }
 
 pub fn unmask(irq: u8) {
-    let mut port: port::Port<u8>;
+    let mut port: port::Port;
     let mut irq = irq;
     if irq < 8 {
         port = port::Port::new(PIC_MASTER_PORT + 1);
@@ -89,8 +89,8 @@ pub fn unmask(irq: u8) {
 }
 
 pub fn deinit() {
-    let mut master_cmd: port::Port<u8> = port::Port::new(PIC_MASTER_DISABLE_PORT);
-    let mut slave_cmd: port::Port<u8> = port::Port::new(PIC_SLAVE_DISABLE_PORT);
+    let mut master_cmd: port::Port = port::Port::new(PIC_MASTER_DISABLE_PORT);
+    let mut slave_cmd: port::Port = port::Port::new(PIC_SLAVE_DISABLE_PORT);
     master_cmd.write_one(0xff);
     slave_cmd.write_one(0xff);
 }

@@ -1,5 +1,6 @@
 use crate::*;
-use crate::dev::ReadFrom;
+use crate::dev::filesystem::PartitionTable;
+use crate::dev::{ReadFrom, filesystem};
 use alloc::vec;
 use console::ConsoleColor;
 use userspace::*;
@@ -36,12 +37,16 @@ fn init_system() {
     for dev in devices::get_devices() {
         println!("{}", dev);
     }
-    /*let mut buffer = vec![0; 2048];
+    let mut buffer = vec![0; 2048];
     let drv = devices::get_device::<dev::storage::AHCIDrive>(String::from("Drives/AHCI0")).expect("Drive full of crap");
     drv.read_from(buffer.as_mut_slice(), 0).expect("Could not read from disk because it is full of shit.");
     for c in buffer {
         print!("{}", c as char);
-    }*/
+    }
+    let mbr = filesystem::mbr::MBRPartitionTable::read_table(devices::get_device::<dev::storage::AHCIDrive>(String::from("Drives/AHCI1")).unwrap()).unwrap();
+    for part in mbr.table {
+        serial_println!("{:#x?}", part);
+    }
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);

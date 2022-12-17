@@ -19,8 +19,8 @@ pub struct VgaTextMode {
     buffer: *mut u8,
     offset: usize,
     color: ColorCode,
-    control_port: port::Port<u8>,
-    data_port: port::Port<u8>,
+    control_port: port::Port,
+    data_port: port::Port,
 }
 
 impl VgaTextMode {
@@ -61,8 +61,7 @@ impl dev::Device for VgaTextMode {
 }
 
 impl dev::Write for VgaTextMode {
-    type T = u8;
-    fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
+    fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
         match val {
             b'\n' => {
                 self.offset += WIDTH - (self.offset % WIDTH) - 2;

@@ -3,45 +3,41 @@ use dev;
 use x86_64;
 use x86_64::instructions::port;
 
-pub struct Port<T> {
-    port: port::Port<T>,
+pub struct Port {
+    port: port::Port<u8>,
 }
 
-impl<T> Port<T> {
-    pub const fn new(number: u16) -> Port<T> {
+impl Port {
+    pub const fn new(number: u16) -> Port {
         Port {
             port: port::Port::new(number),
         }
     }
 }
 
-impl<T> dev::Device for Port<T> {
+impl dev::Device for Port {
     fn device_name(&self) -> &str {
         //format!("HAL/Port{:#06x}", self.number).as_str()
         "HAL/Port"
     }
 }
 
-impl<T> dev::Read for Port<T>
-where T: port::PortRead + Copy {
-    type T = T;
-    fn read_one(&mut self) -> Result<Self::T, dev::Error> {
+impl dev::Read for Port {
+    fn read_one(&mut self) -> Result<u8, dev::Error> {
         unsafe {
-            Ok(self.port.read() as Self::T)
+            Ok(self.port.read() as u8)
         }
     }
 }
 
-impl<T> dev::Write for Port<T>
-where T: port::PortWrite + Copy {
-    type T = T;
-    fn write_one(&mut self, val: Self::T) -> Result<(), dev::Error> {
+impl dev::Write for Port {
+    fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
         unsafe {
             self.port.write(val);
         }
         Ok(())
     }
-    fn write(&mut self, buf: &[Self::T]) -> Result<usize, dev::Error> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, dev::Error> {
         for val in buf {
             self.write_one(*val)?;
         }

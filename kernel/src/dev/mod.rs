@@ -1,5 +1,6 @@
 use crate::*;
 use console::ConsoleColor;
+use alloc::fmt::Debug;
 
 pub mod char;
 pub mod hal;
@@ -7,6 +8,7 @@ pub mod power;
 pub mod input;
 pub mod storage;
 pub mod framebuffer;
+pub mod filesystem;
 
 #[derive(Debug)]
 pub enum Error {
@@ -31,9 +33,8 @@ pub trait StaticDevice {
 }
 
 pub trait Write {
-    type T: Copy;
-    fn write_one(&mut self, val: Self::T) -> Result<(), Error>;
-    fn write(&mut self, buf: &[Self::T]) -> Result<usize, Error> {
+    fn write_one(&mut self, val: u8) -> Result<(), Error>;
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         for v in buf {
             self.write_one(*v)?;
         }
@@ -42,9 +43,8 @@ pub trait Write {
 }
 
 pub trait Read {
-    type T: Copy;
-    fn read_one(&mut self) -> Result<Self::T, Error>;
-    fn read(&mut self, buf: &mut [Self::T]) -> Result<usize, Error> {
+    fn read_one(&mut self) -> Result<u8, Error>;
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         for i in 0..buf.len() {
             buf[i] = self.read_one()?;
         }
@@ -60,8 +60,11 @@ pub trait Seek {
     fn offset(&mut self) -> usize;
 }
 
+pub trait SeekRead: Device + Seek + Read + ReadFrom {}
+pub trait SeekReadWrite: Device + Seek + Read + ReadFrom + Write + WriteTo {}
+
 pub trait ReadFrom: Seek + Read {
-    fn read_from(&mut self, buf: &mut [Self::T], offset: usize) -> Result<usize, Error> {
+    fn read_from(&mut self, buf: &mut [u8], offset: usize) -> Result<usize, Error> {
         let prev_offset = self.offset();
         self.seek(offset);
         let result = self.read(buf);
@@ -71,7 +74,7 @@ pub trait ReadFrom: Seek + Read {
 }
 
 pub trait WriteTo: Seek + Write {
-    fn write_to(&mut self, buf: &[Self::T], offset: usize) -> Result<usize, Error> {
+    fn write_to(&mut self, buf: &[u8], offset: usize) -> Result<usize, Error> {
         let prev_offset = self.offset();
         self.seek(offset);
         let result = self.write(buf);
