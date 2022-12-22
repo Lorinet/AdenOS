@@ -1,4 +1,5 @@
 use crate::*;
+use alloc::{vec, vec::Vec, string::String};
 use dev::hal::port;
 use dev::Write;
 
@@ -7,6 +8,7 @@ enum QemuExitCode {
     Failure = 0x11,
 }
 
+#[derive(Debug)]
 pub struct QemuExit {
     port: port::Port,
 }
@@ -20,8 +22,8 @@ impl QemuExit {
 }
 
 impl dev::Device for QemuExit {
-    fn device_name(&self) -> &str {
-        "Power/QemuExit"
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Power"), String::from("QemuExit")]
     }
 }
 

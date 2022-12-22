@@ -5,6 +5,7 @@ use dev::hal::{cpu, pic, port, interrupts};
 use dev::input::keyboard;
 use async_task::*;
 use x86_64::structures::idt;
+use alloc::{vec, vec::Vec, string::String};
 use conquer_once::spin::OnceCell;
 use crossbeam_queue::ArrayQueue;
 use core::{pin::Pin, task::{Poll, Context}, arch::asm};
@@ -65,8 +66,8 @@ impl PS2KeyboardPIC8259 {
 }
 
 impl dev::StaticDevice for PS2KeyboardPIC8259 {
-    fn device_name() -> &'static str {
-        "Input/PS2KeyboardPIC8259"
+    fn device_path() -> Vec<String> {
+        vec![String::from("Input"), String::from("PS2KeyboardPIC8259")]
     }
 
     fn init_device() -> Result<(), dev::Error> {

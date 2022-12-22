@@ -1,7 +1,6 @@
 use crate::*;
 use self::tables::{RSDPHeader, ACPITable};
 use dev::{hal::{apic::{madt::*, lapic::*}, pci::*}, storage};
-use alloc::{format, string::*};
 
 pub mod tables;
 
@@ -17,7 +16,7 @@ pub fn init() {
 
     let madt: &MADTTable = rxsdt.get_table("APIC").unwrap().into();
     devices::register_device(LAPIC::new(madt.lapic_address, madt.flags & 1 > 0));
-    let mut ioapics = 0;
+    let ioapics = 0;
     for apic in madt {
         match apic.entry_type {
             MADTEntryType::LAPIC => {},

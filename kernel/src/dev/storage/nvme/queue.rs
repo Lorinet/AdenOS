@@ -90,7 +90,7 @@ impl NVMEQueue {
     }
 
     pub fn enqueue(&mut self, entry: super::SubmissionQueueEntry) {
-        let size = size_of::<super::SubmissionQueueEntry>();
+        let _size = size_of::<super::SubmissionQueueEntry>();
         unsafe {
             *self.submission_queue.offset(self.submission_tail) = entry;
             self.submission_doorbell(self.submission_tail as u16);

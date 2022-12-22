@@ -1,8 +1,9 @@
 use crate::{*, dev::hal::mem::{self, page_mapper}};
 use dev::framebuffer::*;
-use alloc::{vec, vec::Vec};
+use alloc::{vec, vec::Vec, string::String};
 use dev::Device;
 
+#[derive(Debug)]
 pub struct VesaVbeFramebuffer {
     buffer: &'static mut [u8],
     ram_buffer: Option<&'static mut [u8]>,
@@ -51,7 +52,7 @@ impl Device for VesaVbeFramebuffer {
         //serial_println!("{:x}", virt_addr);
         unsafe {
             for _ in 1..pages_needed {
-                let frm = mem::FRAME_ALLOCATOR.allocate_frame();
+                let _frm = mem::FRAME_ALLOCATOR.allocate_frame();
                 //serial_println!("{:x}", frm);
             }
         }
@@ -66,7 +67,9 @@ impl Device for VesaVbeFramebuffer {
         Ok(())
     }
 
-    fn device_name(&self) -> &str { "Framebuffer/VesaVbeFramebuffer" }
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Framebuffer"), String::from("VesaVbeFramebuffer")]
+    }
 }
 
 impl Framebuffer for VesaVbeFramebuffer {

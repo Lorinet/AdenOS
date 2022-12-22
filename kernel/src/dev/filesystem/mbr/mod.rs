@@ -1,11 +1,6 @@
-use alloc::{slice, vec, vec::Vec};
+use alloc::{vec::Vec};
 use modular_bitfield::{bitfield, specifiers::*};
-
-use crate::dev::storage::AHCIDrive;
-use crate::{*, dev::Read};
 use super::*;
-use alloc::string::String;
-use alloc::boxed::Box;
 
 #[bitfield]
 #[repr(C, packed)]
@@ -28,12 +23,26 @@ pub struct MBRPartitionTable {
 }
 
 impl PartitionTable for MBRPartitionTable {
-    fn read_table<T>(device: &'static mut T) -> Result<MBRPartitionTable, Error>
-    where T: ReadFrom {
-        let mut tab = MBRPartitionTable {
-            table: [MBRPartition::new(); 4],
-        };
-        device.read_from(unsafe { &mut *(&mut tab.table as *mut _ as *mut [u8; 64]) }, 0x1BE)?;
-        Ok(tab)
+    fn read_partitions<T>(device: &'static mut T) -> Result<Vec<Partition>, Error>
+    where T: Drive {
+        let mut table = [MBRPartition::new(); 4];
+        device.read_from(unsafe { &mut *(&mut table as *mut _ as *mut [u8; 64]) }, 0x1BE)?;
+        let mut parts = Vec::<Partition>::new();
+        for i in 0..4 {
+            let mbrp = &table[i];
+            if mbrp.system_id() == 0 && mbrp.total_sectors() == 0 {
+                continue;
+            }
+            let ss = u32::from_le(mbrp.relative_sector()) as usize;
+            let es = ss + u32::from_le(mbrp.total_sectors()) as usize - 1;
+            parts.push(Partition {
+                drive: unsafe { (device as *mut dyn Drive).as_mut().unwrap() },
+                partition_number: i,
+                start_sector: ss,
+                end_sector: es,
+                sector_offset: 0,
+            });
+        }
+        Ok(parts)
     }
 }

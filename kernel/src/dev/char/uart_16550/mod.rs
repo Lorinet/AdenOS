@@ -1,11 +1,18 @@
 use crate::*;
+use alloc::{vec, vec::Vec, string::String};
 use dev;
 use uart_16550;
-use core::fmt::{self, Write};
+use core::fmt::{self, Write, Debug};
 
 pub struct Uart16550 {
     pub number: u8,
     port: uart_16550::SerialPort,
+}
+
+impl Debug for Uart16550 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Uart16550").field("number", &self.number).finish()
+    }
 }
 
 impl Uart16550 {
@@ -22,8 +29,8 @@ impl dev::Device for Uart16550 {
         self.port.init();
         Ok(())
     }
-    fn device_name(&self) -> &str {
-        "Character/Uart16550"
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Character"), String::from("Uart16550")]
     }
 }
 

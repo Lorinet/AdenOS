@@ -49,7 +49,7 @@ pub fn init() {
         slave_data.write_one(a2).unwrap();
     });
     // mask everything except timer and keyboard
-    for i in 2..16 {
+    for _i in 2..16 {
         //mask(i);
     }
     let mut pit_cmd: port::Port = port::Port::new(0x43);

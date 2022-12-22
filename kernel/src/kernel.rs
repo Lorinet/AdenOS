@@ -1,6 +1,6 @@
 use crate::*;
 use crate::dev::filesystem::PartitionTable;
-use crate::dev::{ReadFrom, filesystem};
+use crate::dev::{RandomRead, filesystem};
 use alloc::vec;
 use console::ConsoleColor;
 use userspace::*;
@@ -28,24 +28,20 @@ fn init_system() {
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
     println!("");
-    for dev in devices::get_devices() {
-        devices::get_device_non_generic(dev.clone()).map_or((), |device| match device.init_device() {
-            Ok(()) => println!("{} initialized successfully", dev),
-            Err(err) => println!("{} initialization failed: {:?}", dev, err),
-        });
+    for (name, dev) in devices::device_tree().iter_mut_bf() {
+        if let Some(dev) = dev {
+            match dev.init_device() {
+                Ok(()) => println!("{} initialized successfully", name),
+                Err(err) => println!("{} initialization failed: {:?}", name, err),
+            };
+        }
     }
-    for dev in devices::get_devices() {
+    for (dev, _) in devices::device_tree().iter_mut_bf() {
         println!("{}", dev);
     }
-    let mut buffer = vec![0; 2048];
-    let drv = devices::get_device::<dev::storage::AHCIDrive>(String::from("Drives/AHCI0")).expect("Drive full of crap");
-    drv.read_from(buffer.as_mut_slice(), 0).expect("Could not read from disk because it is full of shit.");
-    for c in buffer {
-        print!("{}", c as char);
-    }
-    let mbr = filesystem::mbr::MBRPartitionTable::read_table(devices::get_device::<dev::storage::AHCIDrive>(String::from("Drives/AHCI1")).unwrap()).unwrap();
-    for part in mbr.table {
-        serial_println!("{:#x?}", part);
+    let mbr = filesystem::mbr::MBRPartitionTable::read_partitions(devices::get_device::<dev::storage::AHCIDrive>(vec![String::from("Storage"), String::from("AHCI"), String::from("Drive1")])).unwrap();
+    for part in mbr {
+        println!("{:#x?}", part);
     }
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();

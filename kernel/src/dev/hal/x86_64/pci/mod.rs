@@ -1,7 +1,7 @@
 use crate::*;
 use core::{iter::Iterator, mem::size_of};
 use dev::hal::{mem, acpi::tables::*};
-use modular_bitfield::{bitfield, specifiers::{B2, B30, B3, B29, B10, B11, B28}};
+use modular_bitfield::{bitfield, specifiers::*};
 
 pub mod id;
 

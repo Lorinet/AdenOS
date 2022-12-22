@@ -1,6 +1,6 @@
 use crate::*;
 use console::ConsoleColor;
-use alloc::fmt::Debug;
+use alloc::{fmt::Debug, string::String, vec::Vec};
 
 pub mod char;
 pub mod hal;
@@ -20,16 +20,16 @@ pub enum Error {
     DriverNotFound(&'static str),
 }
 
-pub trait Device {
+pub trait Device: Debug {
     fn init_device(&mut self) -> Result<(), Error> { Ok(()) }
     fn deinit_device(&mut self) -> Result<(), Error> { Ok(()) }
-    fn device_name(&self) -> &str;
+    fn device_path(&self) -> Vec<String>;
 }
 
 pub trait StaticDevice {
     fn init_device() -> Result<(), Error> { Ok(()) }
     fn deinit_device() -> Result<(), Error> { Ok(()) }
-    fn device_name() -> &'static str;
+    fn device_path() -> Vec<String>;
 }
 
 pub trait Write {
@@ -54,16 +54,13 @@ pub trait Read {
 
 pub trait Seek {
     fn seek(&mut self, position: usize);
-    fn seek_relative(&mut self, offset: usize);
+    fn seek_relative(&mut self, offset: isize);
     fn seek_begin(&mut self);
     fn seek_end(&mut self);
     fn offset(&mut self) -> usize;
 }
 
-pub trait SeekRead: Device + Seek + Read + ReadFrom {}
-pub trait SeekReadWrite: Device + Seek + Read + ReadFrom + Write + WriteTo {}
-
-pub trait ReadFrom: Seek + Read {
+pub trait RandomRead: Seek + Read {
     fn read_from(&mut self, buf: &mut [u8], offset: usize) -> Result<usize, Error> {
         let prev_offset = self.offset();
         self.seek(offset);
@@ -73,7 +70,7 @@ pub trait ReadFrom: Seek + Read {
     }
 }
 
-pub trait WriteTo: Seek + Write {
+pub trait RandomWrite: Seek + Write {
     fn write_to(&mut self, buf: &[u8], offset: usize) -> Result<usize, Error> {
         let prev_offset = self.offset();
         self.seek(offset);
@@ -83,8 +80,11 @@ pub trait WriteTo: Seek + Write {
     }
 }
 
-impl<T> ReadFrom for T where T: Seek + Read {}
-impl<T> WriteTo for T where T: Seek + Write {}
+impl<T> RandomRead for T where T: Device + Seek + Read {}
+impl<T> RandomWrite for T where T: Device + Seek + Write {}
+
+pub trait RandomReadWrite: RandomRead + RandomWrite {}
+impl<T> RandomReadWrite for T where T: RandomRead + RandomWrite {}
 
 pub trait PowerControl {
     fn shutdown(&mut self) -> ! {

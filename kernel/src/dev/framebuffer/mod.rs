@@ -2,6 +2,8 @@ mod vesa_vbe_framebuffer;
 use core::{ops, slice};
 pub use vesa_vbe_framebuffer::VesaVbeFramebuffer;
 
+use super::Device;
+
 #[repr(u8)]
 #[derive(Copy, Clone, Debug)]
 pub enum PixelFormat {
@@ -58,7 +60,7 @@ impl Rectangle {
     }
 }
 
-pub trait Framebuffer {
+pub trait Framebuffer: Device {
     fn get_pixel_format(&self) -> PixelFormat;
     fn get_bytes_per_pixel(&self) -> usize;
     fn get_size(&self) -> (usize, usize);

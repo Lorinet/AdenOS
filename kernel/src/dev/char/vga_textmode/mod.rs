@@ -1,6 +1,7 @@
 use crate::*;
 use console::ConsoleColor;
 use dev::{self, Write, ConsoleDevice, hal::port};
+use alloc::{vec, vec::Vec, string::String};
 use core::fmt;
 
 static WIDTH: usize = 160;
@@ -15,6 +16,7 @@ impl ColorCode {
     }
 }
 
+#[derive(Debug)]
 pub struct VgaTextMode {
     buffer: *mut u8,
     offset: usize,
@@ -57,7 +59,7 @@ impl dev::Device for VgaTextMode {
         self.clear_screen();
         Ok(())
     }
-    fn device_name(&self) -> &str { "Character/VGATextMode" }
+    fn device_path(&self) -> Vec<String> { vec![String::from("Character"), String::from("VGATextMode")] }
 }
 
 impl dev::Write for VgaTextMode {

@@ -1,5 +1,5 @@
 use crate::{*, dev::{hal::{pci, mem}, Device}};
-use core::mem::size_of;
+use alloc::{vec, vec::Vec, string::String};
 use modular_bitfield::{bitfield, specifiers::*};
 
 mod queue;
@@ -265,7 +265,7 @@ impl Device for NVME {
         Ok(())
     }
 
-    fn device_name(&self) -> &str {
-        "Storage/NVME"
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Storage"), String::from("NVME")]
     }
 }

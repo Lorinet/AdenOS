@@ -24,9 +24,11 @@ pub mod console;
 pub mod sysinfo;
 pub mod syscall;
 pub mod devices;
+pub mod volumes;
 pub mod allocator;
 pub mod userspace;
 pub mod async_task;
+pub mod collections;
 pub mod kernel_console;
 
 extern crate font8x8;

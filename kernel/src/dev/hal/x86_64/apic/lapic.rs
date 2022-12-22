@@ -1,9 +1,10 @@
 #![allow(unaligned_references)]
 
+use alloc::{string::String, vec, vec::Vec};
 use x86_64::structures::paging::PageTableFlags;
 use modular_bitfield::{bitfield, specifiers::*};
 
-use crate::{*, dev::hal::{mem::{self, page_mapper}, pic}};
+use crate::{*, dev::hal::{mem::{self, page_mapper}}};
 use core::arch::asm;
 
 const IA32_APIC_BASE_MSR: u32 = 0x1B;
@@ -188,7 +189,7 @@ impl dev::Device for LAPIC {
         Ok(())
     }
 
-    fn device_name(&self) -> &str {
-        "System/LAPIC"
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("System"), String::from("LAPIC")]
     }
 }

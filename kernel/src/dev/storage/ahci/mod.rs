@@ -1,6 +1,7 @@
 use crate::{*, dev::hal::{mem, pci::{self, PCIHeaderType0}}};
 use core::{mem::size_of, fmt::Display};
-use modular_bitfield::{bitfield, specifiers::{B5, B4, B16, B3, B1, B22, B9, B128}};
+use alloc::{vec, vec::Vec, string::{String, ToString}};
+use modular_bitfield::{bitfield, specifiers::*};
 
 pub mod drive;
 
@@ -309,6 +310,7 @@ struct HBACommandHeader {
     _reserved_1: B128,
 }
 
+#[derive(Debug)]
 pub struct AHCI {
     pci_device_header: &'static pci::PCIDeviceHeader,
     abar: &'static HBAMemory,
@@ -374,8 +376,8 @@ impl dev::Device for AHCI {
         for mut port in self.ports {
             if let Some(port) = port.as_mut() {
                 port.configure();
-                let drv = devices::register_device(drive::AHCIDrive::new(port.port_number));
-                devices::get_device::<drive::AHCIDrive>(drv).unwrap().init_device()?;
+                devices::register_device(drive::AHCIDrive::new(devices::get_device::<Self>(self.device_path()), port.port_number));
+                devices::get_device::<drive::AHCIDrive>(vec![String::from("Storage"), String::from("AHCI"), String::from("Drive") + port.port_number.to_string().as_str()]).init_device()?;
             }
         }
         Ok(())
@@ -385,7 +387,7 @@ impl dev::Device for AHCI {
         Ok(())
     }
 
-    fn device_name(&self) -> &str {
-        "Storage/AHCI"
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Storage"), String::from("AHCI")]
     }
 }

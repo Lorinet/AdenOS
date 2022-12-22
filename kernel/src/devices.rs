@@ -1,42 +1,34 @@
-use crate::*;
-use alloc::{boxed::Box, string::String, collections::BTreeMap, vec::Vec, format};
+use crate::{*, collections::tree::Tree, dev::*};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
-static mut DEVICES: BTreeMap<String, Box<dyn dev::Device>> = BTreeMap::new();
+static mut DEVICE_TREE: Tree<String, Box<dyn dev::Device>> = Tree::new(String::new(), None);
 
-pub fn register_device(device: impl dev::Device + 'static) -> String {
-    let name = String::from(device.device_name());
+pub fn get_device_tree() -> &'static mut Tree<String, Box<dyn dev::Device>> {
     unsafe {
-        DEVICES.insert(name.clone(), Box::new(device));
-    }
-    name
-}
-
-pub fn get_device_non_generic(name: String) -> Option<&'static mut Box<dyn dev::Device>> {
-    unsafe {
-        DEVICES.get_mut(&name)
+        &mut DEVICE_TREE
     }
 }
 
-pub fn get_device<D>(name: String) -> Option<&'static mut D> {
+pub fn cast_device<D>(device: &'static mut Box<dyn Device>) -> &'static mut D {
     unsafe {
-        DEVICES.get_mut(&name).map(|dev| ((&**dev) as *const _ as *mut D).as_mut().unwrap())
+        ((*device).as_mut() as *mut _ as *mut D).as_mut().unwrap()
     }
 }
 
-pub fn get_devices() -> impl Iterator<Item = String> {
+pub fn device_tree() -> &'static mut Tree<String, Box<dyn dev::Device>> {
     unsafe {
-        DEVICES.keys().cloned().collect::<Vec<String>>().into_iter()
+        &mut DEVICE_TREE
     }
 }
 
-pub fn init_device(device: String) -> Result<(), dev::Error> {
-
-    let device_name = device.clone();
-    get_device_non_generic(device).expect(format!("Device not found: {}", device_name.as_str()).as_str()).init_device()
+pub fn get_device<D>(path: Vec<String>) -> &'static mut D {
+    cast_device::<D>(device_tree().get_node_by_path(path).unwrap().value().unwrap())
 }
 
-pub fn deinit_device(device: String) -> Result<(), dev::Error> {
+pub fn register_device(device: impl Device + 'static) {
+    device_tree().insert_node_by_path(device.device_path(), Some(Box::new(device)));
+}
 
-    let device_name = device.clone();
-    get_device_non_generic(device).expect(format!("Device not found: {}", device_name.as_str()).as_str()).deinit_device()
+pub fn register_device_path(path: Vec<String>, device: impl Device + 'static) {
+    device_tree().insert_node_by_path(path, Some(Box::new(device)));
 }

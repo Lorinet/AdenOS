@@ -1,5 +1,6 @@
 use crate::*;
 use core::fmt;
+use alloc::{vec, vec::Vec, string::String};
 use console::ConsoleColor;
 use dev::framebuffer::*;
 use dev::{self, Write};
@@ -8,6 +9,7 @@ use font8x8::legacy::BASIC_LEGACY;
 const CHARACTER_HEIGHT: usize = 8;
 const CHARACTER_WIDTH: usize = 8;
 
+#[derive(Debug)]
 pub struct FramebufferConsole<'a, F>
 where F: Framebuffer {
     framebuffer: &'a mut F,
@@ -74,7 +76,9 @@ where F: Framebuffer {
     fn init_device(&mut self) -> Result<(), dev::Error> {
         Ok(())
     }
-    fn device_name(&self) -> &str { "Character/VesaVbeConsole" }
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Character"), String::from("VesaVbeConsole")]
+    }
 }
 
 impl<'a, F> dev::Write for FramebufferConsole<'a, F>
