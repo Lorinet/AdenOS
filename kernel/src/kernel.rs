@@ -46,10 +46,10 @@ fn init_system() {
             println!("{}", dev.resource_path_string());
         }
     }
-    let mbr = dev::partition::mbr::MBRPartitionTable::read_partitions(namespace::get_resource::<dev::storage::AHCIDrive>(vec![String::from("Devices"), String::from("Storage"), String::from("AHCI"), String::from("Drive1")])).unwrap();
+    /*let mbr = dev::partition::mbr::MBRPartitionTable::read_partitions(namespace::get_resource::<dev::storage::AHCIDrive>(vec![String::from("Devices"), String::from("Storage"), String::from("AHCI"), String::from("Drive1")])).unwrap();
     for part in mbr {
         println!("{:#x?}", part);
-    }
+    }*/
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);

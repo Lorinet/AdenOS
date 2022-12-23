@@ -165,6 +165,7 @@ impl LAPIC {
 
 impl dev::Device for LAPIC {
     fn init_device(&mut self) -> Result<(), dev::Error> {
+        return Ok(());
         if self.disable_pic_on_init {
             //pic::deinit();
         }
