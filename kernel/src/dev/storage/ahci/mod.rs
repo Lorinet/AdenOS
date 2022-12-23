@@ -1,4 +1,4 @@
-use crate::{*, dev::hal::{mem, pci::{self, PCIHeaderType0}}};
+use crate::{*, dev::hal::{mem, pci::{self, PCIHeaderType0}}, namespace::Resource};
 use core::{mem::size_of, fmt::Display};
 use alloc::{vec, vec::Vec, string::{String, ToString}};
 use modular_bitfield::{bitfield, specifiers::*};
@@ -376,8 +376,8 @@ impl dev::Device for AHCI {
         for mut port in self.ports {
             if let Some(port) = port.as_mut() {
                 port.configure();
-                devices::register_device(drive::AHCIDrive::new(devices::get_device::<Self>(self.device_path()), port.port_number));
-                devices::get_device::<drive::AHCIDrive>(vec![String::from("Storage"), String::from("AHCI"), String::from("Drive") + port.port_number.to_string().as_str()]).init_device()?;
+                namespace::register_resource(drive::AHCIDrive::new(namespace::get_resource::<Self>(self.resource_path()), port.port_number));
+                namespace::get_resource::<drive::AHCIDrive>(vec![String::from("Devices"), String::from("Storage"), String::from("AHCI"), String::from("Drive") + port.port_number.to_string().as_str()]).init_device()?;
             }
         }
         Ok(())

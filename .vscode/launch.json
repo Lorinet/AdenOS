@@ -8,7 +8,7 @@
             "type": "gdb",
             "request": "attach",
             "name": "GDB",
-            "executable": "${workspaceRoot}/kernel/target/x86_64-neutrino_os/debug/neutrino_os",
+            "executable": "${workspaceRoot}/kernel/target/x86_64-adenos/debug/adenos",
             "target": "127.0.0.1:1234",
             "remote": true,
             "cwd": "${workspaceRoot}",

@@ -1,4 +1,4 @@
-use crate::{*, dev::{hal::{pci, mem}, Device}};
+use crate::{*, dev::{hal::{pci, mem}, Device}, namespace::Resource};
 use alloc::{vec, vec::Vec, string::String};
 use modular_bitfield::{bitfield, specifiers::*};
 

@@ -1,9 +1,11 @@
 use crate::*;
-use crate::dev::filesystem::PartitionTable;
+use crate::dev::partition::PartitionTable;
 use crate::dev::{RandomRead, filesystem};
+use crate::namespace::ResourceType;
 use alloc::vec;
 use console::ConsoleColor;
 use userspace::*;
+use namespace;
 use dev::input::keyboard;
 use dev::StaticDevice;
 use sysinfo;
@@ -24,22 +26,27 @@ pub fn run_kernel() -> ! {
 }
 
 fn init_system() {
-    early_print!("Linfinity Technologies Neutrino Core OS [Version {}]\n", sysinfo::NEUTRINO_VERSION);
+    early_print!("Linfinity Technologies AdenOS [Version {}]\n", sysinfo::Aden_VERSION);
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
     println!("");
-    for (name, dev) in devices::device_tree().iter_mut_bf() {
+    let devices = namespace::namespace().get_subtree(String::from("Devices")).unwrap();
+    for (_, dev) in devices.iter_mut_bf() {
         if let Some(dev) = dev {
-            match dev.init_device() {
-                Ok(()) => println!("{} initialized successfully", name),
-                Err(err) => println!("{} initialization failed: {:?}", name, err),
-            };
+            if let ResourceType::Device(dev) = dev.unwrap() {
+                match dev.init_device() {
+                    Ok(()) => println!("{} initialized successfully", dev.resource_path_string()),
+                    Err(err) => println!("{} initialization failed: {:?}", dev.resource_path_string(), err),
+                };
+            }
         }
     }
-    for (dev, _) in devices::device_tree().iter_mut_bf() {
-        println!("{}", dev);
+    for (_, dev) in namespace::namespace().get_subtree(String::from("Devices")).unwrap().iter_mut_bf() {
+        if let Some(dev) = dev {
+            println!("{}", dev.resource_path_string());
+        }
     }
-    let mbr = filesystem::mbr::MBRPartitionTable::read_partitions(devices::get_device::<dev::storage::AHCIDrive>(vec![String::from("Storage"), String::from("AHCI"), String::from("Drive1")])).unwrap();
+    let mbr = dev::partition::mbr::MBRPartitionTable::read_partitions(namespace::get_resource::<dev::storage::AHCIDrive>(vec![String::from("Devices"), String::from("Storage"), String::from("AHCI"), String::from("Drive1")])).unwrap();
     for part in mbr {
         println!("{:#x?}", part);
     }

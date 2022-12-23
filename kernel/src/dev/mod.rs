@@ -1,14 +1,16 @@
 use crate::*;
 use console::ConsoleColor;
-use alloc::{fmt::Debug, string::String, vec::Vec};
+use namespace::Resource;
+use alloc::{fmt::Debug, string::String, vec, vec::Vec};
 
 pub mod char;
 pub mod hal;
 pub mod power;
 pub mod input;
 pub mod storage;
-pub mod framebuffer;
+pub mod partition;
 pub mod filesystem;
+pub mod framebuffer;
 
 #[derive(Debug)]
 pub enum Error {
@@ -20,10 +22,20 @@ pub enum Error {
     DriverNotFound(&'static str),
 }
 
-pub trait Device: Debug {
+pub trait Device: Resource + Debug {
     fn init_device(&mut self) -> Result<(), Error> { Ok(()) }
     fn deinit_device(&mut self) -> Result<(), Error> { Ok(()) }
     fn device_path(&self) -> Vec<String>;
+}
+
+impl<T: Device> Resource for T {
+    fn resource_path(&self) -> Vec<String> {
+        [vec![String::from("Devices")], self.device_path()].concat()
+    }
+
+    fn unwrap(&mut self) -> namespace::ResourceType {
+        namespace::ResourceType::Device(self)
+    }
 }
 
 pub trait StaticDevice {

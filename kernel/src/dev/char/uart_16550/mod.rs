@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{*, namespace::Resource};
 use alloc::{vec, vec::Vec, string::String};
 use dev;
 use uart_16550;
@@ -29,6 +29,7 @@ impl dev::Device for Uart16550 {
         self.port.init();
         Ok(())
     }
+
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Character"), String::from("Uart16550")]
     }

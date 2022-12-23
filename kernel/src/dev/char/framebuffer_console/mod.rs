@@ -1,4 +1,5 @@
 use crate::*;
+use crate::namespace::Resource;
 use core::fmt;
 use alloc::{vec, vec::Vec, string::String};
 use console::ConsoleColor;
@@ -10,9 +11,9 @@ const CHARACTER_HEIGHT: usize = 8;
 const CHARACTER_WIDTH: usize = 8;
 
 #[derive(Debug)]
-pub struct FramebufferConsole<'a, F>
-where F: Framebuffer {
-    framebuffer: &'a mut F,
+pub struct FramebufferConsole<F>
+where F: Framebuffer + 'static {
+    framebuffer: &'static mut F,
     background_color: Color,
     foreground_color: Color,
     x: usize,
@@ -20,9 +21,9 @@ where F: Framebuffer {
     color_palette: [Color; 16],
 }
 
-impl<'a, F> FramebufferConsole<'a, F>
+impl<F> FramebufferConsole<F>
 where F: Framebuffer {
-    pub fn new(framebuffer: &'a mut F) -> FramebufferConsole<'a, F> {
+    pub fn new(framebuffer: &'static mut F) -> FramebufferConsole<F> {
         let pixel_format = framebuffer.get_pixel_format();
         FramebufferConsole {
             framebuffer,
@@ -71,17 +72,18 @@ where F: Framebuffer {
     }
 }
 
-impl<'a, F> dev::Device for FramebufferConsole<'a, F>
+impl<F> dev::Device for FramebufferConsole<F>
 where F: Framebuffer {
     fn init_device(&mut self) -> Result<(), dev::Error> {
         Ok(())
     }
+
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Character"), String::from("VesaVbeConsole")]
     }
 }
 
-impl<'a, F> dev::Write for FramebufferConsole<'a, F>
+impl<F> dev::Write for FramebufferConsole<F>
 where F: Framebuffer {
     fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
         match val {
@@ -138,7 +140,7 @@ where F: Framebuffer {
     }
 }
 
-impl<'a, F> fmt::Write for FramebufferConsole<'a, F>
+impl<F> fmt::Write for FramebufferConsole<F>
 where F: Framebuffer {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.write(s.as_bytes()).unwrap();
@@ -146,7 +148,7 @@ where F: Framebuffer {
     }
 }
 
-impl<'a, F> dev::ConsoleDevice for FramebufferConsole<'a, F>
+impl<F> dev::ConsoleDevice for FramebufferConsole<F>
 where F: Framebuffer {
     fn buffer_size(&self) -> (i32, i32) {
         (80, 25) // whatever
@@ -164,5 +166,5 @@ where F: Framebuffer {
     }
 }
 
-unsafe impl<'a, F> Send for FramebufferConsole<'a, F>
+unsafe impl<F> Send for FramebufferConsole<F>
 where F: Framebuffer {}

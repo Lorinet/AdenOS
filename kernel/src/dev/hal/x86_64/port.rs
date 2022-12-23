@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{*, namespace::Resource};
 use dev;
 use x86_64;
 use x86_64::instructions::port;

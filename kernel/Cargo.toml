@@ -1,5 +1,5 @@
 [package]
-name = "neutrino_os"
+name = "adenos"
 version = "0.2.0"
 edition = "2021"
 
@@ -19,6 +19,7 @@ x86_64 = "0.14.10"
 uart_16550 = "0.2.18"
 pic8259 = "0.10.1"
 pc-keyboard = "0.5.0"
+bitflags = "1.3.2"
 executor = "0.8.4"
 enum-iterator = "1.1.3"
 slab_allocator_rs = "1.0.1"

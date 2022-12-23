@@ -15,7 +15,7 @@ pub fn init() {
     };
 
     let madt: &MADTTable = rxsdt.get_table("APIC").unwrap().into();
-    devices::register_device(LAPIC::new(madt.lapic_address, madt.flags & 1 > 0));
+    namespace::register_resource(LAPIC::new(madt.lapic_address, madt.flags & 1 > 0));
     let ioapics = 0;
     for apic in madt {
         match apic.entry_type {
@@ -49,13 +49,13 @@ pub fn init() {
                         0x01 => match subclass {     // Mass storage controller
                             0x06 => match prog_if {  // SATA controller
                                 0x01 => {            // AHCI 1.0
-                                    devices::register_device(storage::AHCI::new(head));
+                                    namespace::register_resource(storage::AHCI::new(head));
                                 }
                                 _ => (),
                             },
                             0x08 => match prog_if {  // NVM controller
                                 0x02 => {            // NVMe
-                                    devices::register_device(storage::NVME::new(head));
+                                    namespace::register_resource(storage::NVME::new(head));
                                 }
                                 _ => (),
                             },

@@ -3,7 +3,7 @@ use std::env;
 use bootloader_locator;
 
 fn main() -> Result<(), Box<Box<dyn Error>>> {
-    println!("Linfinity Neutrino OS Build Tool");
+    println!("Linfinity AdenOS Build Tool");
     println!("<==============================>");
     println!("Working dir: {}", env::current_dir().unwrap().to_str().unwrap());
 
@@ -43,10 +43,10 @@ fn build(test: bool, integration: Option<String>) -> String {
     let mut kernel_target_folder = env::current_dir().unwrap();
     kernel_target_folder.push("target");
     let mut kernel_output_folder = kernel_target_folder.clone();
-    kernel_output_folder.push("x86_64-neutrino_os");
+    kernel_output_folder.push("x86_64-adenos");
     kernel_output_folder.push("debug");
     let mut kernel_binary_path = kernel_output_folder.clone();
-    kernel_binary_path.push("neutrino_os");
+    kernel_binary_path.push("adenos");
 
     env::set_current_dir(bootloader_source_folder).unwrap();
 
@@ -62,7 +62,7 @@ fn build(test: bool, integration: Option<String>) -> String {
     let mut second_drive_img_path = kernel_output_folder.clone();
     second_drive_img_path.push("drive_2.img");
 
-    kernel_output_folder.push("boot-bios-neutrino_os.img");
+    kernel_output_folder.push("boot-bios-adenos.img");
     String::from(kernel_output_folder.to_str().unwrap())
 }
 
@@ -94,6 +94,6 @@ fn flash(device_path: String) {
     .arg(format!("of={}", device_path))
     .stdin(Stdio::inherit()).status().expect("Launch failed: 'dd'");
     if !sudo_dd_command.success() {
-        panic!("Flashing Neutrino OS image '{}' to device '{}' failed", bootable_image_path, device_path);
+        panic!("Flashing AdenOS image '{}' to device '{}' failed", bootable_image_path, device_path);
     }
 }

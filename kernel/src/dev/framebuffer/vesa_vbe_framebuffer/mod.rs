@@ -1,4 +1,4 @@
-use crate::{*, dev::hal::mem::{self, page_mapper}};
+use crate::{*, dev::hal::mem::{self, page_mapper}, namespace::Resource};
 use dev::framebuffer::*;
 use alloc::{vec, vec::Vec, string::String};
 use dev::Device;

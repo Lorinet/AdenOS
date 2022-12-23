@@ -1,1 +1,1 @@
-pub static NEUTRINO_VERSION: &str = "0.2";
+pub static Aden_VERSION: &str = "0.2";

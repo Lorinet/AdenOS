@@ -2,9 +2,9 @@
 #![no_main]
 #![feature(custom_test_frameworks)]
 #![reexport_test_harness_main = "test_main"]
-#![test_runner(neutrino_os::test::test_runner)]
+#![test_runner(adenos::test::test_runner)]
 
-use neutrino_os::*;
+use adenos::*;
 use core::panic::PanicInfo;
 
 #[no_mangle]
@@ -15,7 +15,7 @@ pub extern "C" fn _start() -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    neutrino_os::panic::test_panic(info)
+    adenos::panic::test_panic(info)
 }
 
 #[test_case]

@@ -3,6 +3,33 @@
 version = 3
 
 [[package]]
+name = "adenos"
+version = "0.2.0"
+dependencies = [
+ "bitflags",
+ "bootloader",
+ "conquer-once",
+ "crossbeam-queue",
+ "enum-iterator",
+ "executor",
+ "font8x8",
+ "futures-util",
+ "infinity",
+ "lazy_static",
+ "linked_list_allocator",
+ "modular-bitfield",
+ "num-derive",
+ "num-traits",
+ "pc-keyboard",
+ "pic8259",
+ "raw-cpuid",
+ "slab_allocator_rs",
+ "spin 0.5.2",
+ "uart_16550",
+ "x86_64",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -194,32 +221,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "neutrino_os"
-version = "0.2.0"
-dependencies = [
- "bootloader",
- "conquer-once",
- "crossbeam-queue",
- "enum-iterator",
- "executor",
- "font8x8",
- "futures-util",
- "infinity",
- "lazy_static",
- "linked_list_allocator",
- "modular-bitfield",
- "num-derive",
- "num-traits",
- "pc-keyboard",
- "pic8259",
- "raw-cpuid",
- "slab_allocator_rs",
- "spin 0.5.2",
- "uart_16550",
- "x86_64",
 ]
 
 [[package]]

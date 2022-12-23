@@ -1,4 +1,5 @@
 use crate::*;
+use crate::namespace::Resource;
 use alloc::{vec, vec::Vec, string::String};
 use dev::hal::port;
 use dev::Write;

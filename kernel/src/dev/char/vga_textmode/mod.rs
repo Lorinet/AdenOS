@@ -1,4 +1,4 @@
-use crate::*;
+use crate::{*, namespace::Resource};
 use console::ConsoleColor;
 use dev::{self, Write, ConsoleDevice, hal::port};
 use alloc::{vec, vec::Vec, string::String};
@@ -59,7 +59,10 @@ impl dev::Device for VgaTextMode {
         self.clear_screen();
         Ok(())
     }
-    fn device_path(&self) -> Vec<String> { vec![String::from("Character"), String::from("VGATextMode")] }
+
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Character"), String::from("VGATextMode")]
+    }
 }
 
 impl dev::Write for VgaTextMode {

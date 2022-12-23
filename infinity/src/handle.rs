@@ -31,6 +31,11 @@ impl<T: Write> Handle<T> {
     pub fn write_str(&self, buffer: &str, length: usize) {
         os::write(self, buffer.as_ptr(), length);
     }
+
+    #[inline(always)]
+    pub fn write_ptr(&self, buffer: *const u8, length: usize) {
+        os::write(self, buffer, length);
+    }
 }
 
 impl<T: Read> Handle<T> {

@@ -4,7 +4,7 @@ use alloc::{string::String, vec, vec::Vec};
 use x86_64::structures::paging::PageTableFlags;
 use modular_bitfield::{bitfield, specifiers::*};
 
-use crate::{*, dev::hal::{mem::{self, page_mapper}}};
+use crate::{*, dev::hal::{mem::{self, page_mapper}}, namespace::Resource};
 use core::arch::asm;
 
 const IA32_APIC_BASE_MSR: u32 = 0x1B;
