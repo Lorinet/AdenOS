@@ -1,8 +1,9 @@
-use crate::{*, collections::tree::Tree, dev::*};
+use crate::{*, collections::tree::Tree, dev::{*, filesystem::FileSystem}};
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 
 pub enum ResourceType<'a> {
     Device(&'a mut dyn Device),
+    FileSystem(&'a mut dyn FileSystem),
     Other
 }
 
@@ -42,6 +43,7 @@ pub fn subtree(path: String) -> Option<&'static mut Tree<String, Box<dyn Resourc
 
 pub fn init_namespace() {
     namespace().insert_subtree(String::from("Devices"), None);
+    namespace().insert_subtree(String::from("Files"), None);
 }
 
 pub fn split_resource_path(path: String) -> Vec<String> {
@@ -68,10 +70,28 @@ pub fn get_resource_non_generic_parts(path: Vec<String>) -> Option<&'static mut 
     namespace().get_node_by_path(path).unwrap().value()
 }
 
-pub fn register_resource(resource: impl Resource + 'static) {
-    namespace().insert_node_by_path(resource.resource_path(), Some(Box::new(resource)));
+pub fn register_resource<T: Resource + 'static>(resource: T) -> &'static mut T {
+    let path = resource.resource_path();
+    namespace().insert_node_by_path(path.clone(), Some(Box::new(resource)));
+    get_resource_parts(path).unwrap()
 }
 
-pub fn register_resource_path(path: Vec<String>, resource: impl Resource + 'static) {
-    namespace().insert_node_by_path(path, Some(Box::new(resource)));
+pub fn register_resource_path<T: Resource + 'static>(path: Vec<String>, resource: T) -> &'static mut T {
+    namespace().insert_node_by_path(path.clone(), Some(Box::new(resource)));
+    get_resource_parts(path).unwrap()
+}
+
+pub fn get_block_device(path: String) -> Option<&'static mut dyn dev::BlockReadWrite> {
+    get_block_device_parts(split_resource_path(path))
+}
+
+pub fn get_block_device_parts(path: Vec<String>) -> Option<&'static mut dyn dev::BlockReadWrite> {
+    if let Some(drive) = namespace::get_resource_non_generic_parts(path) {
+        if let ResourceType::Device(drive) = drive.unwrap() {
+            if let DeviceClass::BlockDevice(drive) = Device::unwrap(drive) {
+                return Some(drive)
+            }
+        }
+    }
+    None
 }

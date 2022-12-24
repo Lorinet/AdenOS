@@ -25,36 +25,28 @@ pub struct MBRPartitionTable {
 impl PartitionTable for MBRPartitionTable {
     fn read_partitions(device_path: String) -> Result<Option<Vec<Partition>>, Error> {
         let mut table = [MBRPartition::new(); 4];
-        if let Some(device) = namespace::get_resource_non_generic(device_path.clone()) {
-            if let ResourceType::Device(device) = device.unwrap() {
-                if let DeviceClass::BlockDevice(device) = Device::unwrap(device) {
-                    device.read_from(unsafe { &mut *(&mut table as *mut _ as *mut [u8; 64]) }, 0x1BE)?;
-                    let mut parts = Vec::<Partition>::new();
-                    for i in 0..4 {
-                        let mbrp = &table[i];
-                        if mbrp.system_id() == 0 && mbrp.total_sectors() == 0 {
-                            continue;
-                        }
-                        let ss = u32::from_le(mbrp.relative_sector()) as u64;
-                        let es = ss + u32::from_le(mbrp.total_sectors()) as u64 - 1;
-                        parts.push(Partition {
-                            drive_path: device.resource_path(),
-                            drive: None,
-                            partition_name: String::from("Partition") + i.to_string().as_str(),
-                            partition_label: String::from("Partition") + i.to_string().as_str(),
-                            start_sector: ss,
-                            end_sector: es,
-                            sector_offset: 0,
-                            partition_type: PartitionType::DataPartition,
-                        });
-                    }
-                    Ok(Some(parts))
-                } else {
-                    return Err(Error::DriverNotFound(device_path))
+        if let Some(device) = namespace::get_block_device(device_path.clone()) {
+            device.read_from(unsafe { &mut *(&mut table as *mut _ as *mut [u8; 64]) }, 0x1BE)?;
+            let mut parts = Vec::<Partition>::new();
+            for i in 0..4 {
+                let mbrp = &table[i];
+                if mbrp.system_id() == 0 && mbrp.total_sectors() == 0 {
+                    continue;
                 }
-            } else {
-                return Err(Error::DriverNotFound(device_path))
+                let ss = u32::from_le(mbrp.relative_sector()) as u64;
+                let es = ss + u32::from_le(mbrp.total_sectors()) as u64 - 1;
+                parts.push(Partition {
+                    drive_path: device.resource_path(),
+                    drive: None,
+                    partition_name: String::from("Partition") + i.to_string().as_str(),
+                    partition_label: String::from("Partition") + i.to_string().as_str(),
+                    start_sector: ss,
+                    end_sector: es,
+                    sector_offset: 0,
+                    partition_type: PartitionType::DataPartition,
+                });
             }
+            Ok(Some(parts))
         } else {
             return Err(Error::DriverNotFound(device_path))
         }

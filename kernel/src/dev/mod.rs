@@ -3,7 +3,7 @@ use console::ConsoleColor;
 use namespace::Resource;
 use alloc::{fmt::Debug, string::String, vec, vec::Vec};
 
-use self::framebuffer::Framebuffer;
+use self::{framebuffer::Framebuffer, filesystem::FileSystem};
 
 pub mod char;
 pub mod hal;
@@ -22,16 +22,17 @@ pub enum Error {
     ReadFailure,
     WriteFailure,
     InvalidData,
+    InvalidDevice(String),
     DriverNotFound(String),
 }
 
 pub enum DeviceClass<'a> {
     ReadDevice(&'a mut dyn Read),
     WriteDevice(&'a mut dyn Write),
-    ReadWriteDevice(&'a mut dyn ReadWriteDevice),
-    RandomReadWriteDevice(&'a mut dyn RandomReadWriteDevice),
+    ReadWriteDevice(&'a mut dyn ReadWrite),
+    RandomReadWriteDevice(&'a mut dyn RandomReadWrite),
     Framebuffer(&'a mut dyn Framebuffer),
-    BlockDevice(&'a mut dyn BlockDevice),
+    BlockDevice(&'a mut dyn BlockReadWrite),
     Other,
 }
 
@@ -80,8 +81,8 @@ pub trait Read {
     }
 }
 
-pub trait ReadWriteDevice: Read + Write {}
-impl<T: Read + Write> ReadWriteDevice for T {}
+pub trait ReadWrite: Read + Write {}
+impl<T: Read + Write> ReadWrite for T {}
 
 pub trait Seek {
     fn seek(&mut self, position: u64);
@@ -113,11 +114,11 @@ pub trait RandomWrite: Seek + Write {
     }
 }
 
-impl<T> RandomRead for T where T: Device + Seek + Read {}
-impl<T> RandomWrite for T where T: Device + Seek + Write {}
+impl<T> RandomRead for T where T: Seek + Read {}
+impl<T> RandomWrite for T where T: Seek + Write {}
 
-pub trait RandomReadWriteDevice: RandomRead + RandomWrite {}
-impl<T> RandomReadWriteDevice for T where T: RandomRead + RandomWrite {}
+pub trait RandomReadWrite: RandomRead + RandomWrite {}
+impl<T> RandomReadWrite for T where T: RandomRead + RandomWrite {}
 
 pub trait BlockRead: Device {
     fn block_size(&self) -> usize;
@@ -130,8 +131,8 @@ pub trait BlockWrite: BlockRead {
     fn write_blocks(&mut self, start_block: u64, buffer: &mut [u8]) -> Result<(), Error>;
 }
 
-pub trait BlockDevice: Device + RandomRead + RandomWrite + BlockRead + BlockWrite {}
-impl<T: Device + RandomRead + RandomWrite + BlockRead + BlockWrite> BlockDevice for T {}
+pub trait BlockReadWrite: RandomRead + RandomWrite + BlockRead + BlockWrite {}
+impl<T: RandomRead + RandomWrite + BlockRead + BlockWrite> BlockReadWrite for T {}
 
 pub trait PowerControl {
     fn shutdown(&mut self) -> ! {

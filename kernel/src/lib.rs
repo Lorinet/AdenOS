@@ -18,6 +18,7 @@ use core::panic::PanicInfo;
 pub mod dev;
 pub mod test;
 pub mod task;
+pub mod file;
 pub mod panic;
 pub mod kernel;
 pub mod handle;

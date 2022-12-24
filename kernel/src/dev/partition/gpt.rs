@@ -73,69 +73,59 @@ pub struct GPTPartition {
     attributes: GPTAttributes,
 }
 
-pub struct GPTPartitionTable {
-    
-}
+pub struct GPTPartitionTable {}
 
 impl PartitionTable for GPTPartitionTable {
     fn read_partitions(drive_path: String) -> Result<Option<Vec<Partition>>, Error> {
-        if let Some(device) = namespace::get_resource_non_generic(drive_path.clone()) {
-            if let ResourceType::Device(device) = device.unwrap() {
-                if let DeviceClass::BlockDevice(device) = Device::unwrap(device) {
-                    let mut gpt_header = [0; 512];
-                    device.read_block(1, gpt_header.as_mut_ptr())?;
-                    let gpt_header = unsafe { (&gpt_header as *const _ as *const GPTHeader).as_ref().unwrap() };
-                    if let Ok(signature) = str::from_utf8(&gpt_header.signature) {
-                        if signature == "EFI PART" {
-                            let table_size = (gpt_header.partition_entry_size * gpt_header.partition_entry_count) as usize;
-                            let mut entry_buffer = vec![0; table_size];
-                            device.read_blocks(2, table_size as u64 / 512, entry_buffer.as_mut_ptr())?;
-                            let mut partitions = Vec::<Partition>::new();
-                            let name_length = gpt_header.partition_entry_size as usize - size_of::<GPTPartition>();
-                            for i in 0..gpt_header.partition_entry_count {
-                                let gpt_part = unsafe { (entry_buffer.as_ptr().offset((i * gpt_header.partition_entry_size) as isize) as *const GPTPartition).as_ref().unwrap() };
-                                if !gpt_part.partition_type_guid.is_zero() {
-                                    let mut name_slice = unsafe { slice::from_raw_parts((gpt_part as *const _ as *const u16).offset((size_of::<GPTPartition>() as isize) / 2), name_length / 2) };
-                                    let mut name_length_actual = name_length / 2;
-                                    for i in 0..name_length / 2 {
-                                        if name_slice[i] == 0 {
-                                            name_length_actual = i;
-                                            break;
-                                        }
-                                    }
-                                    name_slice = &name_slice[..name_length_actual];
-                                    if let Ok(name) = String::from_utf16(name_slice) { 
-                                        partitions.push(Partition {
-                                            drive_path: namespace::split_resource_path(drive_path.clone()),
-                                            drive: None,
-                                            partition_name: gpt_part.partition_guid.to_string(),
-                                            partition_label: String::from(name),
-                                            start_sector: gpt_part.start_lba,
-                                            end_sector: gpt_part.end_lba,
-                                            sector_offset: 0,
-                                            partition_type: match gpt_part.partition_type_guid.to_string().as_str() {
-                                                "C12A7328-F81F-11D2-BA4B-00A0C93EC93B" => PartitionType::EFISystemPartition,
-                                                _ => PartitionType::DataPartition,
-                                            },
-                                        });
-                                    }
+        if let Some(drive) = namespace::get_block_device(drive_path.clone()) {
+            let mut gpt_header = [0; 512];
+            drive.read_block(1, gpt_header.as_mut_ptr())?;
+            let gpt_header = unsafe { (&gpt_header as *const _ as *const GPTHeader).as_ref().unwrap() };
+            if let Ok(signature) = str::from_utf8(&gpt_header.signature) {
+                if signature == "EFI PART" {
+                    let table_size = (gpt_header.partition_entry_size * gpt_header.partition_entry_count) as usize;
+                    let mut entry_buffer = vec![0; table_size];
+                    drive.read_blocks(2, table_size as u64 / 512, entry_buffer.as_mut_ptr())?;
+                    let mut partitions = Vec::<Partition>::new();
+                    let name_length = gpt_header.partition_entry_size as usize - size_of::<GPTPartition>();
+                    for i in 0..gpt_header.partition_entry_count {
+                        let gpt_part = unsafe { (entry_buffer.as_ptr().offset((i * gpt_header.partition_entry_size) as isize) as *const GPTPartition).as_ref().unwrap() };
+                        if !gpt_part.partition_type_guid.is_zero() {
+                            let mut name_slice = unsafe { slice::from_raw_parts((gpt_part as *const _ as *const u16).offset((size_of::<GPTPartition>() as isize) / 2), name_length / 2) };
+                            let mut name_length_actual = name_length / 2;
+                            for i in 0..name_length / 2 {
+                                if name_slice[i] == 0 {
+                                    name_length_actual = i;
+                                    break;
                                 }
                             }
-                            Ok(Some(partitions))
-                        } else {
-                            Ok(None)
+                            name_slice = &name_slice[..name_length_actual];
+                            if let Ok(name) = String::from_utf16(name_slice) { 
+                                partitions.push(Partition {
+                                    drive_path: namespace::split_resource_path(drive_path.clone()),
+                                    drive: None,
+                                    partition_name: gpt_part.partition_guid.to_string(),
+                                    partition_label: String::from(name),
+                                    start_sector: gpt_part.start_lba,
+                                    end_sector: gpt_part.end_lba,
+                                    sector_offset: 0,
+                                    partition_type: match gpt_part.partition_type_guid.to_string().as_str() {
+                                        "C12A7328-F81F-11D2-BA4B-00A0C93EC93B" => PartitionType::EFISystemPartition,
+                                        _ => PartitionType::DataPartition,
+                                    },
+                                });
+                            }
                         }
-                    } else {
-                        return Ok(None);
                     }
+                    Ok(Some(partitions))
                 } else {
-                    return Err(Error::DriverNotFound(drive_path))
+                    Ok(None)
                 }
             } else {
-                return Err(Error::DriverNotFound(drive_path))
+                return Ok(None);
             }
         } else {
-            return Err(Error::DriverNotFound(drive_path))
+            return Err(Error::InvalidDevice(drive_path))
         }
     }
 }

@@ -123,15 +123,7 @@ impl Device for AHCIDrive {
             },
         };
         for mut partition in partitions {
-            partition.init_device()?;
-            let path = partition.resource_path_string().clone();
-            namespace::register_resource(partition);
-            let mut sec = [0; 512];
-            namespace::get_resource::<partition::Partition>(path).unwrap().read_block(0, sec.as_mut_ptr()).unwrap();
-            for b in sec {
-                serial_print!("{:02X} ", b);
-            }
-            serial_println!("\n\n");
+            namespace::register_resource(partition).init_device()?;
         }
         Ok(())
     }

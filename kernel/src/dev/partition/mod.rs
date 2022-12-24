@@ -17,7 +17,7 @@ pub enum PartitionType {
 
 pub struct Partition {
     drive_path: Vec<String>,
-    drive: Option<&'static mut dyn BlockDevice>,
+    drive: Option<&'static mut dyn BlockReadWrite>,
     partition_name: String,
     partition_label: String,
     start_sector: u64,
@@ -38,21 +38,25 @@ impl Debug for Partition {
     }
 }
 
+impl Partition {
+    fn mount_file_system(&mut self) -> Result<(), Error> {
+        let fat = filesystem::fat::FATFileSystem::new(self.resource_path_string())?;
+        if let Some(fat) = fat {
+            serial_println!("{:#?}", namespace::register_resource(fat));
+            return Ok(())
+        }
+        Ok(())
+    }
+}
+
 impl Device for Partition {
     fn init_device(&mut self) -> Result<(), Error> {
-        if let Some(drive) = namespace::get_resource_non_generic_parts(self.drive_path.clone()) {
-            if let ResourceType::Device(drive) = drive.unwrap() {
-                if let DeviceClass::BlockDevice(drive) = Device::unwrap(drive) {
-                    let _ = self.drive.insert(drive);
-                    Ok(())
-                } else {
-                    return Err(Error::DriverNotFound(namespace::concat_resource_path(self.drive_path.clone())))
-                }
-            } else {
-                return Err(Error::DriverNotFound(namespace::concat_resource_path(self.drive_path.clone())))
-            }
+        if let Some(drive) = namespace::get_block_device_parts(self.drive_path.clone()) {
+            let _ = self.drive.insert(drive);
+            self.mount_file_system()?;
+            Ok(())
         } else {
-            return Err(Error::DriverNotFound(namespace::concat_resource_path(self.drive_path.clone())))
+            return Err(Error::InvalidDevice(namespace::concat_resource_path(self.drive_path.clone())))
         }
     }
 
