@@ -32,12 +32,40 @@ pub fn namespace() -> &'static mut Tree<String, Box<dyn Resource>> {
     }
 }
 
+pub fn subtree_parts(path: Vec<String>) -> Option<&'static mut Tree<String, Box<dyn Resource>>> {
+    namespace().get_node_by_path(path)
+}
+
+pub fn subtree(path: String) -> Option<&'static mut Tree<String, Box<dyn Resource>>> {
+    namespace().get_node_by_path(split_resource_path(path))
+}
+
 pub fn init_namespace() {
     namespace().insert_subtree(String::from("Devices"), None);
 }
 
-pub fn get_resource<D>(path: Vec<String>) -> &'static mut D {
-    cast_resource::<D>(namespace().get_node_by_path(path).unwrap().value().unwrap())
+pub fn split_resource_path(path: String) -> Vec<String> {
+    path.split("/").filter(|s| !s.is_empty()).map(|s| String::from(s)).collect()
+}
+
+pub fn concat_resource_path(path: Vec<String>) -> String {
+    path.iter().map(|s| String::from("/") + s.as_str()).collect()
+}
+
+pub fn get_resource_parts<D>(path: Vec<String>) -> Option<&'static mut D> {
+    get_resource_non_generic_parts(path).map(|d| cast_resource(d))
+}
+
+pub fn get_resource<D>(path: String) -> Option<&'static mut D> {
+    get_resource_parts(split_resource_path(path))
+}
+
+pub fn get_resource_non_generic(path: String) -> Option<&'static mut Box<dyn Resource>> {
+    namespace().get_node_by_path(split_resource_path(path)).unwrap().value()
+}
+
+pub fn get_resource_non_generic_parts(path: Vec<String>) -> Option<&'static mut Box<dyn Resource>> {
+    namespace().get_node_by_path(path).unwrap().value()
 }
 
 pub fn register_resource(resource: impl Resource + 'static) {

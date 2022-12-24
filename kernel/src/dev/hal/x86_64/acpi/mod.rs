@@ -33,38 +33,43 @@ pub fn init() {
         }
     }
 
-    let mcfg: &MCFGTable = rxsdt.get_table("MCFG").unwrap().into();
-    for conf in mcfg {
-        for bus in conf {
-            for dev in bus {
-                for func in dev {
-                    let head = func.device_header();
-                    let class = head.class;
-                    let subclass = head.subclass;
-                    let prog_if = head.prog_if;
-                    let vendor_id = head.vendor_id;
-                    let device_id = head.device_id;
-                    //println!("{} / {} / {} / {:x}", pci::id::get_vendor_name(vendor_id), pci::id::get_class_name(class), pci::id::get_subclass_name(class, subclass), device_id);
-                    match class {
-                        0x01 => match subclass {     // Mass storage controller
-                            0x06 => match prog_if {  // SATA controller
-                                0x01 => {            // AHCI 1.0
-                                    namespace::register_resource(storage::AHCI::new(head));
-                                }
-                                _ => (),
-                            },
-                            0x08 => match prog_if {  // NVM controller
-                                0x02 => {            // NVMe
-                                    namespace::register_resource(storage::NVME::new(head));
-                                }
+    if let Some(mcfg) = rxsdt.get_table("MCFG") {
+        let mcfg: &MCFGTable = mcfg.into();
+        for conf in mcfg {
+            for bus in conf {
+                for dev in bus {
+                    for func in dev {
+                        let head = func.device_header();
+                        let class = head.class;
+                        let subclass = head.subclass;
+                        let prog_if = head.prog_if;
+                        let vendor_id = head.vendor_id;
+                        let device_id = head.device_id;
+                        //println!("{} / {} / {} / {:x}", pci::id::get_vendor_name(vendor_id), pci::id::get_class_name(class), pci::id::get_subclass_name(class, subclass), device_id);
+                        match class {
+                            0x01 => match subclass {     // Mass storage controller
+                                0x06 => match prog_if {  // SATA controller
+                                    0x01 => {            // AHCI 1.0
+                                        namespace::register_resource(storage::AHCI::new(head));
+                                    }
+                                    _ => (),
+                                },
+                                0x08 => match prog_if {  // NVM controller
+                                    0x02 => {            // NVMe
+                                        namespace::register_resource(storage::NVME::new(head));
+                                    }
+                                    _ => (),
+                                },
                                 _ => (),
                             },
                             _ => (),
-                        },
-                        _ => (),
+                        }
                     }
                 }
             }
         }
+    } else {
+        println!("[No ACPI]");
+        return;
     }
 }

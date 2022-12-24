@@ -1,48 +1,79 @@
+use crate::namespace::ResourceType;
+
 use super::*;
-use super::storage::Drive;
 use alloc::{string::{String, ToString}, vec::Vec};
 
 pub mod mbr;
+pub mod gpt;
 
 pub trait PartitionTable {
-    fn read_partitions<T>(device: &'static mut T) -> Result<Vec<Partition>, Error>
-    where T: Drive, Self: Sized;
+    fn read_partitions(drive_path: String) -> Result<Option<Vec<Partition>>, Error>;
+}
+
+pub enum PartitionType {
+    EFISystemPartition,
+    DataPartition,
 }
 
 pub struct Partition {
-    drive: &'static mut dyn Drive,
-    partition_number: usize,
-    start_sector: usize,
-    end_sector: usize,
-    sector_offset: usize,
+    drive_path: Vec<String>,
+    drive: Option<&'static mut dyn BlockDevice>,
+    partition_name: String,
+    partition_label: String,
+    start_sector: u64,
+    end_sector: u64,
+    sector_offset: u64,
+    partition_type: PartitionType,
 }
 
 impl Debug for Partition {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Partition")
-        .field("drive", &self.drive.resource_path_string())
-        .field("partition_number", &self.partition_number)
-        .field("start_address", &self.start_sector)
-        .field("end_address", &self.end_sector)
-        .field("offset", &self.sector_offset)
+        .field("drive_path", &namespace::concat_resource_path(self.drive_path.clone()))
+        .field("partition_name", &self.partition_name)
+        .field("start_sector", &self.start_sector)
+        .field("end_sector", &self.end_sector)
+        .field("sector_offset", &self.sector_offset)
         .finish()
     }
 }
 
 impl Device for Partition {
+    fn init_device(&mut self) -> Result<(), Error> {
+        if let Some(drive) = namespace::get_resource_non_generic_parts(self.drive_path.clone()) {
+            if let ResourceType::Device(drive) = drive.unwrap() {
+                if let DeviceClass::BlockDevice(drive) = Device::unwrap(drive) {
+                    let _ = self.drive.insert(drive);
+                    Ok(())
+                } else {
+                    return Err(Error::DriverNotFound(namespace::concat_resource_path(self.drive_path.clone())))
+                }
+            } else {
+                return Err(Error::DriverNotFound(namespace::concat_resource_path(self.drive_path.clone())))
+            }
+        } else {
+            return Err(Error::DriverNotFound(namespace::concat_resource_path(self.drive_path.clone())))
+        }
+    }
+
     fn device_path(&self) -> Vec<String> {
-        let mut drivepath = self.drive.device_path();
-        drivepath.push(String::from("Partition") + &self.partition_number.to_string());
+        let mut drivepath = self.drive_path.clone();
+        drivepath.remove(0);
+        drivepath.push(self.partition_name.clone());
         drivepath
+    }
+
+    fn unwrap(&mut self) -> DeviceClass {
+        DeviceClass::BlockDevice(self)
     }
 }
 
 impl Seek for Partition {
-    fn offset(&mut self) -> usize {
+    fn offset(&self) -> u64 {
         self.sector_offset
     }
 
-    fn seek(&mut self, position: usize) {
+    fn seek(&mut self, position: u64) {
         self.sector_offset = position;
     }
 
@@ -53,32 +84,52 @@ impl Seek for Partition {
     fn seek_end(&mut self) {
         self.sector_offset = self.end_sector - self.start_sector - 1;
     }
-
-    fn seek_relative(&mut self, offset: isize) {
-        self.sector_offset = ((self.sector_offset as isize) + offset) as usize;
-    }
 }
 
 impl Read for Partition {
     fn read_one(&mut self) -> Result<u8, Error> {
-        self.drive.seek(self.start_sector + self.sector_offset);
-        self.drive.read_one()
+        self.drive.as_mut().unwrap().seek(self.start_sector + self.sector_offset);
+        self.drive.as_mut().unwrap().read_one()
     }
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        self.drive.seek(self.start_sector + self.sector_offset);
-        self.drive.read(buf)
+        self.drive.as_mut().unwrap().seek(self.start_sector * 512 + self.sector_offset * 512);
+        self.drive.as_mut().unwrap().read(buf)
     }
 }
 
 impl Write for Partition {
     fn write_one(&mut self, val: u8) -> Result<(), Error> {
-        self.drive.seek(self.start_sector + self.sector_offset);
-        self.drive.write_one(val)
+        self.drive.as_mut().unwrap().seek(self.start_sector + self.sector_offset);
+        self.drive.as_mut().unwrap().write_one(val)
     }
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        self.drive.seek(self.start_sector + self.sector_offset);
-        self.drive.write(buf)
+        self.drive.as_mut().unwrap().seek(self.start_sector + self.sector_offset);
+        self.drive.as_mut().unwrap().write(buf)
+    }
+}
+
+impl BlockRead for Partition {
+    fn block_size(&self) -> usize {
+        self.drive.as_ref().unwrap().block_size()
+    }
+
+    fn read_block(&mut self, block: u64, buffer: *mut u8) -> Result<(), Error> {
+        self.drive.as_mut().unwrap().read_block(self.start_sector + block, buffer)
+    }
+
+    fn read_blocks(&mut self, start_block: u64, count: u64, buffer: *mut u8) -> Result<(), Error> {
+        self.drive.as_mut().unwrap().read_blocks(self.start_sector + start_block, count, buffer)
+    }
+}
+
+impl BlockWrite for Partition {
+    fn write_block(&mut self, block: u64, buffer: &mut [u8]) -> Result<(), Error> {
+        self.drive.as_mut().unwrap().write_block(self.start_sector + block, buffer)
+    }
+
+    fn write_blocks(&mut self, start_block: u64, buffer: &mut [u8]) -> Result<(), Error> {
+        self.drive.as_mut().unwrap().write_blocks(self.start_sector + start_block, buffer)
     }
 }

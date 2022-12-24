@@ -376,8 +376,8 @@ impl dev::Device for AHCI {
         for mut port in self.ports {
             if let Some(port) = port.as_mut() {
                 port.configure();
-                namespace::register_resource(drive::AHCIDrive::new(namespace::get_resource::<Self>(self.resource_path()), port.port_number));
-                namespace::get_resource::<drive::AHCIDrive>(vec![String::from("Devices"), String::from("Storage"), String::from("AHCI"), String::from("Drive") + port.port_number.to_string().as_str()]).init_device()?;
+                namespace::register_resource(drive::AHCIDrive::new(namespace::get_resource::<Self>(self.resource_path_string()).unwrap(), port.port_number));
+                namespace::get_resource::<drive::AHCIDrive>(String::from("Devices/Storage/AHCI/Drive") + port.port_number.to_string().as_str()).unwrap().init_device()?;
             }
         }
         Ok(())
@@ -389,5 +389,9 @@ impl dev::Device for AHCI {
 
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Storage"), String::from("AHCI")]
+    }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::Other
     }
 }

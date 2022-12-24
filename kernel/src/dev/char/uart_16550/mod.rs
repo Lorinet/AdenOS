@@ -33,6 +33,10 @@ impl dev::Device for Uart16550 {
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Character"), String::from("Uart16550")]
     }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::ReadWriteDevice(self)
+    }
 }
 
 impl dev::Read for Uart16550 {

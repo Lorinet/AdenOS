@@ -59,6 +59,7 @@ impl Device for VesaVbeFramebuffer {
         self.ram_buffer = Some(unsafe { slice::from_raw_parts_mut(virt_addr as *mut u8, size) });
         self.ram_buffer.as_mut().unwrap().copy_from_slice(self.buffer);
         page_mapper::set_write_combining(self.buffer.as_ptr(), size);
+        println!("Display resolution: {}x{}", self.width, self.height);
         Ok(())
     }
 
@@ -69,6 +70,10 @@ impl Device for VesaVbeFramebuffer {
 
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Framebuffer"), String::from("VesaVbeFramebuffer")]
+    }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::Framebuffer(self)
     }
 }
 

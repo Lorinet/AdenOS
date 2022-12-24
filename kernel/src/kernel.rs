@@ -1,5 +1,6 @@
 use crate::*;
 use crate::dev::partition::PartitionTable;
+use crate::dev::storage::AHCIDrive;
 use crate::dev::{RandomRead, filesystem};
 use crate::namespace::ResourceType;
 use alloc::vec;
@@ -26,7 +27,7 @@ pub fn run_kernel() -> ! {
 }
 
 fn init_system() {
-    early_print!("Linfinity Technologies AdenOS [Version {}]\n", sysinfo::Aden_VERSION);
+    early_print!("Linfinity Technologies AdenOS [Version {}]\n", sysinfo::ADEN_VERSION);
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
     println!("");
@@ -46,10 +47,11 @@ fn init_system() {
             println!("{}", dev.resource_path_string());
         }
     }
-    /*let mbr = dev::partition::mbr::MBRPartitionTable::read_partitions(namespace::get_resource::<dev::storage::AHCIDrive>(vec![String::from("Devices"), String::from("Storage"), String::from("AHCI"), String::from("Drive1")])).unwrap();
-    for part in mbr {
-        println!("{:#x?}", part);
-    }*/
+    let drive = namespace::subtree(String::from("/Devices/Storage/AHCI/Drive0"));
+    for (name, part) in drive.unwrap().iter_mut_bf() {
+        //println!("{}", name);
+        println!("{:#x?}", namespace::cast_resource::<dev::partition::Partition>(part.unwrap()));
+    }
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);

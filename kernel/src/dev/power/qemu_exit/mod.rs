@@ -26,6 +26,10 @@ impl dev::Device for QemuExit {
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Power"), String::from("QemuExit")]
     }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::Other
+    }
 }
 
 impl dev::PowerControl for QemuExit {

@@ -27,14 +27,16 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         mem::FREE_MEMORY = free_mem as usize;
         let bifb = boot_info.framebuffer.as_mut().unwrap();
         let bifbi = bifb.info();
-        kernel_console::FRAMEBUFFER = Some(VesaVbeFramebuffer::new(bifb.buffer_mut(), bifbi.horizontal_resolution, bifbi.vertical_resolution,
+        kernel_console::EARLY_FRAMEBUFFER = Some(VesaVbeFramebuffer::new(bifb.buffer_mut(), bifbi.horizontal_resolution, bifbi.vertical_resolution,
     match bifbi.pixel_format {
             bootloader::boot_info::PixelFormat::RGB => dev::framebuffer::PixelFormat::RGB,
             bootloader::boot_info::PixelFormat::BGR => dev::framebuffer::PixelFormat::BGR,
             bootloader::boot_info::PixelFormat::U8 => dev::framebuffer::PixelFormat::Monochrome,
             _ => dev::framebuffer::PixelFormat::RGB,
         }, bifbi.bytes_per_pixel, bifbi.stride));
-        kernel_console::KERNEL_CONSOLE = Some(FramebufferConsole::new(kernel_console::FRAMEBUFFER.as_mut().unwrap()));
+        kernel_console::FRAMEBUFFER = Some(kernel_console::EARLY_FRAMEBUFFER.as_mut().unwrap());
+        kernel_console::EARLY_KERNEL_CONSOLE = Some(FramebufferConsole::new(*kernel_console::FRAMEBUFFER.as_mut().unwrap()));
+        kernel_console::KERNEL_CONSOLE = Some(kernel_console::EARLY_KERNEL_CONSOLE.as_mut().unwrap());
         acpi::RSDP_ADDRESS = *boot_info.rsdp_addr.as_ref().unwrap();
     }
     #[cfg(test)]

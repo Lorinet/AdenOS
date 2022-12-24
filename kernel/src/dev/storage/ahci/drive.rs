@@ -1,4 +1,4 @@
-use crate::{*, dev::{*, storage::{Drive}}};
+use crate::{*, dev::{*, partition::PartitionTable}};
 use alloc::{vec, string::{String, ToString}, vec::Vec};
 
 use super::{AHCI, DiskIO};
@@ -7,8 +7,8 @@ use super::{AHCI, DiskIO};
 pub struct AHCIDrive {
     controller: &'static mut AHCI,
     port: usize,
-    offset: usize,
-    end: usize,
+    offset: u64,
+    end: u64,
 }
 
 impl AHCIDrive {
@@ -23,11 +23,11 @@ impl AHCIDrive {
 }
 
 impl Seek for AHCIDrive {
-    fn offset(&mut self) -> usize {
+    fn offset(&self) -> u64 {
         self.offset
     }
 
-    fn seek(&mut self, position: usize) {
+    fn seek(&mut self, position: u64) {
         self.offset = position;
     }
 
@@ -38,23 +38,21 @@ impl Seek for AHCIDrive {
     fn seek_end(&mut self) {
         self.offset = self.end;
     }
-
-    fn seek_relative(&mut self, offset: isize) {
-        self.offset = ((self.offset as isize) + offset) as usize;
-    }
 }
 
 impl Read for AHCIDrive {
     fn read_one(&mut self) -> Result<u8, dev::Error> {
-        Ok(self.read_sector(self.offset / 512)?[self.offset % 512])
+        let mut sec = [0; 512];
+        self.read_block(self.offset / 512, sec.as_mut_ptr())?;
+        Ok(sec[(self.offset % 512) as usize])
     }
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, dev::Error> {
         let sector = self.offset / 512;
-        let count = (((self.offset + buf.len()) / 512) - sector) + 1;
-        let buffer = self.read_sectors(sector, count)?;
-        println!("Sector bytes: {}", buffer.len());
-        let buf_off = self.offset % 512;
+        let count = (((self.offset + buf.len() as u64) / 512) - sector) + 1;
+        let mut buffer = vec![0; (count * 512) as usize];
+        self.read_blocks(sector, count, buffer.as_mut_ptr())?;
+        let buf_off = (self.offset % 512) as usize;
         buf.copy_from_slice(&buffer[buf_off..buf_off + buf.len()]);
         Ok(buf.len())
     }
@@ -65,7 +63,7 @@ impl Write for AHCIDrive {
         let sector = self.offset / 512;
         let mut buffer: Vec<u8> = Vec::with_capacity(512);
         self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::ReadFailure)?;
-        let buf_off = self.offset % 512;
+        let buf_off = (self.offset % 512) as usize;
         buffer[buf_off] = val;
         self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Write, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::WriteFailure)?;
         Ok(())
@@ -73,47 +71,43 @@ impl Write for AHCIDrive {
 
     fn write(&mut self, buf: &[u8]) -> Result<usize, dev::Error> {
         let sector = self.offset / 512;
-        let count = (((self.offset + buf.len()) / 512) - sector) + 1;
-        let mut buffer: Vec<u8> = vec![0; count * 512];
+        let count = (((self.offset + buf.len() as u64) / 512) - sector) + 1;
+        let mut buffer: Vec<u8> = vec![0; (count * 512) as usize];
         self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, count as u16, buffer.as_mut_ptr()).map_err(|_| dev::Error::ReadFailure)?;
-        let buf_off = self.offset % 512;
+        let buf_off = (self.offset % 512) as usize;
         buffer[buf_off..buf_off + buf.len()].copy_from_slice(&buf[0..buf.len()]);
         self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Write, sector as u64, count as u16, buffer.as_mut_ptr()).map_err(|_| dev::Error::WriteFailure)?;
         Ok(buf.len())
     }
 }
 
-impl Drive for AHCIDrive {
-    fn capacity(&mut self) -> usize {
-        0
-    }
-
-    fn sector_size(&self) -> usize {
+impl BlockRead for AHCIDrive {
+    fn block_size(&self) -> usize {
         512
     }
 
-    fn read_sector(&mut self, sector: usize) -> Result<Vec<u8>, Error> {
-        let mut buf = vec![0; self.sector_size()];
-        self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, 1, buf.as_mut_ptr()).map_err(|_| dev::Error::ReadFailure)?;
-        Ok(buf)
-    }
-
-    fn read_sectors(&mut self, start_sector: usize, count: usize) -> Result<Vec<u8>, Error> {
-        let mut buf = Vec::<u8>::with_capacity(count * self.sector_size());
-        for i in start_sector..(start_sector + count) {
-            buf.extend_from_slice(&self.read_sector(i)?);
-        }
-        Ok(buf)
-    }
-
-    fn write_sector(&mut self, sector: usize, buf: &mut [u8]) -> Result<(), Error> {
-        self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Write, sector as u64, 1, buf.as_mut_ptr()).map_err(|_| dev::Error::WriteFailure)?;
+    fn read_block(&mut self, block: u64, buffer: *mut u8) -> Result<(), Error> {
+        self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Read, block as u64, 1, buffer).map_err(|_| dev::Error::ReadFailure)?;
         Ok(())
     }
 
-    fn write_sectors(&mut self, start_sector: usize, buf: &mut [u8]) -> Result<(), Error> {
-        for i in start_sector..(start_sector + (buf.len() / self.sector_size())) {
-            self.write_sector(i, &mut buf[i * self.sector_size()..(i + 1) * self.sector_size()])?;
+    fn read_blocks(&mut self, start_block: u64, count: u64, buffer: *mut u8) -> Result<(), Error> {
+        for i in start_block..(start_block + count) {
+            self.read_block(i, unsafe { buffer.offset(((i - start_block) * 512) as isize) })?;
+        }
+        Ok(())
+    }
+}
+
+impl BlockWrite for AHCIDrive {
+    fn write_block(&mut self, block: u64, buf: &mut [u8]) -> Result<(), Error> {
+        self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Write, block as u64, 1, buf.as_mut_ptr()).map_err(|_| dev::Error::WriteFailure)?;
+        Ok(())
+    }
+
+    fn write_blocks(&mut self, start_block: u64, buf: &mut [u8]) -> Result<(), Error> {
+        for i in start_block..(start_block + (buf.len() as u64 / self.block_size() as u64)) {
+            self.write_block(i, &mut buf[((i - start_block) * self.block_size() as u64) as usize..((i + 1) * self.block_size() as u64) as usize])?;
         }
         Ok(())
     }
@@ -121,6 +115,24 @@ impl Drive for AHCIDrive {
 
 impl Device for AHCIDrive {
     fn init_device(&mut self) -> Result<(), Error> {
+        let partitions = match partition::gpt::GPTPartitionTable::read_partitions(self.resource_path_string())? {
+            Some(partitions) => partitions,
+            None => match partition::mbr::MBRPartitionTable::read_partitions(self.resource_path_string())? {
+                Some(partitions) => partitions,
+                None => Vec::new(),
+            },
+        };
+        for mut partition in partitions {
+            partition.init_device()?;
+            let path = partition.resource_path_string().clone();
+            namespace::register_resource(partition);
+            let mut sec = [0; 512];
+            namespace::get_resource::<partition::Partition>(path).unwrap().read_block(0, sec.as_mut_ptr()).unwrap();
+            for b in sec {
+                serial_print!("{:02X} ", b);
+            }
+            serial_println!("\n\n");
+        }
         Ok(())
     }
 
@@ -130,5 +142,9 @@ impl Device for AHCIDrive {
 
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Storage"), String::from("AHCI"), String::from("Drive") + self.port.to_string().as_str()]
+    }
+
+    fn unwrap(&mut self) -> DeviceClass {
+        DeviceClass::BlockDevice(self)
     }
 }

@@ -193,4 +193,8 @@ impl dev::Device for LAPIC {
     fn device_path(&self) -> Vec<String> {
         vec![String::from("System"), String::from("LAPIC")]
     }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::Other
+    }
 }

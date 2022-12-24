@@ -24,6 +24,10 @@ impl dev::Device for Port {
         //format!("HAL/Port{:#06x}", self.number).as_str()
         vec![String::from("System"), String::from("Ports"), self.number.to_string()]
     }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::ReadWriteDevice(self)
+    }
 }
 
 impl dev::Read for Port {

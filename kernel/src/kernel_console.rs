@@ -4,8 +4,10 @@ use dev::{self, ConsoleDevice, framebuffer::{VesaVbeFramebuffer}, char::{Framebu
 use core::fmt::{self, Write};
 use dev::hal::cpu;
 
-pub static mut FRAMEBUFFER: Option<VesaVbeFramebuffer> = None;
-pub static mut KERNEL_CONSOLE: Option<FramebufferConsole<VesaVbeFramebuffer>> = None;
+pub static mut EARLY_FRAMEBUFFER: Option<VesaVbeFramebuffer> = None;
+pub static mut FRAMEBUFFER: Option<&'static mut VesaVbeFramebuffer> = None;
+pub static mut EARLY_KERNEL_CONSOLE: Option<FramebufferConsole<VesaVbeFramebuffer>> = None;
+pub static mut KERNEL_CONSOLE: Option<&'static mut FramebufferConsole<VesaVbeFramebuffer>> = None;
 pub static mut SERIAL_CONSOLE: Uart16550 = Uart16550::new(0);
 
 pub fn clear_screen() {

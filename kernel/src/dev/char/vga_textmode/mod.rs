@@ -63,6 +63,10 @@ impl dev::Device for VgaTextMode {
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Character"), String::from("VGATextMode")]
     }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::WriteDevice(self)
+    }
 }
 
 impl dev::Write for VgaTextMode {

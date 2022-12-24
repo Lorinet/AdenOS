@@ -268,4 +268,8 @@ impl Device for NVME {
     fn device_path(&self) -> Vec<String> {
         vec![String::from("Storage"), String::from("NVME")]
     }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::Other
+    }
 }

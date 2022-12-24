@@ -13,7 +13,7 @@ const CHARACTER_WIDTH: usize = 8;
 #[derive(Debug)]
 pub struct FramebufferConsole<F>
 where F: Framebuffer + 'static {
-    framebuffer: &'static mut F,
+    pub framebuffer: &'static mut F,
     background_color: Color,
     foreground_color: Color,
     x: usize,
@@ -79,7 +79,11 @@ where F: Framebuffer {
     }
 
     fn device_path(&self) -> Vec<String> {
-        vec![String::from("Character"), String::from("VesaVbeConsole")]
+        vec![String::from("Character"), String::from("FramebufferConsole")]
+    }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::WriteDevice(self)
     }
 }
 

@@ -3,6 +3,8 @@ use console::ConsoleColor;
 use namespace::Resource;
 use alloc::{fmt::Debug, string::String, vec, vec::Vec};
 
+use self::framebuffer::Framebuffer;
+
 pub mod char;
 pub mod hal;
 pub mod power;
@@ -19,13 +21,27 @@ pub enum Error {
     IOFailure(&'static str),
     ReadFailure,
     WriteFailure,
-    DriverNotFound(&'static str),
+    InvalidData,
+    DriverNotFound(String),
+}
+
+pub enum DeviceClass<'a> {
+    ReadDevice(&'a mut dyn Read),
+    WriteDevice(&'a mut dyn Write),
+    ReadWriteDevice(&'a mut dyn ReadWriteDevice),
+    RandomReadWriteDevice(&'a mut dyn RandomReadWriteDevice),
+    Framebuffer(&'a mut dyn Framebuffer),
+    BlockDevice(&'a mut dyn BlockDevice),
+    Other,
 }
 
 pub trait Device: Resource + Debug {
     fn init_device(&mut self) -> Result<(), Error> { Ok(()) }
     fn deinit_device(&mut self) -> Result<(), Error> { Ok(()) }
     fn device_path(&self) -> Vec<String>;
+    fn unwrap(&mut self) -> DeviceClass;/* {
+        DeviceClass::Other
+    }*/
 }
 
 impl<T: Device> Resource for T {
@@ -64,16 +80,21 @@ pub trait Read {
     }
 }
 
+pub trait ReadWriteDevice: Read + Write {}
+impl<T: Read + Write> ReadWriteDevice for T {}
+
 pub trait Seek {
-    fn seek(&mut self, position: usize);
-    fn seek_relative(&mut self, offset: isize);
+    fn seek(&mut self, position: u64);
+    fn offset(&self) -> u64;
     fn seek_begin(&mut self);
     fn seek_end(&mut self);
-    fn offset(&mut self) -> usize;
+    fn seek_relative(&mut self, offset: i64) {
+        self.seek(((self.offset() as i64) + offset) as u64);
+    }
 }
 
 pub trait RandomRead: Seek + Read {
-    fn read_from(&mut self, buf: &mut [u8], offset: usize) -> Result<usize, Error> {
+    fn read_from(&mut self, buf: &mut [u8], offset: u64) -> Result<usize, Error> {
         let prev_offset = self.offset();
         self.seek(offset);
         let result = self.read(buf);
@@ -83,7 +104,7 @@ pub trait RandomRead: Seek + Read {
 }
 
 pub trait RandomWrite: Seek + Write {
-    fn write_to(&mut self, buf: &[u8], offset: usize) -> Result<usize, Error> {
+    fn write_to(&mut self, buf: &[u8], offset: u64) -> Result<usize, Error> {
         let prev_offset = self.offset();
         self.seek(offset);
         let result = self.write(buf);
@@ -95,8 +116,22 @@ pub trait RandomWrite: Seek + Write {
 impl<T> RandomRead for T where T: Device + Seek + Read {}
 impl<T> RandomWrite for T where T: Device + Seek + Write {}
 
-pub trait RandomReadWrite: RandomRead + RandomWrite {}
-impl<T> RandomReadWrite for T where T: RandomRead + RandomWrite {}
+pub trait RandomReadWriteDevice: RandomRead + RandomWrite {}
+impl<T> RandomReadWriteDevice for T where T: RandomRead + RandomWrite {}
+
+pub trait BlockRead: Device {
+    fn block_size(&self) -> usize;
+    fn read_block(&mut self, block: u64, buffer: *mut u8) -> Result<(), Error>;
+    fn read_blocks(&mut self, start_block: u64, count: u64, buffer: *mut u8) -> Result<(), Error>;
+}
+
+pub trait BlockWrite: BlockRead {
+    fn write_block(&mut self, block: u64, buffer: &mut [u8]) -> Result<(), Error>;
+    fn write_blocks(&mut self, start_block: u64, buffer: &mut [u8]) -> Result<(), Error>;
+}
+
+pub trait BlockDevice: Device + RandomRead + RandomWrite + BlockRead + BlockWrite {}
+impl<T: Device + RandomRead + RandomWrite + BlockRead + BlockWrite> BlockDevice for T {}
 
 pub trait PowerControl {
     fn shutdown(&mut self) -> ! {

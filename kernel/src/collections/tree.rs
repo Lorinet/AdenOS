@@ -68,7 +68,7 @@ where
 
     pub fn iter_mut_bf(&mut self) -> IterMutBF<K, V> {
         IterMutBF {
-            stack: vec![self],
+            stack: self.subtrees.iter_mut().collect(),
             next_stack: vec![],
         }
     }
