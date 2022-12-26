@@ -42,7 +42,7 @@ fn init_system() {
             }
         }
     }
-    for (_, dev) in namespace::namespace().get_subtree(String::from("Devices")).unwrap().iter_mut_bf() {
+    for (_, dev) in namespace::namespace().iter_mut_bf() {
         if let Some(dev) = dev {
             println!("{}", dev.resource_path_string());
         }

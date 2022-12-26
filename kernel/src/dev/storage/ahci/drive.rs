@@ -122,7 +122,7 @@ impl Device for AHCIDrive {
                 None => Vec::new(),
             },
         };
-        for mut partition in partitions {
+        for partition in partitions {
             namespace::register_resource(partition).init_device()?;
         }
         Ok(())

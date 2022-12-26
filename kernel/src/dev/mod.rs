@@ -19,6 +19,7 @@ pub enum Error {
     InitFailure(&'static str),
     DeinitFailure(&'static str),
     IOFailure(&'static str),
+    OutOfSpace,
     ReadFailure,
     WriteFailure,
     InvalidData,

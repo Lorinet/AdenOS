@@ -70,7 +70,7 @@ fn run(bootable_image_path: String, kvm: bool, debug: bool, test: bool, addition
     let qemu_command = Command::new("qemu-system-x86_64")
     .arg("-machine").arg("q35")
     .arg("-hda").arg(&bootable_image_path)
-    .arg("-hdb").arg("/home/linfinity/alt.img")
+    .arg("-hdb").arg("/home/linfinity/bigfat.img")
     .arg("-serial").arg("stdio")
     //.arg("-drive").arg(String::from("file=") + &bootable_image_path + ",if=none,id=nvm")
     //.arg("-device").arg("nvme,serial=deadbeef,drive=nvm")
