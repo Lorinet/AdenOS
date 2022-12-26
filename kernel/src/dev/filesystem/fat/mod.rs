@@ -205,16 +205,15 @@ impl FATFileSystem {
         //self.allocate_clusters(5);
         //return Ok(());
         for ent in self.root_dir_iter()? {
-            if let DirectoryEntry::FileDirectoryEntry(ent) = ent {
-                serial_println!("Start file {}", str::from_utf8(&ent.file_name).unwrap());
-                let mut file = File::new(self, ent.cluster(), ent.size as usize)?;
-                let mut buf = vec![0; 512];
-                file.seek(0);
-                file.read(buf.as_mut_slice())?;
-                for b in buf {
-                    serial_print!("{}", b as char);
-                }
-            }
+            serial_println!("{}  {} bytes", ent.file_name, ent.size);
+            /*serial_println!("Start file {}", &ent.file_name);
+            let mut file = File::new(self, ent.cluster, ent.size as usize)?;
+            let mut buf = vec![0; 512];
+            file.seek(0);
+            file.read(buf.as_mut_slice())?;
+            for b in buf {
+                serial_print!("{}", b as char);
+            }*/
         }
         Ok(())
     }
@@ -231,11 +230,15 @@ impl FATFileSystem {
         FATIterator::new(self, start_cluster)
     }
 
-    fn root_dir_iter(&self) -> Result<impl Iterator<Item = DirectoryEntry> + '_, Error> {
+    fn root_dir_raw_iter(&self) -> Result<DirectoryRawIterator<'_>, Error> {
         match self.ebpb {
             eBPB::eBPB32(ebpb) => DirectoryRawIterator::new(self, Some(ebpb.root_directory_cluster)),
             _ => DirectoryRawIterator::new(self, None),
         }
+    }
+
+    fn root_dir_iter(&self) -> Result<impl Iterator<Item = DirectoryEntry> + '_, Error> {
+        Ok(DirectoryIterator::new(self.root_dir_raw_iter()?))
     }
 
     fn allocate_clusters(&self, n: usize) -> Result<u32, Error> {
@@ -251,10 +254,10 @@ impl FATFileSystem {
         Ok(first)
     }
 
-    fn create_directory_entry(&self, dir: impl Iterator<Item = DirectoryEntry>, ent: FileDirectoryEntry) -> Result<(), Error> {
+    fn create_directory_entry(&self, dir: impl Iterator<Item = DirectoryRawEntry>, ent: FileDirectoryEntry) -> Result<(), Error> {
         let mut slot = None;
         for dir_ent in dir {
-            if let DirectoryEntry::UnusedEntry(sec, off) = dir_ent {
+            if let DirectoryRawEntry::UnusedEntry(sec, off) = dir_ent {
                 slot = Some((sec, off));
                 break;
             }
@@ -275,7 +278,7 @@ impl FATFileSystem {
     fn create_file(&self, name: &str, size: u32) -> Result<File, Error> {
         let cluster = self.allocate_clusters((size as usize + self.cluster_size as usize - 1) / self.cluster_size as usize)?;
         let dir_ent = FileDirectoryEntry::new(name, cluster, size);
-        self.create_directory_entry(self.root_dir_iter()?, dir_ent);
+        self.create_directory_entry(self.root_dir_raw_iter()?, dir_ent)?;
         File::new(self, cluster, size as usize)
     }
 }

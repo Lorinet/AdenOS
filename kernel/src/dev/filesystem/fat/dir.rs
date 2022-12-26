@@ -124,7 +124,7 @@ pub struct LongFileNameEntry {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub enum DirectoryEntry {
+pub enum DirectoryRawEntry {
     FileDirectoryEntry(FileDirectoryEntry),
     LongFileNameEntry(LongFileNameEntry),
     UnusedEntry(u32, u32),
@@ -171,7 +171,7 @@ impl<'a> DirectoryRawIterator<'a> {
 }
 
 impl<'a> Iterator for DirectoryRawIterator<'a> {
-    type Item = DirectoryEntry;
+    type Item = DirectoryRawEntry;
     fn next(&mut self) -> Option<Self::Item> {
         if self.no_more {
             return None;
@@ -209,19 +209,19 @@ impl<'a> Iterator for DirectoryRawIterator<'a> {
                     Some(cluster) => self.fat_fs.cluster_to_sector(cluster),
                     None => self.fat_fs.root_dir_sector,
                 };
-                DirectoryEntry::UnusedEntry(sec, self.sector_offset as u32)
+                DirectoryRawEntry::UnusedEntry(sec, self.sector_offset as u32)
             },
             0xE5 => {
                 let sec = self.sector as u32 + match self.cluster {
                     Some(cluster) => self.fat_fs.cluster_to_sector(cluster),
                     None => self.fat_fs.root_dir_sector,
                 };
-                DirectoryEntry::UnusedEntry(sec, self.sector_offset as u32)
+                DirectoryRawEntry::UnusedEntry(sec, self.sector_offset as u32)
             },
             _ => {
                 match self.buffer[self.sector_offset + 11] {
-                    0x0F => DirectoryEntry::LongFileNameEntry(unsafe { (self.buffer.as_ptr().offset(self.sector_offset as isize) as *const LongFileNameEntry).as_ref().unwrap().clone() }),
-                    _ => DirectoryEntry::FileDirectoryEntry(unsafe { (self.buffer.as_ptr().offset(self.sector_offset as isize) as *const FileDirectoryEntry).as_ref().unwrap().clone() }),
+                    0x0F => DirectoryRawEntry::LongFileNameEntry(unsafe { (self.buffer.as_ptr().offset(self.sector_offset as isize) as *const LongFileNameEntry).as_ref().unwrap().clone() }),
+                    _ => DirectoryRawEntry::FileDirectoryEntry(unsafe { (self.buffer.as_ptr().offset(self.sector_offset as isize) as *const FileDirectoryEntry).as_ref().unwrap().clone() }),
                 }
             },
         };
@@ -232,6 +232,63 @@ impl<'a> Iterator for DirectoryRawIterator<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct DirectoryEntry {
+    pub file_name: String,
+    pub cluster: u32,
+    pub size: u32,
+    pub metadata: FileDirectoryEntry,
+}
+
+pub struct DirectoryIterator<'a> {
+    raw_iter: DirectoryRawIterator<'a>,
+    name_buffer: String,
+}
+
+impl<'a> DirectoryIterator<'a> {
+    pub fn new(raw_iter: DirectoryRawIterator<'a>) -> DirectoryIterator {
+        DirectoryIterator {
+            raw_iter,
+            name_buffer: String::new(),
+        }
+    }
+}
+
+impl<'a> Iterator for DirectoryIterator<'a> {
+    type Item = DirectoryEntry;
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let ent = self.raw_iter.next();
+            if let Some(ent) = ent {
+                if let DirectoryRawEntry::LongFileNameEntry(ent) = ent {
+                    let nm0 = ent.name_0;
+                    let nm1 = ent.name_1;
+                    let nm2 = ent.name_2;
+                    self.name_buffer.insert_str(0, String::from_utf16(&nm2).unwrap().replace("\u{FFFF}", "").as_str());
+                    self.name_buffer.insert_str(0, String::from_utf16(&nm1).unwrap().replace("\u{FFFF}", "").as_str());
+                    self.name_buffer.insert_str(0, String::from_utf16(&nm0).unwrap().replace("\u{FFFF}", "").as_str());
+                } else if let DirectoryRawEntry::FileDirectoryEntry(ent) = ent {
+                    let dir_ent = DirectoryEntry {
+                        file_name: if self.name_buffer.len() > 0 {
+                            self.name_buffer.trim().to_string()
+                        } else {
+                            let mut nm = String::from_utf8(ent.file_name.to_vec()).unwrap().trim().to_string();
+                            nm.insert(nm.len() - 3, '.');
+                            nm
+                        },
+                        cluster: ent.cluster(),
+                        size: ent.size,
+                        metadata: ent,
+                    };
+                    self.name_buffer = String::new();
+                    return Some(dir_ent);
+                }
+            } else {
+                return None;
+            }
+        }
+    }
+}
 
 pub struct File<'a> {
     fat_fs: &'a FATFileSystem,
