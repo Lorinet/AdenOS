@@ -6,6 +6,7 @@ use modular_bitfield::{bitfield, specifiers::*};
 use core::{str, slice};
 use bitflags::bitflags;
 use core::cell::RefCell;
+use core::num;
 
 mod fat;
 mod dir;
@@ -115,6 +116,10 @@ impl FATFileSystem {
             let ebpb16 = unsafe { (&bpb.extension as *const _ as *const eBPB16).as_ref().unwrap() };
             let ebpb32 = unsafe { (&bpb.extension as *const _ as *const eBPB32).as_ref().unwrap() };
 
+            if bpb._jmp[0] != 0xEB || bpb._jmp[2] != 0x90 {
+                return Ok(None);
+            }
+
             let total_sectors = match bpb.sector_count {
                 0 => bpb.large_sector_count,
                 _ => bpb.sector_count as u32,
@@ -193,19 +198,17 @@ impl FATFileSystem {
     }
 
     fn test_fs(&mut self) -> Result<(), Error> {
-        /*let mut file = self.create_file("AdenTes2TXT", 200)?;
+        //let mut file = self.create_file(String::from("Let's make an extremely long file.weed"), 36)?;
+        //file.seek(0);
+        //file.write("we are getting stoned as fuck here".as_bytes())?;
+        let mut file = self.create_file(String::from("Holy shit how freaking dick.scss"), 100)?;
         file.seek(0);
-        file.write("the clouds in the atmospheres of the gas giant".as_bytes())?;*/
-        /*let mut file = self.create_file("AdenTes4TXT", 2048)?;
-        file.seek(0);
-        file.write("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam eleifend tempor metus in tincidunt. Integer non eros purus. Nullam vestibulum quam ac lectus scelerisque venenatis. In nec finibus ligula. Curabitur fringilla ante eu mollis scelerisque. Morbi suscipit fringilla tellus, non faucibus eros pretium at. Mauris ornare turpis quis lacus ullamcorper, at consectetur tellus vehicula. Mauris in finibus lacus. Cras luctus sapien at augue lobortis fermentum. Suspendisse potenti. Curabitur gravida erat et nisl eleifend rhoncus. Maecenas lacinia nulla dui, in aliquam magna semper at. Nam dapibus sagittis malesuada. Maecenas ipsum arcu, porttitor et dictum quis, pretium a dui. In hac habitasse platea dictumst.
-        Donec scelerisque elit sit amet erat pharetra, quis feugiat sem tristique. Phasellus aliquet eget quam non eleifend. Nullam suscipit eget ex ut accumsan. Sed velit lacus, dignissim sit amet ligula quis, tristique tincidunt risus. Nam imperdiet urna a odio pellentesque, ut commodo nibh auctor. Maecenas eget quam non quam tempor rutrum nec a arcu. Morbi commodo massa iaculis nisi ultricies convallis.
-        Nam faucibus eros ut magna lacinia egestas. Nunc lacinia nunc nec nisi vestibulum accumsan. Vivamus libero sapien, ultricies eget ornare quis, efficitur interdum enim. Phasellus tempor fermentum nunc, at tempus augue semper id. Fusce fermentum quis augue semper pretium. Aliquam aliquet condimentum dignissim. Nunc est eros, blandit sed lectus quis, blandit sodales metus. Ut vel tellus vitae elit iaculis finibus non eget eros. Duis congue, magna non aliquam convallis, purus tellus posuere neque, sit amet auctor purus mi porta arcu. Donec quis consectetur nisi. Suspendisse hendrerit nisi sapien, et convallis dui dapibus ac. Sed et ante vitae odio hendrerit efficitur. Suspendisse porttitor tristique eros. Maecenas non arcu non eros ornare facilisis. Pellentesque non ex sagittis, congue lorem id, bibendum purus. In eu augue in mi maximus rutrum. Maecenas gravida rhoncus massa a rhoncus. Praesent quis augue rhoncus efficitur.".as_bytes())?;
-        */
+        file.write("hjskldhksalhdjksadjkashdjk".as_bytes())?;
+        
         //self.allocate_clusters(5);
         //return Ok(());
         for ent in self.root_dir_iter()? {
-            serial_println!("{}  {} bytes", ent.file_name, ent.size);
+            serial_println!("{}  {} bytes", ent.name, ent.size);
             /*serial_println!("Start file {}", &ent.file_name);
             let mut file = File::new(self, ent.cluster, ent.size as usize)?;
             let mut buf = vec![0; 512];
@@ -254,30 +257,67 @@ impl FATFileSystem {
         Ok(first)
     }
 
-    fn create_directory_entry(&self, dir: impl Iterator<Item = DirectoryRawEntry>, ent: FileDirectoryEntry) -> Result<(), Error> {
-        let mut slot = None;
+    fn create_directory_entry(&self, dir: impl Iterator<Item = DirectoryRawEntry>, ent: DirectoryEntry) -> Result<(), Error> {
+
+        let name_entries_needed = (ent.name.len() + 13) / 13;
+        let mut dir_entries = Vec::new();
+        dir_entries.push(DirectoryRawEntry::FileDirectoryEntry(ent.metadata));
+        let mut check_sum = num::Wrapping(0_u8);
+        for b in ent.metadata.file_name {
+            check_sum = (check_sum << 7) + (check_sum >> 1) + num::Wrapping(b);
+        }
+        let mut uniname = ent.name.encode_utf16().collect::<Vec<u16>>();
+        uniname.push(0);
+        for i in (0..ent.name.len()).step_by(13) {
+            let ord = if i >= ent.name.len() / 13 * 13 {
+                0x40 | (i / 13 + 1) as u8
+            } else {
+                (i / 13 + 1) as u8
+            };
+            let name_part = if i + 13 >= uniname.len() {
+                &uniname[i..]
+            } else {
+                &uniname[i..i + 13]
+            };
+            dir_entries.push(DirectoryRawEntry::LongFileNameEntry(LongFileNameEntry::new(name_part, ord, check_sum.0)));
+        }
+        dir_entries.reverse();
+
+        let mut slot = Vec::new();
+        let mut streak = 0;
         for dir_ent in dir {
-            if let DirectoryRawEntry::UnusedEntry(sec, off) = dir_ent {
-                slot = Some((sec, off));
-                break;
+            if let DirectoryRawEntry::UnusedEntry(sec, off) | DirectoryRawEntry::FreeEntry(sec, off) = dir_ent {
+                slot.push((sec, off));
+                streak += 1;
+                if streak == name_entries_needed + 1 {
+                    break;
+                }
+            } else {
+                streak = 0;
+                slot.clear();
             }
         }
-        if let None = slot {
+        if slot.len() < name_entries_needed + 1 {
             return Err(Error::OutOfSpace);
         }
 
         let mut buf = vec![0; self.sector_size as usize];
-        let (sec, off) = slot.unwrap();
-        serial_println!("Sector {} offset {}", sec, off);
-        self.drive.borrow_mut().read_block(sec as u64, buf.as_mut_ptr())?;
-        *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.clone();
-        self.drive.borrow_mut().write_block(sec as u64, buf.as_mut_slice())?;
+        for ((sec, off), ent) in slot.into_iter().zip(dir_entries.into_iter()) {
+            self.drive.borrow_mut().read_block(sec as u64, buf.as_mut_ptr())?;
+            match ent {
+                DirectoryRawEntry::FileDirectoryEntry(ent) => *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.clone(),
+                DirectoryRawEntry::LongFileNameEntry(ent) => *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut LongFileNameEntry).as_mut().unwrap() } = ent.clone(),
+                _ => (),
+            }
+            self.drive.borrow_mut().write_block(sec as u64, buf.as_mut_slice())?;
+        }
+
         Ok(())
     }
 
-    fn create_file(&self, name: &str, size: u32) -> Result<File, Error> {
+    fn create_file(&self, name: String, size: u32) -> Result<File, Error> {
         let cluster = self.allocate_clusters((size as usize + self.cluster_size as usize - 1) / self.cluster_size as usize)?;
-        let dir_ent = FileDirectoryEntry::new(name, cluster, size);
+        let dir_ent = DirectoryEntry::new(name, cluster, size);
         self.create_directory_entry(self.root_dir_raw_iter()?, dir_ent)?;
         File::new(self, cluster, size as usize)
     }
