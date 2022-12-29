@@ -15,7 +15,7 @@ pub enum FATEntry {
 pub struct FATIterator<'a> {
     fat_fs: &'a FATFileSystem,
     pub cluster: u32,
-    no_more: bool,
+    pub no_more: bool,
     sector_size: usize,
     fat_buffer: Vec<u8>,
 }
@@ -32,6 +32,15 @@ impl<'a> FATIterator<'a> {
         };
         iter.fat_fs.drive.borrow_mut().read_block(iter.cluster_index_to_sector_offset(cluster).0, iter.fat_buffer.as_mut_ptr())?;
         Ok(iter)
+    }
+
+    pub fn seek(&mut self, cluster: u32) -> Result<(), Error> {
+        self.cluster = cluster;
+        self.fat_fs.drive.borrow_mut().read_block(self.cluster_index_to_sector_offset(cluster).0, self.fat_buffer.as_mut_ptr())
+    }
+
+    pub fn refresh_fat(&mut self) -> Result<(), Error> {
+        self.fat_fs.drive.borrow_mut().read_block(self.cluster_index_to_sector_offset(self.cluster).0, self.fat_buffer.as_mut_ptr())
     }
 
     fn cluster_index_to_sector_offset(&self, cluster: u32) -> (u64, usize) {
@@ -84,9 +93,11 @@ impl<'a> Iterator for FATIterator<'a> {
                 }
             };
 
-            let (sec_new, _) = self.cluster_index_to_sector_offset(self.cluster);
-            if sec != sec_new {
-                self.fat_fs.drive.borrow_mut().read_block(sec_new, self.fat_buffer.as_mut_ptr()).unwrap();
+            if self.cluster_ok(self.cluster) {
+                let (sec_new, _) = self.cluster_index_to_sector_offset(self.cluster);
+                if sec != sec_new {
+                    self.fat_fs.drive.borrow_mut().read_block(sec_new, self.fat_buffer.as_mut_ptr()).unwrap();
+                }
             }
         }
 
@@ -117,6 +128,7 @@ impl<'a> Iterator for FATIterator<'a> {
 
 pub struct FATSectorIterator<'a> {
     pub cluster_iter: FATIterator<'a>,
+    pub last_good_cluster: u32,
     pub sectors_per_cluster: u32,
     pub sector_index: u32,
     pub sector_index_from_start: u32,
@@ -136,6 +148,7 @@ impl<'a> FATSectorIterator<'a> {
         let sectors_per_cluster = cluster_iter.fat_fs.sectors_per_cluster;
         FATSectorIterator {
             cluster_iter,
+            last_good_cluster: 0,
             sectors_per_cluster,
             sector_index: 0,
             sector_index_from_start: 0,
@@ -155,12 +168,19 @@ impl<'a> Iterator for FATSectorIterator<'a> {
             self.sector_index_from_start += 1;
             self.current_sector()
         } else {
-            match self.cluster_iter.next() {
-                Some(ent) => match ent {
-                    FATEntry::Cluster(n) => n,
-                    _ => return None,
-                },
-                None => return None,
+            let prev_clu = self.cluster_iter.cluster;
+            self.cluster_iter.next();
+            if !self.cluster_iter.cluster_ok(self.cluster_iter.cluster) {
+                self.last_good_cluster = prev_clu;
+                return None;
+                if let Ok(c) = self.cluster_iter.fat_fs.allocate_clusters(Some(self.cluster_iter.cluster as u32), 1) {
+                    match self.cluster_iter.next() {
+                        Some(FATEntry::Cluster(_)) => (),
+                        _ => return None,
+                    }
+                } else {
+                    return None;
+                }
             };
             self.sector_index = 0;
             self.sector_index_from_start += 1;
@@ -179,7 +199,7 @@ pub enum ClusterAllocatorMode {
 #[derive(Debug)]
 pub struct ClusterAllocator<'a> {
     fat_fs: &'a FATFileSystem,
-    pub prev_free_cluster: u32,
+    pub prev_free_cluster: Option<u32>,
     sector_size: usize,
     fat_sector: u64,
     mode: ClusterAllocatorMode,
@@ -187,7 +207,7 @@ pub struct ClusterAllocator<'a> {
 }
 
 impl<'a> ClusterAllocator<'a> {
-    pub fn new(fat_fs: &'a FATFileSystem, first_cluster: u32, mode: ClusterAllocatorMode) -> Result<ClusterAllocator<'a>, Error> {
+    pub fn new(fat_fs: &'a FATFileSystem, first_cluster: Option<u32>, mode: ClusterAllocatorMode) -> Result<ClusterAllocator<'a>, Error> {
         let sector_size = fat_fs.drive.borrow().block_size();
         let mut iter = ClusterAllocator {
             fat_fs,
@@ -197,9 +217,11 @@ impl<'a> ClusterAllocator<'a> {
             mode,
             fat_buffer: vec![0; sector_size],
         };
-        iter.fat_sector = iter.cluster_index_to_sector_offset(first_cluster).0;
+        iter.fat_sector = iter.cluster_index_to_sector_offset(match first_cluster {
+            Some(c) => c,
+            None => 3,
+        }).0;
         iter.fat_fs.drive.borrow_mut().read_block(iter.fat_sector, iter.fat_buffer.as_mut_ptr())?;
-        iter.prev_free_cluster = iter.find_free_cluster().unwrap();
         Ok(iter)
     }
 
@@ -215,8 +237,11 @@ impl<'a> ClusterAllocator<'a> {
     }
 
     fn find_free_cluster(&mut self) -> Option<u32> {
-        let mut i = self.prev_free_cluster + 1;
-        serial_println!("i = {}", i);
+        let mut i = match self.prev_free_cluster {
+            Some(c) => c,
+            None => 3,
+        } + 1;
+        let mut wraparound = false;
         loop {
             let (sec, sec_off) = self.cluster_index_to_sector_offset(i);
             if sec != self.fat_sector {
@@ -226,10 +251,11 @@ impl<'a> ClusterAllocator<'a> {
             let clu = match self.fat_fs.fat_type {
                 FATType::FAT12 => {
                     let packed_val = (self.fat_buffer[sec_off + 1] as u16) << 8 | self.fat_buffer[sec_off] as u16;
-                    match self.prev_free_cluster & 1 {
+                    panic!("Not implemented");
+                    /*match self.prev_free_cluster & 1 {
                         0 => (packed_val & 0xFFF) as u32,
                         _ => (packed_val >> 4) as u32,
-                    }
+                    }*/
                 },
                 FATType::FAT16 => (((self.fat_buffer[sec_off as usize + 1] as u16) << 8) | self.fat_buffer[sec_off as usize] as u16) as u32,
                 FATType::FAT32 => (((self.fat_buffer[sec_off as usize + 3] as u32) << 24) | ((self.fat_buffer[sec_off as usize + 2] as u32) << 16) | ((self.fat_buffer[sec_off as usize + 1] as u32) << 8) | (self.fat_buffer[sec_off as usize] as u32)) & 0x0FFFFFFF,
@@ -239,9 +265,29 @@ impl<'a> ClusterAllocator<'a> {
             }
             i += 1;
             if i >= self.fat_fs.total_clusters {
-                return None;
+                if wraparound {
+                    return None;
+                } else {
+                    i = 3;
+                    wraparound = true;
+                }
             }
         }
+    }
+
+    pub fn finish(mut self) -> Result<(), Error> {
+        let (sec, sec_off) = self.cluster_index_to_sector_offset(match self.prev_free_cluster {
+            Some(clu) => clu,
+            None => return Err(Error::OutOfSpace),
+        });
+        self.fat_fs.drive.borrow_mut().read_block(sec, self.fat_buffer.as_mut_ptr())?;
+        match self.fat_fs.fat_type {
+            FATType::FAT12 => panic!("Not implemented"),
+            FATType::FAT16 => self.fat_buffer[sec_off..sec_off + 2].copy_from_slice(&(0xFFFF as u16).to_le_bytes()),
+            FATType::FAT32 => self.fat_buffer[sec_off..sec_off + 4].copy_from_slice(&(0xFFFFFFFF as u32).to_le_bytes()),
+        };
+        self.fat_fs.drive.borrow_mut().write_block(sec, self.fat_buffer.as_mut_slice())?;
+        Ok(())
     }
 }
 
@@ -249,23 +295,26 @@ impl<'a> Iterator for ClusterAllocator<'a> {
     type Item = u32;
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(clu) = self.find_free_cluster() {
-            let (sec, sec_off) = self.cluster_index_to_sector_offset(self.prev_free_cluster);
+            let (sec, sec_off) = self.cluster_index_to_sector_offset(match self.prev_free_cluster {
+                Some(clu) => clu,
+                None => 3,
+            });
             if sec != self.fat_sector {
                 self.fat_fs.drive.borrow_mut().read_block(sec, self.fat_buffer.as_mut_ptr()).unwrap();
                 self.fat_sector = sec;
             }
-            match self.fat_fs.fat_type {
-                FATType::FAT12 => panic!("Not implemented"),
-                FATType::FAT16 => self.fat_buffer[sec_off..sec_off + 2].copy_from_slice(&(clu as u16).to_le_bytes()),
-                FATType::FAT32 => self.fat_buffer[sec_off..sec_off + 4].copy_from_slice(&clu.to_le_bytes()),
-            };
-            
-            if let ClusterAllocatorMode::Allocate = self.mode {
-                self.fat_fs.drive.borrow_mut().write_block(sec, self.fat_buffer.as_mut_slice());
+            if let Some(cl) = self.prev_free_cluster { // do not overwrite cluster entry 3 if we did not provide chain end
+                match self.fat_fs.fat_type {
+                    FATType::FAT12 => panic!("Not implemented"),
+                    FATType::FAT16 => self.fat_buffer[sec_off..sec_off + 2].copy_from_slice(&(clu as u16).to_le_bytes()),
+                    FATType::FAT32 => self.fat_buffer[sec_off..sec_off + 4].copy_from_slice(&clu.to_le_bytes()),
+                };
+                if let ClusterAllocatorMode::Allocate = self.mode {
+                    self.fat_fs.drive.borrow_mut().write_block(sec, self.fat_buffer.as_mut_slice());
+                }
             }
-
-            self.prev_free_cluster = clu;
-            Some(clu)
+            self.prev_free_cluster = Some(clu);
+            self.prev_free_cluster
         } else {
             None
         }

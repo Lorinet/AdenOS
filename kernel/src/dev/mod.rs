@@ -18,13 +18,16 @@ pub mod framebuffer;
 pub enum Error {
     InitFailure(&'static str),
     DeinitFailure(&'static str),
-    IOFailure(&'static str),
+    InvalidDevice(String),
+    DriverNotFound(String),
+    IOFailure,
+    InvalidData,
+    InvalidSeek,
     OutOfSpace,
     ReadFailure,
     WriteFailure,
-    InvalidData,
-    InvalidDevice(String),
-    DriverNotFound(String),
+    EntryNotFound,
+    EndOfFile,
 }
 
 pub enum DeviceClass<'a> {
@@ -86,13 +89,18 @@ pub trait ReadWrite: Read + Write {}
 impl<T: Read + Write> ReadWrite for T {}
 
 pub trait Seek {
-    fn seek(&mut self, position: u64);
+    fn seek(&mut self, position: u64) -> Result<(), Error>;
     fn offset(&self) -> u64;
-    fn seek_begin(&mut self);
-    fn seek_end(&mut self);
-    fn seek_relative(&mut self, offset: i64) {
-        self.seek(((self.offset() as i64) + offset) as u64);
+    fn seek_begin(&mut self) -> Result<(), Error> {
+        self.seek(0)
     }
+    fn seek_end(&mut self) -> Result<(), Error> {
+        self.seek(self.size())
+    }
+    fn seek_relative(&mut self, offset: i64) -> Result<(), Error> {
+        self.seek(((self.offset() as i64) + offset) as u64)
+    }
+    fn size(&self) -> u64;
 }
 
 pub trait RandomRead: Seek + Read {

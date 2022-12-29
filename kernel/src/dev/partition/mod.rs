@@ -77,16 +77,16 @@ impl Seek for Partition {
         self.sector_offset
     }
 
-    fn seek(&mut self, position: u64) {
+    fn seek(&mut self, position: u64) -> Result<(), Error> {
+        if self.end_sector <= position {
+            return Err(Error::InvalidSeek);
+        }
         self.sector_offset = position;
+        Ok(())
     }
 
-    fn seek_begin(&mut self) {
-        self.sector_offset = 0;
-    }
-
-    fn seek_end(&mut self) {
-        self.sector_offset = self.end_sector - self.start_sector - 1;
+    fn size(&self) -> u64 {
+        self.end_sector - self.start_sector
     }
 }
 

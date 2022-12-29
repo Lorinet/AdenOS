@@ -27,16 +27,16 @@ impl Seek for AHCIDrive {
         self.offset
     }
 
-    fn seek(&mut self, position: u64) {
+    fn seek(&mut self, position: u64) -> Result<(), Error> {
+        if self.end < position {
+            return Err(Error::InvalidSeek);
+        }
         self.offset = position;
+        Ok(())
     }
 
-    fn seek_begin(&mut self) {
-        self.offset = 0;
-    }
-
-    fn seek_end(&mut self) {
-        self.offset = self.end;
+    fn size(&self) -> u64 {
+        self.end + 1
     }
 }
 

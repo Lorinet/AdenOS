@@ -35,7 +35,7 @@ pub struct File {
 
 impl File {
     pub fn open(path: String) -> Result<File, Error> {
-        Err(Error::IOFailure(""))
+        Err(Error::IOFailure)
     }
 }
 
@@ -44,20 +44,24 @@ impl dev::Seek for File {
         self.fs_file.offset()
     }
 
-    fn seek(&mut self, position: u64) {
+    fn seek(&mut self, position: u64) -> Result<(), Error> {
         self.fs_file.seek(position)
     }
 
-    fn seek_begin(&mut self) {
+    fn seek_begin(&mut self) -> Result<(), Error> {
         self.fs_file.seek_begin()
     }
 
-    fn seek_end(&mut self) {
+    fn seek_end(&mut self) -> Result<(), Error> {
         self.fs_file.seek_end()
     }
 
-    fn seek_relative(&mut self, offset: i64) {
+    fn seek_relative(&mut self, offset: i64) -> Result<(), Error> {
         self.fs_file.seek_relative(offset)
+    }
+
+    fn size(&self) -> u64 {
+        self.fs_file.size()
     }
 }
 

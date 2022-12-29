@@ -10,9 +10,11 @@ use core::num;
 
 mod fat;
 mod dir;
+mod file;
 
 use fat::*;
 use dir::*;
+use file::*;
 
 #[derive(Debug)]
 enum FATType {
@@ -189,7 +191,9 @@ impl FATFileSystem {
                 cluster_size,
                 sectors_per_cluster: bpb.sectors_per_cluster as u32,
             };
-            fat_fs.test_fs()?;
+            if let Err(err) = fat_fs.test_fs() {
+                serial_println!("TEST FAILED: {:?}", err);
+            };
 
             Ok(Some(fat_fs))
         } else {
@@ -198,25 +202,8 @@ impl FATFileSystem {
     }
 
     fn test_fs(&mut self) -> Result<(), Error> {
-        //let mut file = self.create_file(String::from("Let's make an extremely long file.weed"), 36)?;
-        //file.seek(0);
-        //file.write("we are getting stoned as fuck here".as_bytes())?;
-        let mut file = self.create_file(String::from("Holy shit how freaking dick.scss"), 100)?;
-        file.seek(0);
-        file.write("hjskldhksalhdjksadjkashdjk".as_bytes())?;
-        
-        //self.allocate_clusters(5);
-        //return Ok(());
-        for ent in self.root_dir_iter()? {
-            serial_println!("{}  {} bytes", ent.name, ent.size);
-            /*serial_println!("Start file {}", &ent.file_name);
-            let mut file = File::new(self, ent.cluster, ent.size as usize)?;
-            let mut buf = vec![0; 512];
-            file.seek(0);
-            file.read(buf.as_mut_slice())?;
-            for b in buf {
-                serial_print!("{}", b as char);
-            }*/
+        for ent in self.dir_iter("folder".to_string())? {
+            serial_println!("{} {} bytes", ent.name, ent.size());
         }
         Ok(())
     }
@@ -240,25 +227,49 @@ impl FATFileSystem {
         }
     }
 
-    fn root_dir_iter(&self) -> Result<impl Iterator<Item = DirectoryEntry> + '_, Error> {
+    fn root_dir_iter(&self) -> Result<DirectoryIterator<'_>, Error> {
         Ok(DirectoryIterator::new(self.root_dir_raw_iter()?))
     }
 
-    fn allocate_clusters(&self, n: usize) -> Result<u32, Error> {
-        let mut iter = ClusterAllocator::new(self, 3, ClusterAllocatorMode::CheckFree).unwrap();
-        let first = iter.prev_free_cluster;
+    fn dir_iter(&self, path: String) -> Result<DirectoryIterator<'_>, Error> {
+        let path_parts = path.split("/").collect::<Vec<&str>>();
+        let mut dir = self.root_dir_iter()?;
+        for part in path_parts {
+            if let Some(ent) = dir.find(|ent| ent.name.trim() == part.trim()) {
+                dir = DirectoryIterator::from_entry(self, ent)?;
+            } else {
+                return Err(Error::EntryNotFound);
+            }
+        }
+        Ok(dir)
+    }
+
+    fn allocate_clusters(&self, last_cluster: Option<u32>, n: usize) -> Result<u32, Error> {
+        let mut iter = ClusterAllocator::new(self, last_cluster, ClusterAllocatorMode::CheckFree)?;
+        let first = if let Some(c) = last_cluster {
+            c
+        } else {
+            if let Some(c) = iter.next() {
+                iter = ClusterAllocator::new(self, Some(c), ClusterAllocatorMode::CheckFree)?;
+                c
+            } else {
+                return Err(Error::OutOfSpace);
+            }
+        };
         if let Err(e) = iter.advance_by(n) {
             return Err(Error::OutOfSpace);
         }
-        let mut iter = ClusterAllocator::new(self, 3, ClusterAllocatorMode::Allocate).unwrap();
+        let mut iter = ClusterAllocator::new(self, Some(first), ClusterAllocatorMode::Allocate).unwrap();
         if let Err(e) = iter.advance_by(n) {
             return Err(Error::OutOfSpace);
         }
+        let last = iter.prev_free_cluster.unwrap();
+        serial_println!("Last in chain: {}", last);
+        iter.finish()?;
         Ok(first)
     }
 
-    fn create_directory_entry(&self, dir: impl Iterator<Item = DirectoryRawEntry>, ent: DirectoryEntry) -> Result<(), Error> {
-
+    fn create_directory_entry(&self, dir: impl Iterator<Item = DirectoryRawEntry>, ent: DirectoryEntry) -> Result<DirectoryEntry, Error> {
         let name_entries_needed = (ent.name.len() + 13) / 13;
         let mut dir_entries = Vec::new();
         dir_entries.push(DirectoryRawEntry::FileDirectoryEntry(ent.metadata));
@@ -301,25 +312,38 @@ impl FATFileSystem {
             return Err(Error::OutOfSpace);
         }
 
+        let (mut short_sec, mut short_off) = (0, 0);
+
         let mut buf = vec![0; self.sector_size as usize];
         for ((sec, off), ent) in slot.into_iter().zip(dir_entries.into_iter()) {
             self.drive.borrow_mut().read_block(sec as u64, buf.as_mut_ptr())?;
             match ent {
-                DirectoryRawEntry::FileDirectoryEntry(ent) => *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.clone(),
+                DirectoryRawEntry::FileDirectoryEntry(ent) => {
+                    *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.clone();
+                    short_sec = sec;
+                    short_off = off;
+                },
                 DirectoryRawEntry::LongFileNameEntry(ent) => *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut LongFileNameEntry).as_mut().unwrap() } = ent.clone(),
                 _ => (),
             }
             self.drive.borrow_mut().write_block(sec as u64, buf.as_mut_slice())?;
         }
 
-        Ok(())
+        let mut updated_ent = ent;
+        updated_ent.short_directory_entry_sector = Some(short_sec);
+        updated_ent.short_directory_entry_offset = Some(short_off);
+
+        Ok(updated_ent)
     }
 
-    fn create_file(&self, name: String, size: u32) -> Result<File, Error> {
-        let cluster = self.allocate_clusters((size as usize + self.cluster_size as usize - 1) / self.cluster_size as usize)?;
-        let dir_ent = DirectoryEntry::new(name, cluster, size);
-        self.create_directory_entry(self.root_dir_raw_iter()?, dir_ent)?;
-        File::new(self, cluster, size as usize)
+    fn in_place_update_directory_entry(&self, ent: &DirectoryEntry) -> Result<(), Error> {
+        let (sec, off) = (ent.short_directory_entry_sector.unwrap(), ent.short_directory_entry_offset.unwrap());
+        serial_println!("Upd dir ent {} {}", sec, off);
+        let mut buf = vec![0; self.sector_size as usize];
+        self.drive.borrow_mut().read_block(sec as u64, buf.as_mut_ptr())?;
+        *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.metadata.clone();
+        self.drive.borrow_mut().write_block(sec as u64, buf.as_mut_slice())?;
+        Ok(())
     }
 }
 
@@ -331,11 +355,40 @@ impl FileSystem for FATFileSystem {
         }.to_vec()).unwrap().trim().to_string()
     }
 
-    fn open_file(&mut self, path: String) -> Result<Box<dyn RandomReadWrite>, Error> {
-        for part in path.split("/") {
-
+    fn create_file(&self, path: String) -> Result<Box<dyn RandomReadWrite + '_>, Error> {
+        let mut path_parts = path.split("/").collect::<Vec<&str>>();
+        let file_name = path_parts.pop().unwrap();
+        let mut dir = self.root_dir_iter()?;
+        for part in path_parts {
+            if let Some(ent) = dir.find(|ent| ent.name == part) {
+                dir = DirectoryIterator::from_entry(self, ent)?;
+            } else {
+                return Err(Error::EntryNotFound);
+            }
         }
-        Err(Error::InvalidData)
+
+        //let cluster = self.allocate_clusters((size as usize + self.cluster_size as usize - 1) / self.cluster_size as usize)?;
+        let dir_ent = DirectoryEntry::new(String::from(file_name), 0, 0);
+        Ok(Box::new(File::new(self, self.create_directory_entry(dir.raw_iter(), dir_ent)?)?))
+    }
+
+    fn open_file(&self, path: String) -> Result<Box<dyn RandomReadWrite + '_>, Error> {
+        let mut path_parts = path.split("/").collect::<Vec<&str>>();
+        let file_name = path_parts.pop().unwrap();
+        let mut dir = self.root_dir_iter()?;
+        for part in path_parts {
+            if let Some(ent) = dir.find(|ent| ent.name.trim() == part.trim()) {
+                dir = DirectoryIterator::from_entry(self, ent)?;
+            } else {
+                return Err(Error::EntryNotFound);
+            }
+        }
+        let file_entry = dir.find(|ent| ent.name == file_name);
+        if let Some(file_entry) = file_entry {
+            Ok(Box::new(File::new(self, file_entry)?))
+        } else {
+            Err(Error::EntryNotFound)
+        }
     }
 }
 

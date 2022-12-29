@@ -173,18 +173,6 @@ impl<'a> DirectoryRawIterator<'a> {
             Some(cluster) => fat_fs.drive.borrow_mut().read_block(fat_fs.cluster_to_sector(cluster) as u64, buffer.as_mut_ptr())?, // if root dir is in cluster
             None => fat_fs.drive.borrow_mut().read_block(fat_fs.root_dir_sector as u64, buffer.as_mut_ptr())?,
         };
-        /*let buffer = match cluster {
-            Some(cluster) => {
-                let mut buffer = vec![0; (fat_fs.sectors_per_cluster * fat_fs.sector_size) as usize];
-                fat_fs.read_cluster(cluster, buffer.as_mut_slice())?;
-                buffer
-            },
-            None => {
-                let mut buffer = vec![0; (fat_fs.root_dir_sectors * fat_fs.sector_size) as usize];
-                fat_fs.drive.borrow_mut().read_blocks(fat_fs.root_dir_sector as u64, fat_fs.root_dir_sectors as u64, buffer.as_mut_ptr())?;
-                buffer
-            },
-        };*/
         Ok(DirectoryRawIterator {
             fat_fs,
             buffer,
@@ -192,6 +180,13 @@ impl<'a> DirectoryRawIterator<'a> {
             sector: 0,
             sector_offset: 0,
         })
+    }
+
+    pub fn last_yield_entry_address(&self) -> (u32, u32) {
+        (match self.cluster {
+            Some(c) => self.fat_fs.cluster_to_sector(c),
+            None => self.fat_fs.root_dir_sector,
+        } + self.sector as u32, self.sector_offset as u32 - 32)
     }
 }
 
@@ -255,8 +250,8 @@ impl<'a> Iterator for DirectoryRawIterator<'a> {
 #[derive(Debug)]
 pub struct DirectoryEntry {
     pub name: String,
-    pub first_cluster: u32,
-    pub size: u32,
+    pub short_directory_entry_sector: Option<u32>,
+    pub short_directory_entry_offset: Option<u32>,
     pub metadata: FileDirectoryEntry,
 }
 
@@ -265,10 +260,31 @@ impl DirectoryEntry {
         let nm_str = name.clone();
         DirectoryEntry {
             name,
-            first_cluster,
-            size,
+            short_directory_entry_sector: None,
+            short_directory_entry_offset: None,
             metadata: FileDirectoryEntry::new(nm_str, first_cluster, size),
         }
+    }
+
+    pub fn size(&self) -> u32 {
+        self.metadata.size
+    }
+
+    pub fn first_cluster(&self) -> u32 {
+        self.metadata.cluster()
+    }
+
+    pub fn update_size(&mut self, size: u32) {
+        let os = self.metadata.size;
+        serial_println!("Old size {} new size {}", os, size);
+        self.metadata.size = size;
+    }
+
+    pub fn update_first_cluster(&mut self, first_cluster: u32) {
+        let hi = (first_cluster >> 16) as u16;
+        let lo = (first_cluster & 0xFFFF) as u16;
+        self.metadata.cluster_high = hi;
+        self.metadata.cluster_low = lo;
     }
 }
 
@@ -284,6 +300,18 @@ impl<'a> DirectoryIterator<'a> {
             name_buffer: String::new(),
         }
     }
+
+    pub fn from_entry(fat_fs: &'a FATFileSystem, entry: DirectoryEntry) -> Result<DirectoryIterator<'a>, Error> {
+        if entry.metadata.attributes.contains(FileAttributes::DIRECTORY) {
+            Ok(DirectoryIterator::new(DirectoryRawIterator::new(fat_fs, Some(entry.first_cluster()))?))
+        } else {
+            Err(Error::EntryNotFound)
+        }
+    }
+
+    pub fn raw_iter(self) -> DirectoryRawIterator<'a> {
+        self.raw_iter
+    }
 }
 
 impl<'a> Iterator for DirectoryIterator<'a> {
@@ -293,7 +321,6 @@ impl<'a> Iterator for DirectoryIterator<'a> {
             let ent = self.raw_iter.next();
             if let Some(ent) = ent {
                 if let DirectoryRawEntry::LongFileNameEntry(ent) = ent {
-                    serial_println!("LFN: {:x?}", ent);
                     let nm0 = ent.name_0;
                     let nm1 = ent.name_1;
                     let nm2 = ent.name_2;
@@ -301,19 +328,19 @@ impl<'a> Iterator for DirectoryIterator<'a> {
                     self.name_buffer.insert_str(0, String::from_utf16(&nm1).unwrap().replace("\u{FFFF}", "").as_str());
                     self.name_buffer.insert_str(0, String::from_utf16(&nm0).unwrap().replace("\u{FFFF}", "").as_str());
                 } else if let DirectoryRawEntry::FileDirectoryEntry(ent) = ent {
-                    serial_println!("SFN: {:x?}", ent);
+                    let (esec, eoff) = self.raw_iter.last_yield_entry_address();
                     let dir_ent = DirectoryEntry {
                         name: if self.name_buffer.len() > 0 {
-                            self.name_buffer.trim().to_string()
+                            self.name_buffer.trim().replace("\0", "")
                         } else {
-                            let mut nm = String::from_utf8(ent.file_name.to_vec()).unwrap().trim().to_string();
+                            let mut nm = String::from_utf8(ent.file_name.to_vec()).unwrap().trim().replace("\0", "");
                             if nm.len() > 3 {
                                 nm.insert(nm.len() - 3, '.');
                             }
                             nm
                         },
-                        first_cluster: ent.cluster(),
-                        size: ent.size,
+                        short_directory_entry_sector: Some(esec),
+                        short_directory_entry_offset: Some(eoff),
                         metadata: ent,
                     };
                     self.name_buffer = String::new();
@@ -325,161 +352,5 @@ impl<'a> Iterator for DirectoryIterator<'a> {
                 return None;
             }
         }
-    }
-}
-
-pub struct File<'a> {
-    fat_fs: &'a FATFileSystem,
-    sec_iter: FATSectorIterator<'a>,
-    start_cluster: u32,
-    sector_offset: u32,
-    size: usize,
-}
-
-impl<'a> Debug for File<'a> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("File")
-        .field("sec_iter", &format!("{:?}", self.sec_iter))
-        .field("start_cluster", &self.start_cluster)
-        .field("sector_offset", &self.sector_offset)
-        .field("size", &self.size)
-        .finish()
-    }
-}
-
-impl<'a> File<'a> {
-    pub fn new(fat_fs: &'a FATFileSystem, start_cluster: u32, size: usize) -> Result<File, Error> {
-        let sec_iter = FATSectorIterator::new(fat_fs.fat_iter(start_cluster)?);
-        Ok(File {
-            fat_fs,
-            sec_iter,
-            start_cluster,
-            sector_offset: 0,
-            size,
-        })
-    }
-}
-
-impl<'a> Seek for File<'a> {
-    fn seek(&mut self, position: u64) {
-        let sector_index = position as u32 / self.fat_fs.sector_size;
-        let sector_offset = position as u32 % self.fat_fs.sector_size;
-        if self.sec_iter.sector_index_from_start < sector_index {
-            self.sec_iter.advance_by((sector_index - self.sec_iter.sector_index_from_start) as usize);
-        } else if self.sec_iter.sector_index_from_start > sector_index {
-            self.sec_iter = FATSectorIterator::new(self.fat_fs.fat_iter(self.start_cluster).unwrap());
-            self.sec_iter.advance_by(sector_index as usize);
-        }
-        self.sector_offset = sector_offset;
-    }
-
-    fn offset(&self) -> u64 {
-        (self.sec_iter.sector_index_from_start * self.fat_fs.sector_size) as u64
-    }
-
-    fn seek_begin(&mut self) {
-        self.seek(0)
-    }
-
-    fn seek_end(&mut self) {
-        self.seek(self.size as u64 - 1)
-    }
-}
-
-impl<'a> Read for File<'a> {
-    fn read_one(&mut self) -> Result<u8, Error> {
-        let mut buf = vec![0; self.fat_fs.sector_size as usize];
-        self.fat_fs.drive.borrow_mut().read_block(self.sec_iter.current_sector() as u64, buf.as_mut_ptr())?;
-        let rv = buf[self.sector_offset as usize];
-        self.sector_offset += 1;
-        if self.sector_offset >= self.fat_fs.sector_size {
-            self.sector_offset = 0;
-            self.sec_iter.advance_by(1);
-        }
-        Ok(rv)
-    }
-
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        let sectors_to_read = (buf.len() as u32 + self.sector_offset + self.fat_fs.sector_size - 1) / self.fat_fs.sector_size;
-        let mut read_buf = vec![0; self.fat_fs.sector_size as usize];
-        let mut left_buf_off = self.fat_fs.sector_size as usize - self.sector_offset as usize;
-        let mut right_read_buf_off_tiny = self.fat_fs.sector_size as usize;
-        if left_buf_off > buf.len() {
-            left_buf_off = buf.len();
-            right_read_buf_off_tiny = self.sector_offset as usize + left_buf_off;
-        }
-        let right_buf_off = left_buf_off + (((buf.len() - left_buf_off) / self.fat_fs.sector_size as usize) * self.fat_fs.sector_size as usize);
-        let left_read_buf_off = self.sector_offset as usize;
-        let right_read_buf_off = (buf.len() + left_read_buf_off) % self.fat_fs.sector_size as usize;
-        for i in 0..sectors_to_read {
-            let sec = self.sec_iter.current_sector();
-            self.fat_fs.drive.borrow_mut().read_block(sec as u64, read_buf.as_mut_ptr())?;
-            if i < sectors_to_read - 1 {
-                if let None = self.sec_iter.next() {
-                    break;
-                }
-            }
-            if i == 0 {
-                buf[..left_buf_off].copy_from_slice(&read_buf[left_read_buf_off..right_read_buf_off_tiny]);
-            } else if i == sectors_to_read - 1 {
-                buf[right_buf_off..].copy_from_slice(&read_buf[..right_read_buf_off]);
-            } else {
-                let idx = left_buf_off + ((i - 1) as usize * self.fat_fs.sector_size as usize);
-                buf[idx..idx + self.fat_fs.sector_size as usize].copy_from_slice(&read_buf);
-            }
-        }
-        self.sector_offset = right_read_buf_off as u32;
-        Ok(buf.len())
-    }
-}
-
-impl<'a> Write for File<'a> {
-    fn write_one(&mut self, val: u8) -> Result<(), Error> {
-        let mut buf = vec![0; self.fat_fs.sector_size as usize];
-        self.fat_fs.drive.borrow_mut().read_block(self.sec_iter.current_sector() as u64, buf.as_mut_ptr())?;
-        buf[self.sector_offset as usize] = val;
-        self.fat_fs.drive.borrow_mut().write_block(self.sec_iter.current_sector() as u64, buf.as_mut_slice())?;
-        self.sector_offset += 1;
-        if self.sector_offset >= self.fat_fs.sector_size {
-            self.sector_offset = 0;
-            self.sec_iter.advance_by(1);
-        }
-
-        Ok(())
-    }
-
-    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        let sectors_to_write = (buf.len() as u32 + self.sector_offset + self.fat_fs.sector_size - 1) / self.fat_fs.sector_size;
-        let mut write_buf = vec![0; self.fat_fs.sector_size as usize];
-        let mut left_buf_off = self.fat_fs.sector_size as usize - self.sector_offset as usize;
-        let mut right_write_buf_off_tiny = self.fat_fs.sector_size as usize;
-        if left_buf_off > buf.len() {
-            left_buf_off = buf.len();
-            right_write_buf_off_tiny = self.sector_offset as usize + left_buf_off;
-        }
-        let right_buf_off = left_buf_off + (((buf.len() - left_buf_off) / self.fat_fs.sector_size as usize) * self.fat_fs.sector_size as usize);
-        let left_write_buf_off = self.sector_offset as usize;
-        let right_write_buf_off = (buf.len() + left_write_buf_off) % self.fat_fs.sector_size as usize;
-        for i in 0..sectors_to_write {
-            let sec = self.sec_iter.current_sector();
-            if i < sectors_to_write - 1 {
-                if let None = self.sec_iter.next() {
-                    break;
-                }
-            }
-            if i == 0 {
-                self.fat_fs.drive.borrow_mut().read_block(sec as u64, write_buf.as_mut_ptr())?;
-                write_buf[left_write_buf_off..right_write_buf_off_tiny].copy_from_slice(&buf[..left_buf_off]);
-            } else if i == sectors_to_write - 1 {
-                self.fat_fs.drive.borrow_mut().read_block(sec as u64, write_buf.as_mut_ptr())?;
-                write_buf[..right_write_buf_off].copy_from_slice(&buf[right_buf_off..]);
-            } else {
-                let idx = left_buf_off + ((i - 1) as usize * self.fat_fs.sector_size as usize);
-                write_buf.copy_from_slice(&buf[idx..idx + self.fat_fs.sector_size as usize]);
-            }
-            self.fat_fs.drive.borrow_mut().write_block(sec as u64, write_buf.as_mut_slice())?;
-        }
-        self.sector_offset = right_write_buf_off as u32;
-        Ok(buf.len())
     }
 }

@@ -6,5 +6,6 @@ pub mod fat;
 
 pub trait FileSystem: Resource {
     fn volume_label(&self) -> String;
-    fn open_file(&mut self, path: String) -> Result<Box<dyn RandomReadWrite>, Error>;
+    fn create_file(&self, path: String) -> Result<Box<dyn RandomReadWrite + '_>, Error>;
+    fn open_file(&self, path: String) -> Result<Box<dyn RandomReadWrite + '_>, Error>;
 }
