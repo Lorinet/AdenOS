@@ -29,8 +29,8 @@ pub trait Resource {
 }
 
 pub struct Handle {
-    id: u32,
-    owner: u32,
+    pub id: u32,
+    pub owner: u32,
     resource: &'static mut Box<dyn Resource>,
 }
 

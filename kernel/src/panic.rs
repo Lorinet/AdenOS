@@ -15,7 +15,7 @@ pub fn panic(info: &PanicInfo) -> ! {
     //kernel_console::clear_screen();
     print!("\n");
     println!(" \\|/ ____ \\|/");
-    println!(" \"@'/ xx \\`@\"  AdenOS");
+    println!(" \"@'/ xx \\`@\"   AdenOS");
     println!(" /_| \\__/ |_\\   Kernel Panic");
     println!("    \\__U_/");
     print!("\n");

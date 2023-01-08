@@ -1,8 +1,9 @@
-use crate::*;
+use crate::{*, exec::{ExecutableInfo, SectionType}, dev::*};
 use core::arch::asm;
 use dev::hal::{cpu, pic, mem::*, interrupts};
 use exec::scheduler;
 use x86_64::structures::paging::PageTableFlags;
+use core::slice;
 
 use super::mem::page_mapper::addr_to_page_table;
 
@@ -116,6 +117,58 @@ impl Task {
             enable_page_table(addr_to_page_table(KERNEL_PAGE_TABLE));
         }
         page_mapper::unmap_userspace_page_tables(self.page_table);
+    }
+
+    pub unsafe fn exec_new(application: ExecutableInfo) -> Result<(), Error> {
+        asm!("cli");
+        let user_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
+        let user_page_table_phys = (user_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
+        let flags = Some(PageTableFlags::WRITABLE | PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE);
+
+        if let Some(file) = namespace::get_file_handle(application.file_handle) {
+            for section in application.sections { // load all sections and prepare memory
+                if section.section_type != SectionType::Load {
+                    return Err(Error::InvalidExecutable); // so far we have no dynamic linking and interpreter support
+                }
+
+                let virt_base = section.virt_address as u64;
+                let mut bytes_left = section.size_in_file;
+                file.seek(section.file_offset)?;
+                for i in (0..(section.size_in_memory + 0xFFF) / 0x1000).step_by(0x1000) { // map all pages required and load data
+                    let frame = FRAME_ALLOCATOR.allocate_frame();
+                    page_mapper::map_addr(user_page_table, virt_base + i as u64, frame, flags);
+                    serial_println!("Mapping frame {:x} to page {:x}", frame, virt_base + i as u64);
+                    let frame_buf = (PHYSICAL_MEMORY_OFFSET + frame) as *mut u8;
+                    for j in 0..0x1000 { // clear frame with 0s
+                        *frame_buf.offset(j) = 0;
+                    }
+                    let slice_len = if bytes_left >= 0x1000 {
+                        0x1000
+                    } else {
+                        bytes_left
+                    };
+                    file.read(slice::from_raw_parts_mut(frame_buf, slice_len))?;
+                    if bytes_left >= 0x1000 {
+                        bytes_left -= 0x1000;
+                    } else {
+                        bytes_left = 0;
+                    }
+                }
+            }
+
+            // prepare stack
+            let user_stack_virt_base = 0x60000000;
+            for i in 0..8 {
+                let stack_frame = FRAME_ALLOCATOR.allocate_frame();
+                page_mapper::map_addr(user_page_table, user_stack_virt_base + (i * 0x1000), stack_frame, flags);
+            }
+
+            scheduler::add_process(Task::new(application.virt_entry_point as u64, user_stack_virt_base + 0x8000, user_page_table_phys, true));
+            asm!("sti");
+            Ok(())
+        } else {
+            return Err(Error::EntryNotFound);
+        }
     }
 
     pub unsafe fn exec(application: unsafe extern "C" fn()) {

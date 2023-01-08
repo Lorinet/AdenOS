@@ -18,7 +18,7 @@ pub extern "C" fn system_call(syscall: usize, arg0: usize, arg1: usize, arg2: us
 }
 
 fn _write(_handle: usize, _buffer: *const u8, _count: usize) -> usize {
-    println!("ADDR: {}", _buffer as usize);
+    println!("ADDR: {:x}", _handle);
     //println!("{}", unsafe { str::from_utf8(slice::from_raw_parts(_buffer, _count)).unwrap() });
     //unsafe { kernel_console::KERNEL_CONSOLE.as_mut().unwrap().write(slice::from_raw_parts(buffer, count)); }
     0

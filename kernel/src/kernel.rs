@@ -1,4 +1,5 @@
 use crate::*;
+use crate::dev::hal::mem::page_mapper;
 use crate::dev::partition::PartitionTable;
 use crate::dev::storage::AHCIDrive;
 use crate::dev::*;
@@ -19,13 +20,15 @@ pub fn run_kernel() -> ! {
     
     kernel_console::set_color(ConsoleColor::White,  ConsoleColor::BrightBlack);
     kernel_console::clear_screen();
-    init_system();
+    if let Err(err) = init_system() {
+        panic!("{:?}", err);
+    }
     loop {
         cpu::halt();
     }
 }
 
-fn init_system() {
+fn init_system() -> Result<(), Error> {
     early_print!("Linfinity Technologies AdenOS [Version {}]\n", sysinfo::ADEN_VERSION);
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
@@ -46,23 +49,14 @@ fn init_system() {
             println!("{}", dev.resource_path_string());
         }
     }
-    let drive = namespace::subtree(String::from("/Devices/Storage/AHCI/Drive0"));
-    for (name, part) in drive.unwrap().iter_mut_bf() {
-        //println!("{}", name);
-        println!("{:#x?}", namespace::cast_resource::<dev::partition::Partition>(part.unwrap()));
-    }
 
-    if let Ok(file) = file::File::open(String::from("/Files/adenfs/hello.txt")) {
-        let mut buf = [0; 15];
-        if let ResourceType::File(file) = file.unwrap().unwrap() {
-            file.read(&mut buf).unwrap();
-            for b in buf {
-                print!("{}", b as char);
-            }
-        }
-    } else if let Err(err) = file::File::open(String::from("Files/adenfs/hello.txt")) {
-        print!("ERROR: {:?}", err);
+    serial_println!("{:?}", page_mapper::translate_addr(0x4000000));
+    let file = file::File::open(String::from("/Files/adenfs/main.elf"))?;
+    let exe_inf = exec::elf::ELFLoader::load_executable(file.id)?;
+    unsafe {
+        task::Task::exec_new(exe_inf.clone())?;
     }
+    serial_println!("{:#x?}", exe_inf);
 
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();
@@ -71,6 +65,7 @@ fn init_system() {
     scheduler::kexec(kernel_executor::run);
     cpu::enable_scheduler();
     kernel_executor::run();
+    Ok(())
 }
 
 fn test_input_keyboard(key: keyboard::Key) {

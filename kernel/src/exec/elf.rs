@@ -61,6 +61,7 @@ struct ELFHeader {
 struct ELF32HeaderExt {
     entry_point: u32,
     program_header_table_offset: u32,
+    section_header_table_offset: u32,
     flags: u32,
     header_size: u16,
     program_header_entry_size: u16,
@@ -75,6 +76,7 @@ struct ELF32HeaderExt {
 struct ELF64HeaderExt {
     entry_point: u64,
     program_header_table_offset: u64,
+    section_header_table_offset: u64,
     flags: u32,
     header_size: u16,
     program_header_entry_size: u16,
@@ -133,12 +135,13 @@ pub struct ELFLoader {}
 impl ELFLoader {
     pub fn load_executable(handle: u32) -> Result<ExecutableInfo, Error> {
         if let Some(file) = namespace::get_file_handle(handle) {
-            let mut buf = vec![0; 24];
+            let mut buf = vec![0; 64];
             file.seek(0)?;
             file.read(&mut buf)?;
             let head0 = unsafe { (buf.as_ptr() as *const ELFHeader).as_ref().unwrap() };
+            serial_println!("{:#x?}", head0);
             
-            if head0.signature != 0x7F454C46 { // ELF signature
+            if head0.signature != 0x464C457F { // ELF signature
                 return Err(Error::InvalidExecutable);
             }
 
@@ -147,6 +150,7 @@ impl ELFLoader {
 
             if let ELFBitness::ELF64 = head0.bitness {
                 let head1 = unsafe { (head0.extension.as_ptr() as *const ELF64HeaderExt).as_ref().unwrap() };
+                serial_println!("{:#?}", head1);
                 entry_point = head1.entry_point as usize;
                 for i in 0..head1.program_header_entry_count {
                     let mut buf = vec![0; head1.program_header_entry_size as usize];

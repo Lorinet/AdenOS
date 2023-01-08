@@ -7,24 +7,27 @@ use self::elf::ELFLoader;
 pub mod elf;
 pub mod scheduler;
 
-enum SectionType {
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum SectionType {
     Load,
     Dynamic,
     Interpreter,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Section {
-    section_type: SectionType,
-    file_offset: u64,
-    size_in_file: usize,
-    virt_address: usize,
-    size_in_memory: usize,
+    pub section_type: SectionType,
+    pub file_offset: u64,
+    pub size_in_file: usize,
+    pub virt_address: usize,
+    pub size_in_memory: usize,
 }
 
+#[derive(Clone, Debug)]
 pub struct ExecutableInfo {
-    file_handle: u32,
-    virt_entry_point: usize,
-    sections: Vec<Section>,
+    pub file_handle: u32,
+    pub virt_entry_point: usize,
+    pub sections: Vec<Section>,
 }
 
 pub struct ExecutableLoader {}
