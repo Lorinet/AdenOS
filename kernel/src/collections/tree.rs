@@ -1,7 +1,7 @@
 use core::fmt::Display;
 
 use alloc::{vec, vec::Vec};
-use crate::*;
+use crate::{*, dev::Error};
 pub struct Tree<K, V>
 where
     K: PartialEq + Clone + Display,
@@ -58,12 +58,39 @@ where
         }
     }
 
+    pub fn remove_node_by_path(&mut self, path: Vec<K>) -> Result<(), Error> {
+        let mut subtree = Some(unsafe { (self as *const _ as usize as *mut Tree<K, V>).as_mut().unwrap() });
+        for node in &path[..path.len() - 1] {
+            if let Some(subtree) = &mut subtree {
+                if let None = subtree.get_subtree(node.clone()) {
+                    subtree.insert_subtree(node.clone(), None);
+                }
+            }
+            subtree = subtree.unwrap().get_subtree(node.clone());
+        }
+        if let Some(subtree) = subtree {
+            subtree.remove_subtree(path.iter().last().cloned().unwrap())
+        } else {
+            Err(Error::EntryNotFound)
+        }
+    }
+
     pub fn value(&mut self) -> Option<&mut V> {
         self.value.as_mut()
     }
 
     pub fn insert_subtree(&mut self, key: K, value: Option<V>) {
         self.subtrees.push(Tree::new(key.clone(), value));
+    }
+
+    pub fn remove_subtree(&mut self, key: K) -> Result<(), Error> {
+        for i in 0..self.subtrees.len() {
+            if self.subtrees[i].key == key {
+                self.subtrees.remove(i);
+                return Ok(())
+            }
+        }
+        Err(Error::EntryNotFound)
     }
 
     pub fn iter_mut_bf(&mut self) -> IterMutBF<K, V> {

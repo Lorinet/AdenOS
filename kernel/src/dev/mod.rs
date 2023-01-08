@@ -23,11 +23,15 @@ pub enum Error {
     IOFailure,
     InvalidData,
     InvalidSeek,
+    InvalidHandle,
     OutOfSpace,
     ReadFailure,
     WriteFailure,
     EntryNotFound,
     EndOfFile,
+    Permissions,
+    AlreadyOpen,
+    InvalidExecutable,
 }
 
 pub enum DeviceClass<'a> {

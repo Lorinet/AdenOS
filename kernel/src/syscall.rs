@@ -1,4 +1,4 @@
-use crate::{*, task::scheduler};
+use crate::{*, exec::scheduler};
 use core::{str, slice};
 use infinity::os::*;
 

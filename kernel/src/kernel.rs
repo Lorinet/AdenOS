@@ -1,11 +1,10 @@
 use crate::*;
 use crate::dev::partition::PartitionTable;
 use crate::dev::storage::AHCIDrive;
-use crate::dev::{RandomRead, filesystem};
+use crate::dev::*;
 use crate::namespace::ResourceType;
 use alloc::vec;
 use console::ConsoleColor;
-use userspace::*;
 use namespace;
 use dev::input::keyboard;
 use dev::StaticDevice;
@@ -13,7 +12,7 @@ use sysinfo;
 use dev;
 use dev::hal::*;
 use async_task::*;
-use crate::task::scheduler;
+use crate::exec::scheduler;
 use alloc::string::String;
 
 pub fn run_kernel() -> ! {
@@ -52,16 +51,23 @@ fn init_system() {
         //println!("{}", name);
         println!("{:#x?}", namespace::cast_resource::<dev::partition::Partition>(part.unwrap()));
     }
+
+    if let Ok(file) = file::File::open(String::from("/Files/adenfs/hello.txt")) {
+        let mut buf = [0; 15];
+        if let ResourceType::File(file) = file.unwrap().unwrap() {
+            file.read(&mut buf).unwrap();
+            for b in buf {
+                print!("{}", b as char);
+            }
+        }
+    } else if let Err(err) = file::File::open(String::from("Files/adenfs/hello.txt")) {
+        print!("ERROR: {:?}", err);
+    }
+
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
-    scheduler::exec(userspace_app_1);
-    scheduler::exec(userspace_app_1);
-    scheduler::exec(userspace_app_1);
-    scheduler::exec(userspace_app_1);
-    scheduler::exec(userspace_app_1);
-    scheduler::exec(userspace_app_1);
     scheduler::kexec(kernel_executor::run);
     cpu::enable_scheduler();
     kernel_executor::run();
@@ -70,23 +76,5 @@ fn init_system() {
 fn test_input_keyboard(key: keyboard::Key) {
     if let keyboard::Key::Unicode(ch) = key {
         print!("{}", ch);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
-        scheduler::exec(userspace_app_1);
     }
 }

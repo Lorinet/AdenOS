@@ -1,3 +1,4 @@
+use crate::file::{File, FilePermissions};
 use crate::namespace::ResourceType;
 
 use super::*;
@@ -191,21 +192,11 @@ impl FATFileSystem {
                 cluster_size,
                 sectors_per_cluster: bpb.sectors_per_cluster as u32,
             };
-            if let Err(err) = fat_fs.test_fs() {
-                serial_println!("TEST FAILED: {:?}", err);
-            };
 
             Ok(Some(fat_fs))
         } else {
             Err(Error::InvalidDevice(drive_path))
         }
-    }
-
-    fn test_fs(&mut self) -> Result<(), Error> {
-        for ent in self.dir_iter("folder".to_string())? {
-            serial_println!("{} {} bytes", ent.name, ent.size());
-        }
-        Ok(())
     }
 
     fn cluster_to_sector(&self, cluster: u32) -> u32 {
@@ -232,7 +223,7 @@ impl FATFileSystem {
     }
 
     fn dir_iter(&self, path: String) -> Result<DirectoryIterator<'_>, Error> {
-        let path_parts = path.split("/").collect::<Vec<&str>>();
+        let path_parts = namespace::split_resource_path(path.clone());
         let mut dir = self.root_dir_iter()?;
         for part in path_parts {
             if let Some(ent) = dir.find(|ent| ent.name.trim() == part.trim()) {
@@ -355,8 +346,8 @@ impl FileSystem for FATFileSystem {
         }.to_vec()).unwrap().trim().to_string()
     }
 
-    fn create_file(&self, path: String) -> Result<Box<dyn RandomReadWrite + '_>, Error> {
-        let mut path_parts = path.split("/").collect::<Vec<&str>>();
+    fn create_file(&self, path: String) -> Result<File, Error> {
+        let mut path_parts = namespace::split_resource_path(path.clone());
         let file_name = path_parts.pop().unwrap();
         let mut dir = self.root_dir_iter()?;
         for part in path_parts {
@@ -369,11 +360,11 @@ impl FileSystem for FATFileSystem {
 
         //let cluster = self.allocate_clusters((size as usize + self.cluster_size as usize - 1) / self.cluster_size as usize)?;
         let dir_ent = DirectoryEntry::new(String::from(file_name), 0, 0);
-        Ok(Box::new(File::new(self, self.create_directory_entry(dir.raw_iter(), dir_ent)?)?))
+        Ok(File::new(self.resource_path_string() + "/" + path.as_str(), unsafe { (self as *const FATFileSystem).as_ref().unwrap() }, Box::new(FATFile::new(self, self.create_directory_entry(dir.raw_iter(), dir_ent)?)?), FilePermissions::READ | FilePermissions::WRITE))
     }
 
-    fn open_file(&self, path: String) -> Result<Box<dyn RandomReadWrite + '_>, Error> {
-        let mut path_parts = path.split("/").collect::<Vec<&str>>();
+    fn open_file(&self, path: String) -> Result<File, Error> {
+        let mut path_parts = namespace::split_resource_path(path.clone());
         let file_name = path_parts.pop().unwrap();
         let mut dir = self.root_dir_iter()?;
         for part in path_parts {
@@ -385,7 +376,11 @@ impl FileSystem for FATFileSystem {
         }
         let file_entry = dir.find(|ent| ent.name == file_name);
         if let Some(file_entry) = file_entry {
-            Ok(Box::new(File::new(self, file_entry)?))
+            let mut perms = FilePermissions::READ;
+            if !file_entry.metadata.attributes.contains(FileAttributes::READ_ONLY) {
+                perms |= FilePermissions::WRITE;
+            }
+            Ok(File::new(self.resource_path_string() + "/" + path.as_str(), unsafe { (self as *const FATFileSystem).as_ref().unwrap() }, Box::new(FATFile::new(self, file_entry)?), perms))
         } else {
             Err(Error::EntryNotFound)
         }

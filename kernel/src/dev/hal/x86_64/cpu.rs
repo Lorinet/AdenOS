@@ -3,7 +3,7 @@ use dev::hal::{interrupts, pic, task};
 use x86_64::registers;
 use x86_64::structures::gdt::SegmentSelector;
 use x86_64::structures::idt::InterruptStackFrame;
-use crate::task::scheduler;
+use crate::exec::scheduler;
 use x86_64;
 use x86_64::PrivilegeLevel;
 use x86_64::VirtAddr;

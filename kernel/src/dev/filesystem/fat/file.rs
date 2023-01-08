@@ -2,15 +2,15 @@ use crate::*;
 use super::*;
 use alloc::{vec, format};
 
-pub struct File<'a> {
-    fat_fs: &'a FATFileSystem,
+pub struct FATFile {
+    fat_fs: &'static FATFileSystem,
     directory_entry: DirectoryEntry,
-    sec_iter: FATSectorIterator<'a>,
+    sec_iter: FATSectorIterator<'static>,
     sector_offset: u32,
     position: u64,
 }
 
-impl<'a> Debug for File<'a> {
+impl Debug for FATFile {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("File")
         .field("sec_iter", &format!("{:?}", self.sec_iter))
@@ -22,11 +22,11 @@ impl<'a> Debug for File<'a> {
 }
 
 
-impl<'a> File<'a> {
-    pub fn new(fat_fs: &'a FATFileSystem, directory_entry: DirectoryEntry) -> Result<File, Error> {
-        let sec_iter = FATSectorIterator::new(fat_fs.fat_iter(directory_entry.first_cluster())?);
-        Ok(File {
-            fat_fs,
+impl FATFile {
+    pub fn new(fat_fs: *const FATFileSystem, directory_entry: DirectoryEntry) -> Result<FATFile, Error> {
+        let sec_iter = unsafe { FATSectorIterator::new((*fat_fs).fat_iter(directory_entry.first_cluster())?) };
+        Ok(FATFile {
+            fat_fs: unsafe { fat_fs.as_ref().unwrap() },
             sec_iter,
             directory_entry,
             sector_offset: 0,
@@ -118,7 +118,7 @@ impl<'a> File<'a> {
     }
 }
 
-impl<'a> Seek for File<'a> {
+impl Seek for FATFile {
     fn seek(&mut self, position: u64) -> Result<(), Error> {
         self.position = position;
         Ok(())
@@ -133,21 +133,11 @@ impl<'a> Seek for File<'a> {
     }
 }
 
-impl<'a> Read for File<'a> {
+impl Read for FATFile {
     fn read_one(&mut self) -> Result<u8, Error> {
-        self.calculate_actual_position(false)?;
-        let mut buf = vec![0; self.fat_fs.sector_size as usize];
-        self.fat_fs.drive.borrow_mut().read_block(self.sec_iter.current_sector() as u64, buf.as_mut_ptr())?;
-        let rv = buf[self.sector_offset as usize];
-        self.sector_offset += 1;
-        if self.sector_offset >= self.fat_fs.sector_size {
-            if let Ok(()) = self.sec_iter.advance_by(1) {
-                self.sector_offset = 0;
-            } else {
-                self.sector_offset -= 1;
-            }
-        }
-        Ok(rv)
+        let mut buf = [0; 1];
+        self.read(&mut buf)?;
+        Ok(buf[0])
     }
 
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
@@ -193,34 +183,10 @@ impl<'a> Read for File<'a> {
     }
 }
 
-impl<'a> Write for File<'a> {
+impl Write for FATFile {
     fn write_one(&mut self, val: u8) -> Result<(), Error> {
-        self.calculate_actual_position(true)?;
-        let mut buf = vec![0; self.fat_fs.sector_size as usize];
-        if self.sec_iter.cluster_iter.cluster == 0 { // if file empty
-            let clu = self.fat_fs.allocate_clusters(None, 0)?;
-            self.sec_iter.cluster_iter.seek(clu)?;
-            self.directory_entry.update_first_cluster(clu);
-            self.directory_entry.update_size(self.directory_entry.size() + 1);
-            self.fat_fs.in_place_update_directory_entry(&self.directory_entry)?;
-        }
-        self.fat_fs.drive.borrow_mut().read_block(self.sec_iter.current_sector() as u64, buf.as_mut_ptr())?;
-        buf[self.sector_offset as usize] = val;
-        self.fat_fs.drive.borrow_mut().write_block(self.sec_iter.current_sector() as u64, buf.as_mut_slice())?;
-        self.sector_offset += 1;
-        if self.offset() >= self.size() {
-            self.directory_entry.update_size(self.directory_entry.size() + 1);
-            self.fat_fs.in_place_update_directory_entry(&self.directory_entry)?;
-        }
-        if self.sector_offset >= self.fat_fs.sector_size {
-            self.sector_offset = 0;
-            if let Err(_) = self.sec_iter.advance_by(1) {
-                self.fat_fs.allocate_clusters(Some(self.sec_iter.cluster_iter.cluster), 1)?;
-                if let Err(_) = self.sec_iter.advance_by(1) {
-                    return Err(Error::IOFailure);
-                }
-            }
-        }
+        let buf = [val];
+        self.write(&buf)?;
         Ok(())
     }
 

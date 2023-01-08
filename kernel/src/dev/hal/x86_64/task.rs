@@ -1,7 +1,7 @@
 use crate::*;
 use core::arch::asm;
 use dev::hal::{cpu, pic, mem::*, interrupts};
-use task::scheduler;
+use exec::scheduler;
 use x86_64::structures::paging::PageTableFlags;
 
 use super::mem::page_mapper::addr_to_page_table;
