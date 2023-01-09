@@ -4,6 +4,11 @@
 .globl exit
 _start:
 	# Set up end of the stack frame linked list.
+	mov rbp, 0
+	mov rdi, [rsp]
+	
+
+
     mov rbp, 0
     push rbp # rip=0
     push rbp # rbp=0
@@ -14,10 +19,10 @@ _start:
     push rdi
 
 	# Prepare signals, memory allocation, stdio and such.
-	call initialize_standard_library
+	# call initialize_standard_library
 
 	# Run the global constructors.
-	call _init
+	# call _init
 
 	# Restore argc and argv.
     pop rdi
