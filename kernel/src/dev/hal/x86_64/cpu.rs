@@ -156,11 +156,11 @@ unsafe extern "C" fn system_call_trap_handler() {
     push rbp
     push rbx
     mov r9, rsp  // save user stack
-    push r8  // syscall parameters
-    push rdx
-    push rsi
-    push rdi
-    push rax
+    push r8      // arg3
+    push rdx     // arg2
+    push rsi     // arg1
+    push rdi     // arg0
+    push rax     // syscall
     push r9 // user stack is here
     call allocate_syscall_stack
     pop r9  // user stack is here
