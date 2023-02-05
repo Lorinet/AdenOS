@@ -25,28 +25,28 @@ pub fn init() {
     let mut slave_cmd: port::Port = port::Port::new(PIC_SLAVE_PORT);
     let mut slave_data: port::Port = port::Port::new(PIC_SLAVE_PORT + 1);
     let mut wait_port: port::Port = port::Port::new(WAIT_PORT);
-    let mut wait = || wait_port.write_one(0).unwrap();
-    let a1 = master_data.read_one().unwrap();
-    let a2 = slave_data.read_one().unwrap();
+    let mut wait = || write_one!(wait_port, 0).unwrap();
+    let a1 = read_one!(master_data).unwrap();
+    let a2 = read_one!(slave_data).unwrap();
     cpu::atomic_no_interrupts(|| {
-        master_cmd.write_one(ICW1_INIT + ICW1_ICW4).unwrap();
+        write_one!(master_cmd, ICW1_INIT + ICW1_ICW4).unwrap();
         wait();
-        slave_cmd.write_one(ICW1_INIT + ICW1_ICW4).unwrap();
+        write_one!(slave_cmd, ICW1_INIT + ICW1_ICW4).unwrap();
         wait();
-        master_data.write_one(PIC_MASTER_OFFSET).unwrap();
+        write_one!(master_data, PIC_MASTER_OFFSET).unwrap();
         wait();
-        slave_data.write_one(PIC_SLAVE_OFFSET).unwrap();
+        write_one!(slave_data, PIC_SLAVE_OFFSET).unwrap();
         wait();
-        master_data.write_one(4).unwrap();
+        write_one!(master_data, 4).unwrap();
         wait();
-        slave_data.write_one(2).unwrap();
+        write_one!(slave_data, 2).unwrap();
         wait();
-        master_data.write_one(ICW4_8086).unwrap();
+        write_one!(master_data, ICW4_8086).unwrap();
         wait();
-        slave_data.write_one(ICW4_8086).unwrap();
+        write_one!(slave_data, ICW4_8086).unwrap();
         wait();
-        master_data.write_one(a1).unwrap();
-        slave_data.write_one(a2).unwrap();
+        write_one!(master_data, a1).unwrap();
+        write_one!(slave_data, a2).unwrap();
     });
     // mask everything except timer and keyboard
     for _i in 2..16 {
@@ -56,9 +56,9 @@ pub fn init() {
     let mut pit_data: port::Port = port::Port::new(0x40);
     let divisor: u16 = (1193180 / 100) as u16;
     cpu::atomic_no_interrupts(|| {
-        pit_cmd.write_one(0x36).unwrap();
-        pit_data.write_one((divisor & 0xFF) as u8).unwrap();
-        pit_data.write_one(((divisor >> 8) & 0xFF) as u8).unwrap();
+        write_one!(pit_cmd, 0x36).unwrap();
+        write_one!(pit_data, (divisor & 0xFF) as u8).unwrap();
+        write_one!(pit_data, ((divisor >> 8) & 0xFF) as u8).unwrap();
     });
 }
 
@@ -71,8 +71,8 @@ pub fn mask(irq: u8) {
         port = port::Port::new(PIC_SLAVE_PORT + 1);
         irq -= 8;
     }
-    let val = port.read_one().unwrap() | (1 << irq);
-    port.write_one(val).unwrap();
+    let val = read_one!(port).unwrap() | (1 << irq);
+    write_one!(port, val).unwrap();
 }
 
 pub fn unmask(irq: u8) {
@@ -84,20 +84,20 @@ pub fn unmask(irq: u8) {
         port = port::Port::new(PIC_SLAVE_PORT + 1);
         irq -= 8;
     }
-    let val = port.read_one().unwrap() & !(1 << irq);
-    port.write_one(val).unwrap();
+    let val = read_one!(port).unwrap() & !(1 << irq);
+    write_one!(port, val).unwrap();
 }
 
 pub fn deinit() {
     let mut master_cmd: port::Port = port::Port::new(PIC_MASTER_DISABLE_PORT);
     let mut slave_cmd: port::Port = port::Port::new(PIC_SLAVE_DISABLE_PORT);
-    master_cmd.write_one(0xff);
-    slave_cmd.write_one(0xff);
+    write_one!(master_cmd, 0xff);
+    write_one!(slave_cmd, 0xff);
 }
 
 pub fn end_of_interrupt(interrupt_id: interrupts::HardwareInterrupt) {
     if (interrupt_id as u8) >= PIC_SLAVE_OFFSET && (interrupt_id as u8) < PIC_SLAVE_OFFSET + 8 {
-        port::Port::new(PIC_SLAVE_PORT).write_one(END_OF_INTERRUPT).unwrap();
+        write_one!(port::Port::new(PIC_SLAVE_PORT), END_OF_INTERRUPT).unwrap();
     }
-    port::Port::new(PIC_MASTER_PORT).write_one(END_OF_INTERRUPT).unwrap();
+    write_one!(port::Port::new(PIC_MASTER_PORT), END_OF_INTERRUPT).unwrap();
 }

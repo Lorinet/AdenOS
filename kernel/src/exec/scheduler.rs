@@ -56,8 +56,8 @@ impl Scheduler {
         unsafe { task::Task::kexec(application) };
     }
 
-    fn terminate(&mut self, process: usize) {
-        self.processes[process].zombie = true;
+    fn terminate(&mut self, process: u32) {
+        self.processes[process as usize].zombie = true;
     }
 }
 
@@ -80,13 +80,13 @@ pub fn next() {
 }
 
 #[inline(always)]
-pub fn current_process() -> usize {
+pub fn current_process() -> u32 {
     unsafe {
-        SCHEDULER.current_task
+        SCHEDULER.current_task as u32
     }
 }
 
-pub fn terminate(process: usize) {
+pub fn terminate(process: u32) {
     unsafe { SCHEDULER.terminate(process); }
 }
 

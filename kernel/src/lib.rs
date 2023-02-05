@@ -16,6 +16,7 @@
 use core::panic::PanicInfo;
 
 pub mod dev;
+pub mod ipc;
 pub mod test;
 pub mod exec;
 pub mod file;
@@ -26,13 +27,16 @@ pub mod sysinfo;
 pub mod syscall;
 pub mod namespace;
 pub mod volumes;
-pub mod allocator;
 pub mod async_task;
 pub mod collections;
 pub mod kernel_console;
 
+#[macro_use]
+extern crate infinity;
 extern crate font8x8;
 extern crate alloc;
+
+pub use infinity::error::*;
 
 #[cfg(test)]
 #[cfg(target_arch = "x86_64")]

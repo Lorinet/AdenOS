@@ -70,26 +70,8 @@ where F: Framebuffer {
             self.y += CHARACTER_HEIGHT + 1;
         }
     }
-}
 
-impl<F> dev::Device for FramebufferConsole<F>
-where F: Framebuffer {
-    fn init_device(&mut self) -> Result<(), dev::Error> {
-        Ok(())
-    }
-
-    fn device_path(&self) -> Vec<String> {
-        vec![String::from("Character"), String::from("FramebufferConsole")]
-    }
-
-    fn unwrap(&mut self) -> dev::DeviceClass {
-        dev::DeviceClass::WriteDevice(self)
-    }
-}
-
-impl<F> dev::Write for FramebufferConsole<F>
-where F: Framebuffer {
-    fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
+    fn _write_one(&mut self, val: u8) -> Result<(), dev::Error> {
         match val {
             b'\n' => {
                 self._new_line();
@@ -141,6 +123,31 @@ where F: Framebuffer {
             }
         }
         Ok(())
+    }
+}
+
+impl<F> dev::Device for FramebufferConsole<F>
+where F: Framebuffer {
+    fn init_device(&mut self) -> Result<(), dev::Error> {
+        Ok(())
+    }
+
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Character"), String::from("FramebufferConsole")]
+    }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::WriteDevice(self)
+    }
+}
+
+impl<F> dev::Write for FramebufferConsole<F>
+where F: Framebuffer {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, dev::Error> {
+        for v in buf {
+            self._write_one(*v)?;
+        }
+        Ok(buf.len())
     }
 }
 

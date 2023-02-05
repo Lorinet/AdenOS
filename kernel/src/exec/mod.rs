@@ -1,7 +1,5 @@
+use crate::*;
 use alloc::{string::String, vec::Vec};
-
-use crate::dev::Error;
-
 use self::elf::ELFLoader;
 
 pub mod elf;

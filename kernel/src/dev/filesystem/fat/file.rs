@@ -101,16 +101,16 @@ impl FATFile {
                 }
             }
             if i == 0 {
-                self.fat_fs.drive.borrow_mut().read_block(sec as u64, write_buf.as_mut_ptr())?;
+                self.fat_fs.drive.lock().read_block(sec as u64, write_buf.as_mut_ptr())?;
                 write_buf[left_write_buf_off..right_write_buf_off_tiny].copy_from_slice(&buf[..left_buf_off]);
             } else if i == sectors_to_write - 1 {
-                self.fat_fs.drive.borrow_mut().read_block(sec as u64, write_buf.as_mut_ptr())?;
+                self.fat_fs.drive.lock().read_block(sec as u64, write_buf.as_mut_ptr())?;
                 write_buf[..right_write_buf_off].copy_from_slice(&buf[right_buf_off..]);
             } else {
                 let idx = left_buf_off + ((i - 1) as usize * self.fat_fs.sector_size as usize);
                 write_buf.copy_from_slice(&buf[idx..idx + self.fat_fs.sector_size as usize]);
             }
-            self.fat_fs.drive.borrow_mut().write_block(sec as u64, write_buf.as_mut_slice())?;
+            self.fat_fs.drive.lock().write_block(sec as u64, write_buf.as_mut_slice())?;
         }
         self.sector_offset = right_write_buf_off as u32;
         self.position += buf.len() as u64;
@@ -134,12 +134,6 @@ impl Seek for FATFile {
 }
 
 impl Read for FATFile {
-    fn read_one(&mut self) -> Result<u8, Error> {
-        let mut buf = [0; 1];
-        self.read(&mut buf)?;
-        Ok(buf[0])
-    }
-
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         self.calculate_actual_position(false)?;
         let buf = if self.offset() + buf.len() as u64 >= self.size() {
@@ -161,7 +155,7 @@ impl Read for FATFile {
         let right_read_buf_off = (buf.len() + left_read_buf_off) % self.fat_fs.sector_size as usize;
         for i in 0..sectors_to_read {
             let sec = self.sec_iter.current_sector();
-            self.fat_fs.drive.borrow_mut().read_block(sec as u64, read_buf.as_mut_ptr())?;
+            self.fat_fs.drive.lock().read_block(sec as u64, read_buf.as_mut_ptr())?;
             
             if i == 0 {
                 buf[..left_buf_off].copy_from_slice(&read_buf[left_read_buf_off..right_read_buf_off_tiny]);
@@ -184,12 +178,6 @@ impl Read for FATFile {
 }
 
 impl Write for FATFile {
-    fn write_one(&mut self, val: u8) -> Result<(), Error> {
-        let buf = [val];
-        self.write(&buf)?;
-        Ok(())
-    }
-
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.calculate_actual_position(true)?;
         self._write(buf)

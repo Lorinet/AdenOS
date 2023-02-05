@@ -1,7 +1,7 @@
 use core::fmt::Display;
 
 use alloc::{vec, vec::Vec};
-use crate::{*, dev::Error};
+use crate::*;
 pub struct Tree<K, V>
 where
     K: PartialEq + Clone + Display,

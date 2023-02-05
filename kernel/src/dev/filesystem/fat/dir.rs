@@ -170,8 +170,8 @@ impl<'a> DirectoryRawIterator<'a> {
         let fat_fs = unsafe { (fat_fs as *const FATFileSystem as *mut FATFileSystem).as_mut().unwrap() };
         let mut buffer = vec![0; fat_fs.sector_size as usize];
         match cluster {
-            Some(cluster) => fat_fs.drive.borrow_mut().read_block(fat_fs.cluster_to_sector(cluster) as u64, buffer.as_mut_ptr())?, // if root dir is in cluster
-            None => fat_fs.drive.borrow_mut().read_block(fat_fs.root_dir_sector as u64, buffer.as_mut_ptr())?,
+            Some(cluster) => fat_fs.drive.lock().read_block(fat_fs.cluster_to_sector(cluster) as u64, buffer.as_mut_ptr())?, // if root dir is in cluster
+            None => fat_fs.drive.lock().read_block(fat_fs.root_dir_sector as u64, buffer.as_mut_ptr())?,
         };
         Ok(DirectoryRawIterator {
             fat_fs,
@@ -204,16 +204,16 @@ impl<'a> Iterator for DirectoryRawIterator<'a> {
                             _ => return None,
                         };
                         self.sector = 0;
-                        self.fat_fs.drive.borrow_mut().read_block(self.fat_fs.cluster_to_sector(self.cluster.unwrap()) as u64, self.buffer.as_mut_ptr());
+                        self.fat_fs.drive.lock().read_block(self.fat_fs.cluster_to_sector(self.cluster.unwrap()) as u64, self.buffer.as_mut_ptr());
                     } else {
-                        self.fat_fs.drive.borrow_mut().read_block(self.fat_fs.cluster_to_sector(self.cluster.unwrap()) as u64 + self.sector as u64, self.buffer.as_mut_ptr());
+                        self.fat_fs.drive.lock().read_block(self.fat_fs.cluster_to_sector(self.cluster.unwrap()) as u64 + self.sector as u64, self.buffer.as_mut_ptr());
                     }
                 },
                 None => { // root dir in FAT12/16
                     if self.sector >= self.fat_fs.root_dir_sectors as usize + self.fat_fs.root_dir_sector as usize {
                         return None;
                     }
-                    self.fat_fs.drive.borrow_mut().read_block(self.fat_fs.root_dir_sector as u64 + self.sector as u64, self.buffer.as_mut_ptr());
+                    self.fat_fs.drive.lock().read_block(self.fat_fs.root_dir_sector as u64 + self.sector as u64, self.buffer.as_mut_ptr());
                 }
             }
         }

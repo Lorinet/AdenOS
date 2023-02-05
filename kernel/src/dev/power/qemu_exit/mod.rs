@@ -34,11 +34,11 @@ impl dev::Device for QemuExit {
 
 impl dev::PowerControl for QemuExit {
     fn reboot(&mut self) -> ! {
-        self.port.write_one(QemuExitCode::Failure as u8).unwrap();
+        write_one!(self.port, QemuExitCode::Failure as u8).unwrap();
         loop {}
     }
     fn shutdown(&mut self) -> ! {
-        self.port.write_one(QemuExitCode::Success as u8).unwrap();
+        write_one!(self.port, QemuExitCode::Success as u8).unwrap();
         loop {}
     }
 }

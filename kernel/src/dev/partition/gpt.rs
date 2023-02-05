@@ -125,7 +125,7 @@ impl PartitionTable for GPTPartitionTable {
                 return Ok(None);
             }
         } else {
-            return Err(Error::InvalidDevice(drive_path))
+            return Err(Error::InvalidDevice)
         }
     }
 }

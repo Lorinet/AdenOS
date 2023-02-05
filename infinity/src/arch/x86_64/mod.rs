@@ -3,8 +3,9 @@ use core::arch::asm;
 
 #[no_mangle]
 #[inline(always)]
-pub extern "C" fn _system_call(syscall: usize, arg0: usize, arg1: usize, arg2: usize, arg3: usize) -> usize {
-    let return_value: usize;
+#[cfg(not(feature = "kernel_mode"))]
+pub extern "C" fn _system_call(syscall: usize, arg0: usize, arg1: usize, arg2: usize, arg3: usize) -> isize {
+    let return_value: isize;
     unsafe {
         asm!("
         push rdi // syscall

@@ -3,6 +3,7 @@ use crate::dev::hal::mem::page_mapper;
 use crate::dev::partition::PartitionTable;
 use crate::dev::storage::AHCIDrive;
 use crate::dev::*;
+use crate::ipc::{MessageQueue, Message};
 use crate::namespace::ResourceType;
 use alloc::vec;
 use console::ConsoleColor;
@@ -14,7 +15,7 @@ use dev;
 use dev::hal::*;
 use async_task::*;
 use crate::exec::scheduler;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 
 pub fn run_kernel() -> ! {
     
@@ -29,6 +30,7 @@ pub fn run_kernel() -> ! {
 }
 
 fn init_system() -> Result<(), Error> {
+    infinity::connect_system_call_handler(syscall::system_call);
     early_print!("Linfinity Technologies AdenOS [Version {}]\n", sysinfo::ADEN_VERSION);
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
@@ -63,6 +65,8 @@ fn init_system() -> Result<(), Error> {
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
     scheduler::kexec(kernel_executor::run);
+    scheduler::kexec(test_kernel_thread_with_ipc_recv);
+    //scheduler::kexec(test_kernel_thread_with_ipc_send);
     cpu::enable_scheduler();
     kernel_executor::run();
     Ok(())
@@ -72,4 +76,35 @@ fn test_input_keyboard(key: keyboard::Key) {
     if let keyboard::Key::Unicode(ch) = key {
         print!("{}", ch);
     }
+}
+
+fn test_kernel_thread_with_ipc_recv() {
+    let pid = syscall::_get_process_id() as u32;
+    println!("PID: {}", pid);
+    let mq = namespace::register_resource(ipc::MessageQueue::new(String::from("hello"), pid, infinity::ipc::Endpoint::Any, 128));
+    for (_, dev) in namespace::namespace().iter_mut_bf() {
+        if let Some(dev) = dev {
+            println!("{}", dev.resource_path_string());
+        }
+    }
+    loop {
+        while mq.available() == 0 {}
+        let mesg = mq.receive().unwrap();
+        print!("MESSAGE: ");
+        for b in mesg.bytes {
+            print!("{}", b as char);
+        }
+        println!();
+    }
+    syscall::_exit();
+    loop {}
+}
+
+fn test_kernel_thread_with_ipc_send() {
+    let mq = namespace::get_resource::<MessageQueue>(String::from("Processes/1/MessageQueues/0")).unwrap();
+    for i in 0..128000 {
+        mq.send(Message::new((String::from("Hello world") + i.to_string().as_str()).as_bytes()));
+    }
+    syscall::_exit();
+    loop {}
 }

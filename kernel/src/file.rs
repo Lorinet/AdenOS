@@ -1,4 +1,5 @@
-use crate::{*, dev::{Error, RandomReadWrite, filesystem::FileSystem}, namespace::{ResourceType, Resource, Handle}};
+use crate::{*, dev::{filesystem::FileSystem}, namespace::{ResourceType, Resource, Handle}};
+use infinity::io::*;
 use alloc::{boxed::Box, string::{String, ToString}};
 use bitflags::bitflags;
 use alloc::{vec, vec::Vec};
@@ -91,7 +92,7 @@ impl Resource for File {
     }
 }
 
-impl dev::Seek for File {
+impl Seek for File {
     fn offset(&self) -> u64 {
         self.fs_file.offset()
     }
@@ -117,21 +118,13 @@ impl dev::Seek for File {
     }
 }
 
-impl dev::Read for File {
-    fn read_one(&mut self) -> Result<u8, Error> {
-        self.fs_file.read_one()
-    }
-    
+impl Read for File {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         self.fs_file.read(buf)
     }
 }
 
-impl dev::Write for File {
-    fn write_one(&mut self, val: u8) -> Result<(), Error> {
-        self.fs_file.write_one(val)
-    }
-
+impl Write for File {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.fs_file.write(buf)
     }

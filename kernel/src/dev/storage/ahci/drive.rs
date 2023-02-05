@@ -41,12 +41,6 @@ impl Seek for AHCIDrive {
 }
 
 impl Read for AHCIDrive {
-    fn read_one(&mut self) -> Result<u8, dev::Error> {
-        let mut sec = [0; 512];
-        self.read_block(self.offset / 512, sec.as_mut_ptr())?;
-        Ok(sec[(self.offset % 512) as usize])
-    }
-
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, dev::Error> {
         let sector = self.offset / 512;
         let count = (((self.offset + buf.len() as u64) / 512) - sector) + 1;
@@ -59,16 +53,6 @@ impl Read for AHCIDrive {
 }
 
 impl Write for AHCIDrive {
-    fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
-        let sector = self.offset / 512;
-        let mut buffer: Vec<u8> = Vec::with_capacity(512);
-        self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Read, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::ReadFailure)?;
-        let buf_off = (self.offset % 512) as usize;
-        buffer[buf_off] = val;
-        self.controller.ports[self.port].expect("Disk not present").diskio(DiskIO::Write, sector as u64, 1, buffer.as_mut_ptr()).map_err(|_| dev::Error::WriteFailure)?;
-        Ok(())
-    }
-
     fn write(&mut self, buf: &[u8]) -> Result<usize, dev::Error> {
         let sector = self.offset / 512;
         let count = (((self.offset + buf.len() as u64) / 512) - sector) + 1;

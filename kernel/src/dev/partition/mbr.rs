@@ -48,7 +48,7 @@ impl PartitionTable for MBRPartitionTable {
             }
             Ok(Some(parts))
         } else {
-            return Err(Error::DriverNotFound(device_path))
+            return Err(Error::DriverNotFound)
         }
     }
 }

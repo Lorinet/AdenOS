@@ -1,10 +1,12 @@
-use crate::{*, collections::tree::Tree, dev::{*, filesystem::FileSystem}};
+use crate::{*, collections::tree::Tree, dev::{*, filesystem::FileSystem}, ipc::MessageQueue};
 use alloc::{boxed::Box, string::String, vec, vec::Vec, collections::BTreeMap};
+use infinity::io::*;
 
 pub enum ResourceType<'a> {
     Device(&'a mut dyn Device),
     FileSystem(&'a mut dyn FileSystem),
     File(&'a mut file::File),
+    MessageQueue(&'a mut MessageQueue),
     Other
 }
 
@@ -120,11 +122,11 @@ pub fn register_resource_path<T: Resource + 'static>(path: Vec<String>, resource
     get_resource_parts(path).unwrap()
 }
 
-pub fn get_block_device(path: String) -> Option<&'static mut dyn dev::BlockReadWrite> {
+pub fn get_block_device(path: String) -> Option<&'static mut dyn BlockReadWrite> {
     get_block_device_parts(split_resource_path(path))
 }
 
-pub fn get_block_device_parts(path: Vec<String>) -> Option<&'static mut dyn dev::BlockReadWrite> {
+pub fn get_block_device_parts(path: Vec<String>) -> Option<&'static mut dyn BlockReadWrite> {
     if let Some(drive) = namespace::get_resource_non_generic_parts(path) {
         if let ResourceType::Device(drive) = drive.unwrap() {
             if let DeviceClass::BlockDevice(drive) = Device::unwrap(drive) {
@@ -191,11 +193,53 @@ pub fn drop_resource_parts(path: Vec<String>) -> Result<(), Error> {
     }
 }
 
+pub fn get_rw_handle(handle: u32) -> Option<&'static mut dyn ReadWrite> {
+    unsafe {
+        if let Some(hndl) = HANDLES.get_mut(&handle) {
+            match hndl.unwrap().unwrap() {
+                ResourceType::File(file) => Some(file),
+                ResourceType::MessageQueue(que) => Some(que),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+
+pub fn get_seek_handle(handle: u32) -> Option<&'static mut dyn Seek> {
+    unsafe {
+        if let Some(hndl) = HANDLES.get_mut(&handle) {
+            if let ResourceType::File(file) = hndl.unwrap().unwrap() {
+                Some(file)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
 pub fn get_file_handle(handle: u32) -> Option<&'static mut file::File> {
     unsafe {
         if let Some(hndl) = HANDLES.get_mut(&handle) {
             if let ResourceType::File(file) = hndl.unwrap().unwrap() {
                 Some(file)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+pub fn get_message_queue_handle(handle: u32) -> Option<&'static mut ipc::MessageQueue> {
+    unsafe {
+        if let Some(hndl) = HANDLES.get_mut(&handle) {
+            if let ResourceType::MessageQueue(que) = hndl.unwrap().unwrap() {
+                Some(que)
             } else {
                 None
             }

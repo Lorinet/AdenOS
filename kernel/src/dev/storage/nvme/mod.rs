@@ -158,7 +158,7 @@ impl Device for NVME {
                 *config = set;
                 for _ in 0..1000000 {}
                 if status.shutdown_status() != shutdown_status_completed {
-                    return Err(dev::Error::InitFailure("NVME controller shutdown failed."));
+                    return Err(dev::Error::InitFailure);
                 }
             }
 
@@ -169,7 +169,7 @@ impl Device for NVME {
             if status.ready() {
                 for _ in 0..10000000 {}
                 if status.ready() {
-                    return Err(dev::Error::InitFailure("NVME controller reset failed."))
+                    return Err(dev::Error::InitFailure)
                 }
             }
         }
@@ -236,7 +236,7 @@ impl Device for NVME {
         if !status.ready() {
             for _ in 0..10000000 {}
             if !status.ready() {
-                return Err(dev::Error::InitFailure("NVME controller enable failed."))
+                return Err(dev::Error::InitFailure)
             }
         }
 

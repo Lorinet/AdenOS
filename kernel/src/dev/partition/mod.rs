@@ -56,7 +56,7 @@ impl Device for Partition {
             self.mount_file_system()?;
             Ok(())
         } else {
-            return Err(Error::InvalidDevice(namespace::concat_resource_path(self.drive_path.clone())))
+            return Err(Error::InvalidDevice)
         }
     }
 
@@ -91,11 +91,6 @@ impl Seek for Partition {
 }
 
 impl Read for Partition {
-    fn read_one(&mut self) -> Result<u8, Error> {
-        self.drive.as_mut().unwrap().seek(self.start_sector + self.sector_offset);
-        self.drive.as_mut().unwrap().read_one()
-    }
-
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
         self.drive.as_mut().unwrap().seek(self.start_sector * 512 + self.sector_offset * 512);
         self.drive.as_mut().unwrap().read(buf)
@@ -103,11 +98,6 @@ impl Read for Partition {
 }
 
 impl Write for Partition {
-    fn write_one(&mut self, val: u8) -> Result<(), Error> {
-        self.drive.as_mut().unwrap().seek(self.start_sector + self.sector_offset);
-        self.drive.as_mut().unwrap().write_one(val)
-    }
-
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
         self.drive.as_mut().unwrap().seek(self.start_sector + self.sector_offset);
         self.drive.as_mut().unwrap().write(buf)

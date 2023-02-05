@@ -40,14 +40,20 @@ impl dev::Device for Uart16550 {
 }
 
 impl dev::Read for Uart16550 {
-    fn read_one(&mut self) -> Result<u8, dev::Error> {
-        Ok(self.port.receive())
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
+        for b in buf.iter_mut() {
+            *b = self.port.receive()
+        }
+        Ok(buf.len())
     }
 }
 
 impl dev::Write for Uart16550 {
-    fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
-        self.port.write_char(val as char).or_else(|_| Result::Err(dev::Error::WriteFailure))
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
+        for b in buf {
+            self.port.write_char(*b as char).or_else(|_| return Result::Err(dev::Error::WriteFailure));
+        }
+        Ok(buf.len())
     }
 }
 

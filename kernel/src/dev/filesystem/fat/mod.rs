@@ -8,6 +8,8 @@ use core::{str, slice};
 use bitflags::bitflags;
 use core::cell::RefCell;
 use core::num;
+use alloc::sync::Arc;
+use spin::Mutex;
 
 mod fat;
 mod dir;
@@ -74,7 +76,7 @@ enum eBPB {
 }
 
 pub struct FATFileSystem {
-    drive: RefCell<&'static mut dyn BlockReadWrite>,
+    drive: Arc<Mutex<&'static mut dyn BlockReadWrite>>,
     bpb: BPB,
     ebpb: eBPB,
     fat_type: FATType,
@@ -94,7 +96,7 @@ pub struct FATFileSystem {
 impl Debug for FATFileSystem {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("FATFileSystem")
-        .field("drive", &self.drive.borrow().resource_path_string())
+        .field("drive", &self.drive.lock().resource_path_string())
         .field("fat_type", &self.fat_type)
         .field("total_sectors", &self.total_sectors)
         .field("fat_size", &self.fat_size)
@@ -176,7 +178,7 @@ impl FATFileSystem {
             };
 
             let mut fat_fs = FATFileSystem {
-                drive: RefCell::new(drive),
+                drive: Arc::new(Mutex::new(drive)),
                 bpb: bpb.clone(),
                 ebpb,
                 fat_type,
@@ -195,7 +197,7 @@ impl FATFileSystem {
 
             Ok(Some(fat_fs))
         } else {
-            Err(Error::InvalidDevice(drive_path))
+            Err(Error::InvalidDevice)
         }
     }
 
@@ -204,7 +206,7 @@ impl FATFileSystem {
     }
 
     fn read_cluster(&self, cluster: u32, buffer: &mut [u8]) -> Result<(), Error> {
-        self.drive.borrow_mut().read_blocks(self.cluster_to_sector(cluster) as u64, self.sectors_per_cluster as u64, buffer.as_mut_ptr())
+        self.drive.lock().read_blocks(self.cluster_to_sector(cluster) as u64, self.sectors_per_cluster as u64, buffer.as_mut_ptr())
     }
 
     fn fat_iter(&self, start_cluster: u32) -> Result<FATIterator, Error> {
@@ -307,7 +309,7 @@ impl FATFileSystem {
 
         let mut buf = vec![0; self.sector_size as usize];
         for ((sec, off), ent) in slot.into_iter().zip(dir_entries.into_iter()) {
-            self.drive.borrow_mut().read_block(sec as u64, buf.as_mut_ptr())?;
+            self.drive.lock().read_block(sec as u64, buf.as_mut_ptr())?;
             match ent {
                 DirectoryRawEntry::FileDirectoryEntry(ent) => {
                     *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.clone();
@@ -317,7 +319,7 @@ impl FATFileSystem {
                 DirectoryRawEntry::LongFileNameEntry(ent) => *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut LongFileNameEntry).as_mut().unwrap() } = ent.clone(),
                 _ => (),
             }
-            self.drive.borrow_mut().write_block(sec as u64, buf.as_mut_slice())?;
+            self.drive.lock().write_block(sec as u64, buf.as_mut_slice())?;
         }
 
         let mut updated_ent = ent;
@@ -331,9 +333,9 @@ impl FATFileSystem {
         let (sec, off) = (ent.short_directory_entry_sector.unwrap(), ent.short_directory_entry_offset.unwrap());
         serial_println!("Upd dir ent {} {}", sec, off);
         let mut buf = vec![0; self.sector_size as usize];
-        self.drive.borrow_mut().read_block(sec as u64, buf.as_mut_ptr())?;
+        self.drive.lock().read_block(sec as u64, buf.as_mut_ptr())?;
         *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.metadata.clone();
-        self.drive.borrow_mut().write_block(sec as u64, buf.as_mut_slice())?;
+        self.drive.lock().write_block(sec as u64, buf.as_mut_slice())?;
         Ok(())
     }
 }

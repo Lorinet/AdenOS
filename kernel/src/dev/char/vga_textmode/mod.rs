@@ -41,35 +41,17 @@ impl VgaTextMode {
     }
 
     fn move_cursor(&mut self) {
-        self.control_port.write_one(0x0F).unwrap();
-        self.data_port.write_one(((self.offset / 2) & 0xFF) as u8).unwrap();
-        self.control_port.write_one(0x0E).unwrap();
-        self.data_port.write_one((((self.offset / 2) >> 8) & 0xFF) as u8).unwrap();
+        self.control_port.write(&[0x0F]).unwrap();
+        self.data_port.write(&[((self.offset / 2) & 0xFF) as u8]).unwrap();
+        self.control_port.write(&[0x0E]).unwrap();
+        self.data_port.write(&[(((self.offset / 2) >> 8) & 0xFF) as u8]).unwrap();
     }
 
     pub fn disable_cursor(&mut self) {
-        self.control_port.write_one(0x0A).unwrap();
-        self.data_port.write_one(0x20).unwrap();
-    }
-}
-
-impl dev::Device for VgaTextMode {
-    fn init_device(&mut self) -> Result<(), dev::Error> {
-        self.set_color(ConsoleColor::White, ConsoleColor::Black);
-        self.clear_screen();
-        Ok(())
+        self.control_port.write(&[0x0A]).unwrap();
+        self.data_port.write(&[0x20]).unwrap();
     }
 
-    fn device_path(&self) -> Vec<String> {
-        vec![String::from("Character"), String::from("VGATextMode")]
-    }
-
-    fn unwrap(&mut self) -> dev::DeviceClass {
-        dev::DeviceClass::WriteDevice(self)
-    }
-}
-
-impl dev::Write for VgaTextMode {
     fn write_one(&mut self, val: u8) -> Result<(), dev::Error> {
         match val {
             b'\n' => {
@@ -105,6 +87,31 @@ impl dev::Write for VgaTextMode {
         }
         self.move_cursor();
         Ok(())
+    }
+}
+
+impl dev::Device for VgaTextMode {
+    fn init_device(&mut self) -> Result<(), dev::Error> {
+        self.set_color(ConsoleColor::White, ConsoleColor::Black);
+        self.clear_screen();
+        Ok(())
+    }
+
+    fn device_path(&self) -> Vec<String> {
+        vec![String::from("Character"), String::from("VGATextMode")]
+    }
+
+    fn unwrap(&mut self) -> dev::DeviceClass {
+        dev::DeviceClass::WriteDevice(self)
+    }
+}
+
+impl dev::Write for VgaTextMode {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
+        for b in buf {
+            self.write_one(*b);
+        }
+        Ok(buf.len())
     }
 }
 

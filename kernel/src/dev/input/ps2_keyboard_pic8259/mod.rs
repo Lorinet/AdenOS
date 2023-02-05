@@ -33,7 +33,7 @@ impl PS2KeyboardPIC8259 {
     pub extern "x86-interrupt" fn _input_handler(_stack_frame: idt::InterruptStackFrame) {
         unsafe {
             asm!("cli");
-            Self::add_scancode(KEYBOARD_PORT.read_one().unwrap());
+            Self::add_scancode(read_one!(KEYBOARD_PORT).unwrap());
         }
         pic::end_of_interrupt(interrupts::HardwareInterrupt::Keyboard);
     }

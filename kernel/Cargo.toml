@@ -26,9 +26,12 @@ slab_allocator_rs = "1.0.1"
 modular-bitfield = "0.11.2"
 raw-cpuid = "10.6.0"
 num-derive = "0.3.3"
+ringbuffer = "0.12.0"
+cstr_core = "0.2.6"
 
 [dependencies.infinity]
 path = "../infinity"
+features = ["kernel_mode"]
 
 [dependencies.linked_list_allocator]
 version = "0.10.1"

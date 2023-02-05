@@ -1,5 +1,4 @@
 use crate::*;
-use allocator;
 use bootloader::boot_info;
 use frame_allocator::*;
 use x86_64::{ structures::paging::{Page, PageTable, PhysFrame, PageTableFlags, Size4KiB}, VirtAddr, PhysAddr, registers::control::{Cr3, Cr3Flags}, instructions::tlb };
@@ -48,7 +47,7 @@ pub fn init_heap() {
         page_mapper::map_page_to_frame(l4_table, page, frame, Some(flags));
     }
 
-    unsafe { allocator::ALLOCATOR.init(KERNEL_HEAP_START, KERNEL_HEAP_SIZE); }
+    unsafe { infinity::allocator::ALLOCATOR.init(KERNEL_HEAP_START, KERNEL_HEAP_SIZE); }
 
     // kernel heap is initialized, we can set up bitmap
     unsafe { FRAME_ALLOCATOR.lock_all() };
