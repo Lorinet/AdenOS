@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "bootloader",
+    "kernel",
+    "infinity",
+]

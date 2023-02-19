@@ -25,18 +25,21 @@ fn main() -> Result<(), Box<Box<dyn Error>>> {
 }
 
 fn build(test: bool, integration: Option<String>) -> String {
-    let bootloader_source_folder = bootloader_locator::locate_bootloader("bootloader").expect("Could not find manifest for crate 'bootloader'");
-    let bootloader_source_folder = bootloader_source_folder.parent().expect("Invalid path for crate 'bootloader'").to_str().unwrap();
+    let bootloader_source_folder = "bootloader";
+
+    let mut kernel_source_folder = env::current_dir().unwrap();
+    kernel_source_folder.push("kernel");
 
     let kernel_build_command = Command::new("cargo").arg("build")
     .args(if test { vec!["--test"] } else { vec![] })
     .args(if let Some(integration) = integration { vec![integration] } else { vec![] })
+    .current_dir(kernel_source_folder.to_str().unwrap())
     .status().expect("Launch failed: 'cargo build'");
     if !kernel_build_command.success() {
         panic!("Command 'cargo build' exited with code {}", kernel_build_command.code().unwrap());
     }
 
-    let mut kernel_manifest_path = env::current_dir().unwrap();
+    let mut kernel_manifest_path = kernel_source_folder.clone();
     kernel_manifest_path.push("Cargo.toml");
     let kernel_manifest_path = kernel_manifest_path.to_str().unwrap();
 

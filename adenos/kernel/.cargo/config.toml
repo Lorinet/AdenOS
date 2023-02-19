@@ -1,0 +1,13 @@
+[build]
+target = "../targets/x86_64-adenos.json"
+
+[target.x86_64-adenos]
+rustflags = ["--print", "link-args", "-Clink-arg=-Tkernel/link.ld"]
+# rustflags = ["-Clink-arg=-Tlink.ld"]
+
+[unstable]
+build-std = ["core", "compiler_builtins", "alloc"]
+build-std-features = ["compiler-builtins-mem"]
+
+[target.'cfg(target_os = "none")']
+runner = "bootimage runner"

@@ -1,0 +1,2627 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /home/linfinity/GitHub/AdenOS/adenos/bootloader/Cargo.toml
+workspace: /home/linfinity/GitHub/AdenOS/adenos/Cargo.toml
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   /home/linfinity/GitHub/AdenOS/adenos/kernel/Cargo.toml
+workspace: /home/linfinity/GitHub/AdenOS/adenos/Cargo.toml
+warning: /home/linfinity/GitHub/AdenOS/adenos/kernel/Cargo.toml: `panic` setting is ignored for `test` profile
+warning: unused import: `crate::*`
+ --> infinity/src/arch/x86_64/mod.rs:1:5
+  |
+1 | use crate::*;
+  |     ^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `core::arch::asm`
+ --> infinity/src/arch/x86_64/mod.rs:2:5
+  |
+2 | use core::arch::asm;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused import: `ToString`
+ --> infinity/src/file.rs:3:42
+  |
+3 | use alloc::{boxed::Box, string::{String, ToString}};
+  |                                          ^^^^^^^^
+
+warning: unused import: `vec`
+ --> infinity/src/file.rs:5:13
+  |
+5 | use alloc::{vec, vec::Vec};
+  |             ^^^
+
+warning: unused import: `alloc::string::String`
+ --> infinity/src/error.rs:2:5
+  |
+2 | use alloc::string::String;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `collections::BTreeMap`, `vec`
+ --> infinity/src/namespace.rs:2:41
+  |
+2 | use alloc::{boxed::Box, string::String, vec, vec::Vec, collections::BTreeMap};
+  |                                         ^^^            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `open`
+  --> infinity/src/namespace.rs:95:34
+   |
+95 |     fn set_open_state(&mut self, open: bool) {
+   |                                  ^^^^ help: if this is intentional, prefix it with an underscore: `_open`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: function `to_signed` is never used
+  --> infinity/src/os.rs:23:4
+   |
+23 | fn to_signed(val: usize) -> isize {
+   |    ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: fields `fs` and `permissions` are never read
+  --> infinity/src/file.rs:16:5
+   |
+15 | pub struct File {
+   |            ---- fields in this struct
+16 |     fs: &'static dyn FileSystem,
+   |     ^^
+...
+19 |     permissions: FilePermissions,
+   |     ^^^^^^^^^^^
+
+warning: static variable `_system_call_handler` should have an upper case name
+ --> infinity/src/arch/mod.rs:7:16
+  |
+7 | pub static mut _system_call_handler: extern "C" fn(usize, usize, usize, usize, usize) -> isize = _dummy_system_call;
+  |                ^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `_SYSTEM_CALL_HANDLER`
+  |
+  = note: `#[warn(non_upper_case_globals)]` on by default
+
+warning: `extern` fn uses type `str`, which is not FFI-safe
+  --> infinity/src/os.rs:54:46
+   |
+54 | pub extern "C" fn create_message_queue(name: &str, endpoint: ipc::Endpoint) -> Result<u32, Error> {
+   |                                              ^^^^ not FFI-safe
+   |
+   = note: `#[warn(improper_ctypes_definitions)]` on by default
+   = help: consider using `*const u8` and a length instead
+   = note: string slices have no C equivalent
+
+warning: `extern` fn uses type `Endpoint`, which is not FFI-safe
+   --> infinity/src/os.rs:54:62
+    |
+54  | pub extern "C" fn create_message_queue(name: &str, endpoint: ipc::Endpoint) -> Result<u32, Error> {
+    |                                                              ^^^^^^^^^^^^^ not FFI-safe
+    |
+    = help: consider adding a `#[repr(C)]`, `#[repr(transparent)]`, or integer `#[repr(...)]` attribute to this enum
+    = note: enum has no representation hint
+note: the type is defined here
+   --> infinity/src/ipc/mod.rs:120:1
+    |
+120 | pub enum Endpoint {
+    | ^^^^^^^^^^^^^^^^^
+
+warning: `extern` fn uses type `Result<u32, error::Error>`, which is not FFI-safe
+  --> infinity/src/os.rs:54:80
+   |
+54 | pub extern "C" fn create_message_queue(name: &str, endpoint: ipc::Endpoint) -> Result<u32, Error> {
+   |                                                                                ^^^^^^^^^^^^^^^^^^ not FFI-safe
+   |
+   = help: consider adding a `#[repr(C)]`, `#[repr(transparent)]`, or integer `#[repr(...)]` attribute to this enum
+   = note: enum has no representation hint
+
+warning: `extern` fn uses type `str`, which is not FFI-safe
+  --> infinity/src/os.rs:59:40
+   |
+59 | pub extern "C" fn acquire_handle(path: &str) -> Result<u32, Error> {
+   |                                        ^^^^ not FFI-safe
+   |
+   = help: consider using `*const u8` and a length instead
+   = note: string slices have no C equivalent
+
+warning: `extern` fn uses type `Result<u32, error::Error>`, which is not FFI-safe
+  --> infinity/src/os.rs:59:49
+   |
+59 | pub extern "C" fn acquire_handle(path: &str) -> Result<u32, Error> {
+   |                                                 ^^^^^^^^^^^^^^^^^^ not FFI-safe
+   |
+   = help: consider adding a `#[repr(C)]`, `#[repr(transparent)]`, or integer `#[repr(...)]` attribute to this enum
+   = note: enum has no representation hint
+
+warning: `extern` fn uses type `Result<(), error::Error>`, which is not FFI-safe
+  --> infinity/src/os.rs:64:50
+   |
+64 | pub extern "C" fn release_handle(handle: u32) -> Result<(), Error> {
+   |                                                  ^^^^^^^^^^^^^^^^^ not FFI-safe
+   |
+   = help: consider adding a `#[repr(C)]`, `#[repr(transparent)]`, or integer `#[repr(...)]` attribute to this enum
+   = note: enum has no representation hint
+
+warning: `extern` fn uses type `Result<usize, error::Error>`, which is not FFI-safe
+  --> infinity/src/os.rs:69:54
+   |
+69 | pub extern "C" fn available_messages(handle: u32) -> Result<usize, Error> {
+   |                                                      ^^^^^^^^^^^^^^^^^^^^ not FFI-safe
+   |
+   = help: consider adding a `#[repr(C)]`, `#[repr(transparent)]`, or integer `#[repr(...)]` attribute to this enum
+   = note: enum has no representation hint
+
+warning: `extern` fn uses type `Result<usize, error::Error>`, which is not FFI-safe
+  --> infinity/src/os.rs:74:58
+   |
+74 | pub extern "C" fn available_message_size(handle: u32) -> Result<usize, Error> {
+   |                                                          ^^^^^^^^^^^^^^^^^^^^ not FFI-safe
+   |
+   = help: consider adding a `#[repr(C)]`, `#[repr(transparent)]`, or integer `#[repr(...)]` attribute to this enum
+   = note: enum has no representation hint
+
+warning: unused `Result` that must be used
+  --> infinity/src/dev/mod.rs:79:9
+   |
+79 |         self.seek(offset);
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_must_use)]` on by default
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+  --> infinity/src/dev/mod.rs:81:9
+   |
+81 |         self.seek(prev_offset);
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+  --> infinity/src/dev/mod.rs:89:9
+   |
+89 |         self.seek(offset);
+   |         ^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+  --> infinity/src/dev/mod.rs:91:9
+   |
+91 |         self.seek(prev_offset);
+   |         ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+  --> infinity/src/dev/partition.rs:92:9
+   |
+92 |         self.drive.as_mut().unwrap().seek(self.start_sector * 512 + self.sector_offset * 512);
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+  --> infinity/src/dev/partition.rs:99:9
+   |
+99 |         self.drive.as_mut().unwrap().seek(self.start_sector + self.sector_offset);
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+   --> infinity/src/ipc/mod.rs:104:17
+    |
+104 |                 namespace::drop_resource_parts(self.resource_path());
+    |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: `infinity` (lib) generated 25 warnings
+warning: unused import: `vec`
+ --> kernel/src/dev/hal/x86_64/mod.rs:5:29
+  |
+5 | use alloc::{string::String, vec, boxed::Box};
+  |                             ^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `namespace::*`
+ --> kernel/src/dev/hal/x86_64/port.rs:2:24
+  |
+2 | use infinity::{dev::*, namespace::*};
+  |                        ^^^^^^^^^^^^
+
+warning: unused import: `infinity::namespace::*`
+ --> kernel/src/dev/hal/x86_64/apic/lapic.rs:6:5
+  |
+6 | use infinity::namespace::*;
+  |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `infinity::namespace::ResourceType`
+ --> kernel/src/dev/partition/mod.rs:1:5
+  |
+1 | use infinity::namespace::ResourceType;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ops::ControlFlow`
+ --> kernel/src/dev/partition/gpt.rs:4:38
+  |
+4 | use core::{str, mem::size_of, slice, ops::ControlFlow};
+  |                                      ^^^^^^^^^^^^^^^^
+
+warning: unused import: `bitfield`
+ --> kernel/src/dev/filesystem/fat/mod.rs:6:24
+  |
+6 | use modular_bitfield::{bitfield, specifiers::*};
+  |                        ^^^^^^^^
+
+warning: unused import: `specifiers::*`
+ --> kernel/src/dev/filesystem/fat/dir.rs:3:34
+  |
+3 | use modular_bitfield::{bitfield, specifiers::*};
+  |                                  ^^^^^^^^^^^^^
+
+warning: unused import: `string::ToString`
+ --> kernel/src/dev/filesystem/fat/dir.rs:5:28
+  |
+5 | use alloc::{vec, vec::Vec, string::ToString, format};
+  |                            ^^^^^^^^^^^^^^^^
+
+warning: unused import: `FATType`
+ --> kernel/src/dev/filesystem/fat/dir.rs:8:13
+  |
+8 | use super::{FATType, FATFileSystem};
+  |             ^^^^^^^
+
+warning: type `eBPB` should have an upper camel case name
+  --> kernel/src/dev/filesystem/fat/mod.rs:71:6
+   |
+71 | enum eBPB {
+   |      ^^^^ help: convert the identifier to upper camel case: `EBpb`
+   |
+   = note: `#[warn(non_camel_case_types)]` on by default
+
+warning: variant `eBPB16` should have an upper camel case name
+  --> kernel/src/dev/filesystem/fat/mod.rs:72:5
+   |
+72 |     eBPB16(eBPB16),
+   |     ^^^^^^ help: convert the identifier to upper camel case: `EBpb16`
+
+warning: variant `eBPB32` should have an upper camel case name
+  --> kernel/src/dev/filesystem/fat/mod.rs:73:5
+   |
+73 |     eBPB32(eBPB32),
+   |     ^^^^^^ help: convert the identifier to upper camel case: `EBpb32`
+
+warning: unused imports: `ops`, `slice`
+ --> kernel/src/dev/framebuffer/mod.rs:2:12
+  |
+2 | use core::{ops, slice};
+  |            ^^^  ^^^^^
+
+warning: unused import: `alloc::boxed::Box`
+ --> kernel/src/ipc/mod.rs:4:5
+  |
+4 | use alloc::boxed::Box;
+  |     ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `vec::Vec`, `vec`
+ --> kernel/src/ipc/mod.rs:5:13
+  |
+5 | use alloc::{vec, vec::Vec};
+  |             ^^^  ^^^^^^^^
+
+warning: unused import: `modular_bitfield::private::checks::True`
+ --> kernel/src/ipc/mod.rs:7:5
+  |
+7 | use modular_bitfield::private::checks::True;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `core::cell::RefCell`
+  --> kernel/src/ipc/mod.rs:11:5
+   |
+11 | use core::cell::RefCell;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `String`, `ToString`
+  --> kernel/src/ipc/mod.rs:12:21
+   |
+12 | use alloc::string::{String, ToString};
+   |                     ^^^^^^  ^^^^^^^^
+
+warning: unused import: `string::String`
+ --> kernel/src/exec/mod.rs:2:13
+  |
+2 | use alloc::{string::String, vec::Vec};
+  |             ^^^^^^^^^^^^^^
+
+warning: variant `x86` should have an upper camel case name
+  --> kernel/src/exec/elf.rs:11:5
+   |
+11 |     x86 = 3,
+   |     ^^^ help: convert the identifier to upper camel case (notice the capitalization): `X86`
+
+warning: variant `x86_64` should have an upper camel case name
+  --> kernel/src/exec/elf.rs:16:5
+   |
+16 |     x86_64 = 0x3E,
+   |     ^^^^^^ help: convert the identifier to upper camel case (notice the capitalization): `X86_64`
+
+warning: unused import: `vec::Vec`
+ --> kernel/src/syscall.rs:3:18
+  |
+3 | use alloc::{vec, vec::Vec, string::ToString, boxed::Box};
+  |                  ^^^^^^^^
+
+warning: unused import: `vec`
+ --> kernel/src/namespace.rs:2:41
+  |
+2 | use alloc::{boxed::Box, string::String, vec, vec::Vec, collections::BTreeMap};
+  |                                         ^^^
+
+warning: unused import: `ipc::*`
+ --> kernel/src/namespace.rs:3:60
+  |
+3 | use infinity::{dev::*, namespace::*, collections::tree::*, ipc::*};
+  |                                                            ^^^^^^
+
+warning: unreachable statement
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:169:9
+    |
+168 |           return Ok(());
+    |           ------------- any code following this expression is unreachable
+169 | /         if self.disable_pic_on_init {
+170 | |             //pic::deinit();
+171 | |         }
+    | |_________^ unreachable statement
+    |
+    = note: `#[warn(unreachable_code)]` on by default
+
+warning: unreachable expression
+   --> kernel/src/dev/filesystem/fat/fat.rs:176:17
+    |
+175 |                   return None;
+    |                   ----------- any code following this expression is unreachable
+176 | /                 if let Ok(c) = self.cluster_iter.fat_fs.allocate_clusters(Some(self.cluster_iter.cluster as u32), 1) {
+177 | |                     match self.cluster_iter.next() {
+178 | |                         Some(FATEntry::Cluster(_)) => (),
+179 | |                         _ => return None,
+...   |
+182 | |                     return None;
+183 | |                 }
+    | |_________________^ unreachable expression
+
+warning: unreachable statement
+  --> kernel/src/kernel.rs:97:5
+   |
+88 | /     loop {
+89 | |         while mq.available() == 0 {}
+90 | |         let mesg = mq.receive().unwrap();
+91 | |         print!("MESSAGE: ");
+...  |
+95 | |         println!();
+96 | |     }
+   | |_____- any code following this expression is unreachable
+97 |       syscall::_exit();
+   |       ^^^^^^^^^^^^^^^^^ unreachable statement
+
+warning: unused import: `dev`
+ --> kernel/src/dev/hal/x86_64/mod.rs:4:27
+  |
+4 | use infinity::{namespace, dev::*};
+  |                           ^^^
+
+warning: unused import: `infinity::namespace::Resource`
+ --> kernel/src/dev/power/qemu_exit/mod.rs:2:5
+  |
+2 | use infinity::namespace::Resource;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `infinity::namespace`
+ --> kernel/src/dev/framebuffer/vesa_vbe_framebuffer/mod.rs:4:5
+  |
+4 | use infinity::namespace::*;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `namespace`
+ --> kernel/src/dev/storage/nvme/mod.rs:2:24
+  |
+2 | use infinity::{dev::*, namespace::*};
+  |                        ^^^^^^^^^
+
+warning: unused import: ``
+ --> kernel/src/dev/partition/mbr.rs:2:44
+  |
+2 | use infinity::{namespace::{self, *}, dev::{*, partition::*}};
+  |                                            ^
+
+warning: unused import: ``
+ --> kernel/src/dev/partition/mbr.rs:2:34
+  |
+2 | use infinity::{namespace::{self, *}, dev::{*, partition::*}};
+  |                                  ^
+
+warning: unused import: ``
+ --> kernel/src/dev/partition/gpt.rs:2:44
+  |
+2 | use infinity::{namespace::{self, *}, dev::{*, partition::*}};
+  |                                            ^
+
+warning: unused import: ``
+ --> kernel/src/dev/partition/gpt.rs:2:34
+  |
+2 | use infinity::{namespace::{self, *}, dev::{*, partition::*}};
+  |                                  ^
+
+warning: unused import: ``
+ --> kernel/src/exec/elf.rs:3:34
+  |
+3 | use infinity::{namespace::{self, *}, dev::*};
+  |                                  ^
+
+warning: unreachable pattern
+  --> kernel/src/syscall.rs:23:9
+   |
+22 |         SYSTEM_CALL_MESSAGE_QUEUE_COUNT => _available_messages(arg0 as u32),
+   |         ------------------------------- matches any value
+23 |         SYSTEM_CALL_AVAILABLE_MESSAGE_SIZE => _available_message_size(arg0 as u32),
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable pattern
+   |
+   = note: `#[warn(unreachable_patterns)]` on by default
+
+warning: unreachable pattern
+  --> kernel/src/syscall.rs:24:9
+   |
+22 |         SYSTEM_CALL_MESSAGE_QUEUE_COUNT => _available_messages(arg0 as u32),
+   |         ------------------------------- matches any value
+23 |         SYSTEM_CALL_AVAILABLE_MESSAGE_SIZE => _available_message_size(arg0 as u32),
+24 |         _ => 1,
+   |         ^ unreachable pattern
+
+warning: unused variable: `e`
+   --> kernel/src/dev/filesystem/fat/mod.rs:250:20
+    |
+250 |         if let Err(e) = iter.advance_by(n) {
+    |                    ^ help: if this is intentional, prefix it with an underscore: `_e`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `e`
+   --> kernel/src/dev/filesystem/fat/mod.rs:254:20
+    |
+254 |         if let Err(e) = iter.advance_by(n) {
+    |                    ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `c`
+   --> kernel/src/dev/filesystem/fat/fat.rs:176:27
+    |
+176 |                 if let Ok(c) = self.cluster_iter.fat_fs.allocate_clusters(Some(self.cluster_iter.cluster as u32), 1) {
+    |                           ^ help: if this is intentional, prefix it with an underscore: `_c`
+
+warning: unused variable: `packed_val`
+   --> kernel/src/dev/filesystem/fat/fat.rs:253:25
+    |
+253 |                     let packed_val = (self.fat_buffer[sec_off + 1] as u16) << 8 | self.fat_buffer[sec_off] as u16;
+    |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_packed_val`
+
+warning: unused variable: `cl`
+   --> kernel/src/dev/filesystem/fat/fat.rs:306:25
+    |
+306 |             if let Some(cl) = self.prev_free_cluster { // do not overwrite cluster entry 3 if we did not provide chain end
+    |                         ^^ help: if this is intentional, prefix it with an underscore: `_cl`
+
+warning: value assigned to `entry_point` is never read
+   --> kernel/src/exec/elf.rs:148:21
+    |
+148 |             let mut entry_point = 0;
+    |                     ^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_assignments)]` on by default
+    = help: maybe it is overwritten before being read?
+
+warning: variable does not need to be mutable
+  --> kernel/src/dev/filesystem/fat/file.rs:91:17
+   |
+91 |             let mut sec = self.sec_iter.current_sector();
+   |                 ----^^^
+   |                 |
+   |                 help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+   --> kernel/src/dev/filesystem/fat/mod.rs:178:17
+    |
+178 |             let mut fat_fs = FATFileSystem {
+    |                 ----^^^^^^
+    |                 |
+    |                 help: remove this `mut`
+
+warning: variants `Edge` and `Level` are never constructed
+  --> kernel/src/dev/hal/x86_64/apic/lapic.rs:71:5
+   |
+70 | enum TriggerMode {
+   |      ----------- variants in this enum
+71 |     Edge = 0,
+   |     ^^^^
+72 |     Level = 1,
+   |     ^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+   = note: `TriggerMode` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Physical` and `Logical` are never constructed
+  --> kernel/src/dev/hal/x86_64/apic/lapic.rs:78:5
+   |
+77 | enum DestinationMode {
+   |      --------------- variants in this enum
+78 |     Physical = 0,
+   |     ^^^^^^^^
+79 |     Logical = 1,
+   |     ^^^^^^^
+   |
+   = note: `DestinationMode` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Fixed`, `LowestPriority`, `SMI`, `NMI`, `Init` and `StartUp` are never constructed
+  --> kernel/src/dev/hal/x86_64/apic/lapic.rs:85:5
+   |
+84 | enum DeliveryMode {
+   |      ------------ variants in this enum
+85 |     Fixed = 0,
+   |     ^^^^^
+86 |     LowestPriority = 1,
+   |     ^^^^^^^^^^^^^^
+87 |     SMI = 2,
+   |     ^^^
+88 |     NMI = 4,
+   |     ^^^
+89 |     Init = 5,
+   |     ^^^^
+90 |     StartUp = 6,
+   |     ^^^^^^^
+   |
+   = note: `DeliveryMode` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `None`, `OnlySelf`, `AllIncludingSelf` and `AllExcludingSelf` are never constructed
+  --> kernel/src/dev/hal/x86_64/apic/lapic.rs:96:5
+   |
+95 | enum DestinationShorthand {
+   |      -------------------- variants in this enum
+96 |     None = 0,
+   |     ^^^^
+97 |     OnlySelf = 1,
+   |     ^^^^^^^^
+98 |     AllIncludingSelf = 2,
+   |     ^^^^^^^^^^^^^^^^
+99 |     AllExcludingSelf = 3,
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `DestinationShorthand` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: associated function `send_interrupt` is never used
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:154:8
+    |
+154 |     fn send_interrupt(&mut self, int: LAPICInterrupt) {
+    |        ^^^^^^^^^^^^^^
+
+warning: field `pci_device_header` is never read
+   --> kernel/src/dev/storage/ahci/mod.rs:316:5
+    |
+315 | pub struct AHCI {
+    |            ---- field in this struct
+316 |     pci_device_header: &'static pci::PCIDeviceHeader,
+    |     ^^^^^^^^^^^^^^^^^
+    |
+    = note: `AHCI` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `new` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:123:1
+    |
+123 | / #[repr(C, packed)]
+124 | | #[derive(Copy, Clone, Debug)]
+125 | | struct FISRegH2D {
+126 | |     fis_type: u8,
+...   |
+143 | |     _reserved_1: u32,
+144 | | }
+    | |_^
+
+warning: associated function `into_bytes` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:123:1
+    |
+123 | / #[repr(C, packed)]
+124 | | #[derive(Copy, Clone, Debug)]
+125 | | struct FISRegH2D {
+126 | |     fis_type: u8,
+...   |
+143 | |     _reserved_1: u32,
+144 | | }
+    | |_^
+
+warning: associated function `from_bytes` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:123:1
+    |
+123 | / #[repr(C, packed)]
+124 | | #[derive(Copy, Clone, Debug)]
+125 | | struct FISRegH2D {
+126 | |     fis_type: u8,
+...   |
+143 | |     _reserved_1: u32,
+144 | | }
+    | |_^
+
+warning: associated function `fis_type` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:126:5
+    |
+126 |     fis_type: u8,
+    |     ^^^^^^^^
+
+warning: associated function `port_multiplier` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:127:5
+    |
+127 |     port_multiplier: B4,
+    |     ^^^^^^^^^^^^^^^
+
+warning: associated function `command_control` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:129:5
+    |
+129 |     command_control: bool,
+    |     ^^^^^^^^^^^^^^^
+
+warning: associated function `command` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:130:5
+    |
+130 |     command: u8,
+    |     ^^^^^^^
+
+warning: associated function `feature_low` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:131:5
+    |
+131 |     feature_low: u8,
+    |     ^^^^^^^^^^^
+
+warning: associated function `lba_0` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:132:5
+    |
+132 |     lba_0: u8,
+    |     ^^^^^
+
+warning: associated function `lba_1` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:133:5
+    |
+133 |     lba_1: u8,
+    |     ^^^^^
+
+warning: associated function `lba_2` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:134:5
+    |
+134 |     lba_2: u8,
+    |     ^^^^^
+
+warning: associated function `device_register` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:135:5
+    |
+135 |     device_register: u8,
+    |     ^^^^^^^^^^^^^^^
+
+warning: associated function `lba_3` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:136:5
+    |
+136 |     lba_3: u8,
+    |     ^^^^^
+
+warning: associated function `lba_4` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:137:5
+    |
+137 |     lba_4: u8,
+    |     ^^^^^
+
+warning: associated function `lba_5` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:138:5
+    |
+138 |     lba_5: u8,
+    |     ^^^^^
+
+warning: associated function `feature_high` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:139:5
+    |
+139 |     feature_high: u8,
+    |     ^^^^^^^^^^^^
+
+warning: associated function `count` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:140:5
+    |
+140 |     count: u16,
+    |     ^^^^^
+
+warning: associated function `iso_command_completion` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:141:5
+    |
+141 |     iso_command_completion: u8,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `control` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:142:5
+    |
+142 |     control: u8,
+    |     ^^^^^^^
+
+warning: associated function `new` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:147:1
+    |
+147 | / #[repr(C, packed)]
+148 | | #[derive(Copy, Clone, Debug)]
+149 | | struct HBAPRDTEntry {
+150 | |     data_base_address: u64,
+...   |
+154 | |     interrupt_on_completion: bool,
+155 | | }
+    | |_^
+
+warning: associated function `into_bytes` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:147:1
+    |
+147 | / #[repr(C, packed)]
+148 | | #[derive(Copy, Clone, Debug)]
+149 | | struct HBAPRDTEntry {
+150 | |     data_base_address: u64,
+...   |
+154 | |     interrupt_on_completion: bool,
+155 | | }
+    | |_^
+
+warning: associated function `from_bytes` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:147:1
+    |
+147 | / #[repr(C, packed)]
+148 | | #[derive(Copy, Clone, Debug)]
+149 | | struct HBAPRDTEntry {
+150 | |     data_base_address: u64,
+...   |
+154 | |     interrupt_on_completion: bool,
+155 | | }
+    | |_^
+
+warning: associated function `data_base_address` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:150:5
+    |
+150 |     data_base_address: u64,
+    |     ^^^^^^^^^^^^^^^^^
+
+warning: associated function `byte_count` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:152:5
+    |
+152 |     byte_count: B22,
+    |     ^^^^^^^^^^
+
+warning: associated function `interrupt_on_completion` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:154:5
+    |
+154 |     interrupt_on_completion: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:296:1
+    |
+296 | / #[repr(C, packed)]
+297 | | #[derive(Clone, Copy, Debug)]
+298 | | struct HBACommandHeader {
+299 | |     command_fis_length: B5,
+...   |
+311 | |     _reserved_1: B128,
+312 | | }
+    | |_^
+
+warning: associated function `into_bytes` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:296:1
+    |
+296 | / #[repr(C, packed)]
+297 | | #[derive(Clone, Copy, Debug)]
+298 | | struct HBACommandHeader {
+299 | |     command_fis_length: B5,
+...   |
+311 | |     _reserved_1: B128,
+312 | | }
+    | |_^
+
+warning: associated function `from_bytes` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:296:1
+    |
+296 | / #[repr(C, packed)]
+297 | | #[derive(Clone, Copy, Debug)]
+298 | | struct HBACommandHeader {
+299 | |     command_fis_length: B5,
+...   |
+311 | |     _reserved_1: B128,
+312 | | }
+    | |_^
+
+warning: associated function `command_fis_length` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:299:5
+    |
+299 |     command_fis_length: B5,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `atapi` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:300:5
+    |
+300 |     atapi: bool,
+    |     ^^^^^
+
+warning: associated function `write` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:301:5
+    |
+301 |     write: bool,
+    |     ^^^^^
+
+warning: associated function `prefetchable` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:302:5
+    |
+302 |     prefetchable: bool,
+    |     ^^^^^^^^^^^^
+
+warning: associated function `reset` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:303:5
+    |
+303 |     reset: bool,
+    |     ^^^^^
+
+warning: associated function `bist` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:304:5
+    |
+304 |     bist: bool,
+    |     ^^^^
+
+warning: associated function `clear_busy_upon_ok` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:305:5
+    |
+305 |     clear_busy_upon_ok: bool,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `port_multiplier_port` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:307:5
+    |
+307 |     port_multiplier_port: B4,
+    |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `physical_region_descriptor_byte_count_transferred` is never used
+   --> kernel/src/dev/storage/ahci/mod.rs:309:5
+    |
+309 |     physical_region_descriptor_byte_count_transferred: u32,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: variants `CreateIOSubmissionQueue`, `CreateIOCompletionQueue` and `NamespaceAttachment` are never constructed
+  --> kernel/src/dev/storage/nvme/mod.rs:11:5
+   |
+10 | enum OpCode {
+   |      ------ variants in this enum
+11 |     CreateIOSubmissionQueue = 0x01,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+12 |     CreateIOCompletionQueue = 0x05,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+13 |     Identify = 0x06,
+14 |     NamespaceAttachment = 0x15,
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:18:1
+   |
+18 | / #[repr(C, packed)]
+19 | | #[derive(Copy, Clone, Debug)]
+20 | | pub struct Capabilities {
+21 | |     maximum_queue_entries_supported: u16,
+...  |
+33 | |     _reserved_2: u8,
+34 | | }
+   | |_^
+
+warning: associated function `into_bytes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:18:1
+   |
+18 | / #[repr(C, packed)]
+19 | | #[derive(Copy, Clone, Debug)]
+20 | | pub struct Capabilities {
+21 | |     maximum_queue_entries_supported: u16,
+...  |
+33 | |     _reserved_2: u8,
+34 | | }
+   | |_^
+
+warning: associated function `from_bytes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:18:1
+   |
+18 | / #[repr(C, packed)]
+19 | | #[derive(Copy, Clone, Debug)]
+20 | | pub struct Capabilities {
+21 | |     maximum_queue_entries_supported: u16,
+...  |
+33 | |     _reserved_2: u8,
+34 | | }
+   | |_^
+
+warning: associated function `maximum_queue_entries_supported` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:21:5
+   |
+21 |     maximum_queue_entries_supported: u16,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `contiguous_queues_required` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:22:5
+   |
+22 |     contiguous_queues_required: bool,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `arbitration_mechanism_supported` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:23:5
+   |
+23 |     arbitration_mechanism_supported: B2,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `TO` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:25:5
+   |
+25 |     TO: u8,
+   |     ^^
+
+warning: associated function `nvm_subsystem_reset_supported` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:27:5
+   |
+27 |     nvm_subsystem_reset_supported: bool,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `command_sets_supported` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:28:5
+   |
+28 |     command_sets_supported: u8,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `boot_partition_supported` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:29:5
+   |
+29 |     boot_partition_supported: bool,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `memory_page_size_minimum` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:31:5
+   |
+31 |     memory_page_size_minimum: B4,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `memory_page_size_maximum` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:32:5
+   |
+32 |     memory_page_size_maximum: B4,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:37:1
+   |
+37 | / #[repr(C, packed)]
+38 | | #[derive(Copy, Clone, Debug)]
+39 | | pub struct ControlRegisters {
+40 | |     capabilities: u64,
+...  |
+50 | |     admin_completion_queue: u64,
+51 | | }
+   | |_^
+
+warning: associated function `into_bytes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:37:1
+   |
+37 | / #[repr(C, packed)]
+38 | | #[derive(Copy, Clone, Debug)]
+39 | | pub struct ControlRegisters {
+40 | |     capabilities: u64,
+...  |
+50 | |     admin_completion_queue: u64,
+51 | | }
+   | |_^
+
+warning: associated function `from_bytes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:37:1
+   |
+37 | / #[repr(C, packed)]
+38 | | #[derive(Copy, Clone, Debug)]
+39 | | pub struct ControlRegisters {
+40 | |     capabilities: u64,
+...  |
+50 | |     admin_completion_queue: u64,
+51 | | }
+   | |_^
+
+warning: associated function `capabilities` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:40:5
+   |
+40 |     capabilities: u64,
+   |     ^^^^^^^^^^^^
+
+warning: associated function `version` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:41:5
+   |
+41 |     version: u32,
+   |     ^^^^^^^
+
+warning: associated function `interrupt_mask_set` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:42:5
+   |
+42 |     interrupt_mask_set: u32,
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `interrupt_mask_clear` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:43:5
+   |
+43 |     interrupt_mask_clear: u32,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `controller_configuration` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:44:5
+   |
+44 |     controller_configuration: u32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `controller_status` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:46:5
+   |
+46 |     controller_status: u32,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: associated function `admin_queue_attributes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:48:5
+   |
+48 |     admin_queue_attributes: u32,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `admin_submission_queue` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:49:5
+   |
+49 |     admin_submission_queue: u64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `admin_completion_queue` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:50:5
+   |
+50 |     admin_completion_queue: u64,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:54:1
+   |
+54 | / #[repr(u32)]
+55 | | #[repr(C, packed)]
+56 | | #[derive(Copy, Clone, Debug)]
+57 | | struct ControllerConfiguration {
+...  |
+66 | |     _reserved_1: u8,
+67 | | }
+   | |_^
+
+warning: associated function `into_bytes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:54:1
+   |
+54 | / #[repr(u32)]
+55 | | #[repr(C, packed)]
+56 | | #[derive(Copy, Clone, Debug)]
+57 | | struct ControllerConfiguration {
+...  |
+66 | |     _reserved_1: u8,
+67 | | }
+   | |_^
+
+warning: associated function `from_bytes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:54:1
+   |
+54 | / #[repr(u32)]
+55 | | #[repr(C, packed)]
+56 | | #[derive(Copy, Clone, Debug)]
+57 | | struct ControllerConfiguration {
+...  |
+66 | |     _reserved_1: u8,
+67 | | }
+   | |_^
+
+warning: associated function `enabled` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:58:5
+   |
+58 |     enabled: bool,
+   |     ^^^^^^^
+
+warning: associated function `command_set_selected` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:60:5
+   |
+60 |     command_set_selected: B3,
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `memory_page_size` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:61:5
+   |
+61 |     memory_page_size: B4,
+   |     ^^^^^^^^^^^^^^^^
+
+warning: associated function `arbitration_mechanism_supported` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:62:5
+   |
+62 |     arbitration_mechanism_supported: B3,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `shutdown_notification` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:63:5
+   |
+63 |     shutdown_notification: B2,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `io_submission_queue_size` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:64:5
+   |
+64 |     io_submission_queue_size: B4,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `io_completion_queue_size` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:65:5
+   |
+65 |     io_completion_queue_size: B4,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:70:1
+   |
+70 | / #[repr(u32)]
+71 | | #[repr(C, packed)]
+72 | | #[derive(Copy, Clone, Debug)]
+73 | | struct ControllerStatus {
+...  |
+79 | |     _reserved: B26,
+80 | | }
+   | |_^
+
+warning: associated function `into_bytes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:70:1
+   |
+70 | / #[repr(u32)]
+71 | | #[repr(C, packed)]
+72 | | #[derive(Copy, Clone, Debug)]
+73 | | struct ControllerStatus {
+...  |
+79 | |     _reserved: B26,
+80 | | }
+   | |_^
+
+warning: associated function `from_bytes` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:70:1
+   |
+70 | / #[repr(u32)]
+71 | | #[repr(C, packed)]
+72 | | #[derive(Copy, Clone, Debug)]
+73 | | struct ControllerStatus {
+...  |
+79 | |     _reserved: B26,
+80 | | }
+   | |_^
+
+warning: associated function `nvm_subsystem_reset_occurred` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:77:5
+   |
+77 |     nvm_subsystem_reset_occurred: bool,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `processing_paused` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:78:5
+   |
+78 |     processing_paused: bool,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: associated function `into_bytes` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:83:1
+    |
+83  | / #[repr(C, packed)]
+84  | | #[derive(Clone, Copy, Debug)]
+85  | | pub struct SubmissionQueueEntry {
+86  | |     opcode: u8,
+...   |
+101 | |     command_specific_5: u32,
+102 | | }
+    | |_^
+
+warning: associated function `from_bytes` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:83:1
+    |
+83  | / #[repr(C, packed)]
+84  | | #[derive(Clone, Copy, Debug)]
+85  | | pub struct SubmissionQueueEntry {
+86  | |     opcode: u8,
+...   |
+101 | |     command_specific_5: u32,
+102 | | }
+    | |_^
+
+warning: associated function `opcode` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:86:5
+   |
+86 |     opcode: u8,
+   |     ^^^^^^
+
+warning: associated function `fused_operation` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:87:5
+   |
+87 |     fused_operation: B2,
+   |     ^^^^^^^^^^^^^^^
+
+warning: associated function `prp_sgl` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:89:5
+   |
+89 |     prp_sgl: B2,
+   |     ^^^^^^^
+
+warning: associated function `command_id` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:90:5
+   |
+90 |     command_id: u16,
+   |     ^^^^^^^^^^
+
+warning: associated function `nsid` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:91:5
+   |
+91 |     nsid: u32,
+   |     ^^^^
+
+warning: associated function `metadata_pointer` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:93:5
+   |
+93 |     metadata_pointer: u64,
+   |     ^^^^^^^^^^^^^^^^
+
+warning: associated function `data_pointer_0` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:94:5
+   |
+94 |     data_pointer_0: u64,
+   |     ^^^^^^^^^^^^^^
+
+warning: associated function `data_pointer_1` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:95:5
+   |
+95 |     data_pointer_1: u64,
+   |     ^^^^^^^^^^^^^^
+
+warning: associated function `command_specific_0` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:96:5
+   |
+96 |     command_specific_0: u32,
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `command_specific_1` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:97:5
+   |
+97 |     command_specific_1: u32,
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `command_specific_2` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:98:5
+   |
+98 |     command_specific_2: u32,
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `command_specific_3` is never used
+  --> kernel/src/dev/storage/nvme/mod.rs:99:5
+   |
+99 |     command_specific_3: u32,
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `command_specific_4` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:100:5
+    |
+100 |     command_specific_4: u32,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `command_specific_5` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:101:5
+    |
+101 |     command_specific_5: u32,
+    |     ^^^^^^^^^^^^^^^^^^
+
+warning: associated function `new` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:105:1
+    |
+105 | / #[repr(C, packed)]
+106 | | #[derive(Clone, Copy, Debug)]
+107 | | pub struct CompletionQueueEntry {
+108 | |     command_specific: u32,
+...   |
+114 | |     status: B15,
+115 | | }
+    | |_^
+
+warning: associated function `into_bytes` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:105:1
+    |
+105 | / #[repr(C, packed)]
+106 | | #[derive(Clone, Copy, Debug)]
+107 | | pub struct CompletionQueueEntry {
+108 | |     command_specific: u32,
+...   |
+114 | |     status: B15,
+115 | | }
+    | |_^
+
+warning: associated function `from_bytes` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:105:1
+    |
+105 | / #[repr(C, packed)]
+106 | | #[derive(Clone, Copy, Debug)]
+107 | | pub struct CompletionQueueEntry {
+108 | |     command_specific: u32,
+...   |
+114 | |     status: B15,
+115 | | }
+    | |_^
+
+warning: associated function `command_specific` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:108:5
+    |
+108 |     command_specific: u32,
+    |     ^^^^^^^^^^^^^^^^
+
+warning: associated function `submission_queue_head_pointer` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:110:5
+    |
+110 |     submission_queue_head_pointer: u16,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `submission_queue_id` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:111:5
+    |
+111 |     submission_queue_id: u16,
+    |     ^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `command_id` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:112:5
+    |
+112 |     command_id: u16,
+    |     ^^^^^^^^^^
+
+warning: associated function `phase` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:113:5
+    |
+113 |     phase: bool,
+    |     ^^^^^
+
+warning: associated function `status` is never used
+   --> kernel/src/dev/storage/nvme/mod.rs:114:5
+    |
+114 |     status: B15,
+    |     ^^^^^^
+
+warning: fields `completion_queue`, `completion_queue_size`, `submission_head` and `completion_head` are never read
+  --> kernel/src/dev/storage/nvme/queue.rs:9:5
+   |
+4  | pub struct NVMEQueue {
+   |            --------- fields in this struct
+...
+9  |     completion_queue: *mut super::CompletionQueueEntry,
+   |     ^^^^^^^^^^^^^^^^
+10 |     submission_queue_size: isize,
+11 |     completion_queue_size: isize,
+   |     ^^^^^^^^^^^^^^^^^^^^^
+12 |     submission_head: isize,
+   |     ^^^^^^^^^^^^^^^
+13 |     submission_tail: isize,
+14 |     completion_head: isize,
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `NVMEQueue` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `setup` is never used
+  --> kernel/src/dev/storage/nvme/queue.rs:48:12
+   |
+48 |     pub fn setup(&mut self) {
+   |            ^^^^^
+
+warning: associated function `completion_doorbell` is never used
+  --> kernel/src/dev/storage/nvme/queue.rs:62:12
+   |
+62 |     pub fn completion_doorbell(&mut self, slot: u16) {
+   |            ^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `get_completion_doorbell` is never used
+  --> kernel/src/dev/storage/nvme/queue.rs:70:12
+   |
+70 |     pub fn get_completion_doorbell(&self) -> u16 {
+   |            ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `get_submission_doorbell` is never used
+  --> kernel/src/dev/storage/nvme/queue.rs:76:12
+   |
+76 |     pub fn get_submission_doorbell(&self) -> u16 {
+   |            ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `print_all` is never used
+  --> kernel/src/dev/storage/nvme/queue.rs:82:12
+   |
+82 |     pub fn print_all(&self) {
+   |            ^^^^^^^^^
+
+warning: associated function `wait_until_completion` is never used
+  --> kernel/src/dev/storage/nvme/queue.rs:88:12
+   |
+88 |     pub fn wait_until_completion(&mut self) {
+   |            ^^^^^^^^^^^^^^^^^^^^^
+
+warning: associated function `dequeue` is never used
+   --> kernel/src/dev/storage/nvme/queue.rs:104:12
+    |
+104 |     pub fn dequeue(&mut self) -> super::CompletionQueueEntry {
+    |            ^^^^^^^
+
+warning: associated function `boot` is never used
+  --> kernel/src/dev/partition/mbr.rs:11:5
+   |
+11 |     boot: u8,
+   |     ^^^^
+
+warning: associated function `starting_head` is never used
+  --> kernel/src/dev/partition/mbr.rs:12:5
+   |
+12 |     starting_head: u8,
+   |     ^^^^^^^^^^^^^
+
+warning: associated function `starting_sector` is never used
+  --> kernel/src/dev/partition/mbr.rs:13:5
+   |
+13 |     starting_sector: B6,
+   |     ^^^^^^^^^^^^^^^
+
+warning: associated function `starting_cylinder` is never used
+  --> kernel/src/dev/partition/mbr.rs:14:5
+   |
+14 |     starting_cylinder: B10,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: associated function `ending_head` is never used
+  --> kernel/src/dev/partition/mbr.rs:16:5
+   |
+16 |     ending_head: u8,
+   |     ^^^^^^^^^^^
+
+warning: associated function `ending_sector` is never used
+  --> kernel/src/dev/partition/mbr.rs:17:5
+   |
+17 |     ending_sector: B6,
+   |     ^^^^^^^^^^^^^
+
+warning: associated function `ending_cylinder` is never used
+  --> kernel/src/dev/partition/mbr.rs:18:5
+   |
+18 |     ending_cylinder: B10,
+   |     ^^^^^^^^^^^^^^^
+
+warning: fields `bpb` and `cluster_size` are never read
+  --> kernel/src/dev/filesystem/fat/mod.rs:78:5
+   |
+76 | pub struct FATFileSystem {
+   |            ------------- fields in this struct
+77 |     drive: Arc<Mutex<&'static mut dyn BlockReadWrite>>,
+78 |     bpb: BPB,
+   |     ^^^
+...
+90 |     cluster_size: u32,
+   |     ^^^^^^^^^^^^
+
+warning: associated function `read_cluster` is never used
+   --> kernel/src/dev/filesystem/fat/mod.rs:206:8
+    |
+206 |     fn read_cluster(&self, cluster: u32, buffer: &mut [u8]) -> Result<(), Error> {
+    |        ^^^^^^^^^^^^
+
+warning: associated function `dir_iter` is never used
+   --> kernel/src/dev/filesystem/fat/mod.rs:225:8
+    |
+225 |     fn dir_iter(&self, path: String) -> Result<DirectoryIterator<'_>, Error> {
+    |        ^^^^^^^^
+
+warning: variant `Free` is never constructed
+   --> kernel/src/dev/filesystem/fat/fat.rs:196:5
+    |
+193 | pub enum ClusterAllocatorMode {
+    |          -------------------- variant in this enum
+...
+196 |     Free,
+    |     ^^^^
+    |
+    = note: `ClusterAllocatorMode` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: associated function `seek` is never used
+  --> kernel/src/dev/filesystem/fat/fat.rs:37:12
+   |
+37 |     pub fn seek(&mut self, cluster: u32) -> Result<(), Error> {
+   |            ^^^^
+
+warning: associated function `into_bytes` is never used
+  --> kernel/src/dev/filesystem/fat/dir.rs:23:1
+   |
+23 | / #[repr(C, packed)]
+24 | | #[derive(Copy, Clone)]
+25 | | pub struct FileDatestamp {
+26 | |     day: B5,
+27 | |     month: B4,
+28 | |     year: B7,
+29 | | }
+   | |_^
+
+warning: associated function `from_bytes` is never used
+  --> kernel/src/dev/filesystem/fat/dir.rs:23:1
+   |
+23 | / #[repr(C, packed)]
+24 | | #[derive(Copy, Clone)]
+25 | | pub struct FileDatestamp {
+26 | |     day: B5,
+27 | |     month: B4,
+28 | |     year: B7,
+29 | | }
+   | |_^
+
+warning: associated function `into_bytes` is never used
+  --> kernel/src/dev/filesystem/fat/dir.rs:38:1
+   |
+38 | / #[repr(C, packed)]
+39 | | #[derive(Copy, Clone)]
+40 | | pub struct FileTimestamp {
+41 | |     second: B5,
+42 | |     minute: B6,
+43 | |     hour: B5,
+44 | | }
+   | |_^
+
+warning: associated function `from_bytes` is never used
+  --> kernel/src/dev/filesystem/fat/dir.rs:38:1
+   |
+38 | / #[repr(C, packed)]
+39 | | #[derive(Copy, Clone)]
+40 | | pub struct FileTimestamp {
+41 | |     second: B5,
+42 | |     minute: B6,
+43 | |     hour: B5,
+44 | | }
+   | |_^
+
+warning: associated function `update_first_cluster` is never used
+   --> kernel/src/dev/filesystem/fat/dir.rs:281:12
+    |
+281 |     pub fn update_first_cluster(&mut self, first_cluster: u32) {
+    |            ^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `connection_handle` and `client_channels` are never read
+ --> kernel/src/ipc/lpc.rs:5:5
+  |
+4 | pub struct SyncLPCServer {
+  |            ------------- fields in this struct
+5 |     connection_handle: Handle,
+  |     ^^^^^^^^^^^^^^^^^
+6 |     client_channels: BTreeMap<u32, Handle>,
+  |     ^^^^^^^^^^^^^^^
+
+warning: multiple variants are never constructed
+  --> kernel/src/exec/elf.rs:9:5
+   |
+8  | enum ELFInstructionSet {
+   |      ----------------- variants in this enum
+9  |     NonSpecific = 0,
+   |     ^^^^^^^^^^^
+10 |     Sparc = 2,
+   |     ^^^^^
+11 |     x86 = 3,
+   |     ^^^
+12 |     MIPS = 8,
+   |     ^^^^
+13 |     PowerPC = 0x14,
+   |     ^^^^^^^
+14 |     ARM = 0x28,
+   |     ^^^
+15 |     SuperOne = 0x2A,
+   |     ^^^^^^^^
+16 |     x86_64 = 0x3E,
+   |     ^^^^^^
+17 |     AArch64 = 0xB7,
+   |     ^^^^^^^
+18 |     RISCV = 0xF3,
+   |     ^^^^^
+   |
+   = note: `ELFInstructionSet` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Relocatable`, `Executable`, `Shared` and `Core` are never constructed
+  --> kernel/src/exec/elf.rs:24:5
+   |
+23 | enum ELFExecutableType {
+   |      ----------------- variants in this enum
+24 |     Relocatable = 1,
+   |     ^^^^^^^^^^^
+25 |     Executable = 2,
+   |     ^^^^^^^^^^
+26 |     Shared = 3,
+   |     ^^^^^^
+27 |     Core = 4,
+   |     ^^^^
+   |
+   = note: `ELFExecutableType` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `ELF32` and `ELF64` are never constructed
+  --> kernel/src/exec/elf.rs:33:5
+   |
+32 | enum ELFBitness {
+   |      ---------- variants in this enum
+33 |     ELF32 = 1,
+   |     ^^^^^
+34 |     ELF64 = 2,
+   |     ^^^^^
+   |
+   = note: `ELFBitness` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Little` and `Big` are never constructed
+  --> kernel/src/exec/elf.rs:40:5
+   |
+39 | enum ELFEndianness {
+   |      ------------- variants in this enum
+40 |     Little = 1,
+   |     ^^^^^^
+41 |     Big = 2,
+   |     ^^^
+   |
+   = note: `ELFEndianness` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Null`, `Load`, `Dynamic`, `Interpreter` and `Note` are never constructed
+  --> kernel/src/exec/elf.rs:92:5
+   |
+91 | enum ELFSectionType {
+   |      -------------- variants in this enum
+92 |     Null = 0,
+   |     ^^^^
+93 |     Load = 1,
+   |     ^^^^
+94 |     Dynamic = 2,
+   |     ^^^^^^^
+95 |     Interpreter = 3,
+   |     ^^^^^^^^^^^
+96 |     Note = 4,
+   |     ^^^^
+   |
+   = note: `ELFSectionType` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Executable`, `Writable` and `Readable` are never constructed
+   --> kernel/src/exec/elf.rs:102:5
+    |
+101 | enum ELFSectionFlags {
+    |      --------------- variants in this enum
+102 |     Executable = 1,
+    |     ^^^^^^^^^^
+103 |     Writable = 2,
+    |     ^^^^^^^^
+104 |     Readable = 4,
+    |     ^^^^^^^^
+    |
+    = note: `ELFSectionFlags` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: function `test_kernel_thread_with_ipc_send` is never used
+   --> kernel/src/kernel.rs:101:4
+    |
+101 | fn test_kernel_thread_with_ipc_send() {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: static `NAMESPACE` is never used
+ --> kernel/src/namespace.rs:5:12
+  |
+5 | static mut NAMESPACE: Tree<String, Box<dyn Resource>> = Tree::new(String::new(), None);
+  |            ^^^^^^^^^
+
+warning: static `HANDLES` is never used
+ --> kernel/src/namespace.rs:6:12
+  |
+6 | static mut HANDLES: BTreeMap<u32, Handle> = BTreeMap::new();
+  |            ^^^^^^^
+
+warning: static `HANDLE_ID` is never used
+ --> kernel/src/namespace.rs:7:12
+  |
+7 | static mut HANDLE_ID: u32 = 0;
+  |            ^^^^^^^^^
+
+warning: function `namespace` is never used
+ --> kernel/src/namespace.rs:9:4
+  |
+9 | fn namespace() -> &'static mut Tree<String, Box<dyn Resource>> {
+  |    ^^^^^^^^^
+
+warning: function `init_namespace` is never used
+  --> kernel/src/namespace.rs:15:4
+   |
+15 | fn init_namespace() {
+   |    ^^^^^^^^^^^^^^
+
+warning: function `subtree_parts` is never used
+  --> kernel/src/namespace.rs:20:4
+   |
+20 | fn subtree_parts(path: Vec<String>) -> Option<&'static mut Tree<String, Box<dyn Resource>>> {
+   |    ^^^^^^^^^^^^^
+
+warning: function `get_resource_non_generic_parts` is never used
+  --> kernel/src/namespace.rs:24:4
+   |
+24 | fn get_resource_non_generic_parts(path: Vec<String>) -> Option<&'static mut Box<dyn Resource>> {
+   |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `register_resource_path` is never used
+  --> kernel/src/namespace.rs:32:4
+   |
+32 | fn register_resource_path(path: Vec<String>, resource: Box<dyn Resource>) -> &'static mut Box<dyn Resource> {
+   |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_block_device_parts` is never used
+  --> kernel/src/namespace.rs:37:4
+   |
+37 | fn get_block_device_parts(path: Vec<String>) -> Option<&'static mut dyn BlockReadWrite> {
+   |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_new_handle_id` is never used
+  --> kernel/src/namespace.rs:48:4
+   |
+48 | fn get_new_handle_id() -> u32 {
+   |    ^^^^^^^^^^^^^^^^^
+
+warning: function `acquire_handle` is never used
+  --> kernel/src/namespace.rs:59:4
+   |
+59 | fn acquire_handle(path: Vec<String>, owner: u32) -> Result<&'static mut Handle, Error> {
+   |    ^^^^^^^^^^^^^^
+
+warning: function `release_handle` is never used
+  --> kernel/src/namespace.rs:81:4
+   |
+81 | fn release_handle(id: u32) -> Result<(), Error> {
+   |    ^^^^^^^^^^^^^^
+
+warning: function `drop_resource_parts` is never used
+  --> kernel/src/namespace.rs:93:4
+   |
+93 | fn drop_resource_parts(path: Vec<String>) -> Result<(), Error> {
+   |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_rw_handle` is never used
+  --> kernel/src/namespace.rs:99:4
+   |
+99 | fn get_rw_handle(handle: u32) -> Option<&'static mut dyn ReadWrite> {
+   |    ^^^^^^^^^^^^^
+
+warning: function `get_seek_handle` is never used
+   --> kernel/src/namespace.rs:113:4
+    |
+113 | fn get_seek_handle(handle: u32) -> Option<&'static mut dyn Seek> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `get_file_handle` is never used
+   --> kernel/src/namespace.rs:127:4
+    |
+127 | fn get_file_handle(handle: u32) -> Option<&'static mut infinity::file::File> {
+    |    ^^^^^^^^^^^^^^^
+
+warning: function `get_message_channel_handle` is never used
+   --> kernel/src/namespace.rs:141:4
+    |
+141 | fn get_message_channel_handle(handle: u32) -> Option<&'static mut infinity::ipc::MessageChannel> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused `Result` that must be used
+   --> kernel/src/dev/char/vga_textmode/mod.rs:112:13
+    |
+112 |             self.write_one(*b);
+    |             ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_must_use)]` on by default
+    = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+  --> kernel/src/dev/char/uart_16550/mod.rs:55:13
+   |
+55 |             self.port.write_char(*b as char).or_else(|_| return Result::Err(Error::WriteFailure));
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+  --> kernel/src/dev/hal/x86_64/pic.rs:95:5
+   |
+95 |     write_one!(master_cmd, 0xff);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+   = note: this warning originates in the macro `write_one` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: unused `Result` that must be used
+  --> kernel/src/dev/hal/x86_64/pic.rs:96:5
+   |
+96 |     write_one!(slave_cmd, 0xff);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+   = note: this warning originates in the macro `write_one` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+warning: method `with__reserved_0` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:110:5
+    |
+110 |     _reserved_0: bool,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0`
+    |
+    = note: `#[warn(non_snake_case)]` on by default
+
+warning: method `with__reserved_0_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:110:5
+    |
+110 |     _reserved_0: bool,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0_checked`
+
+warning: method `set__reserved_0` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:110:5
+    |
+110 |     _reserved_0: bool,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0`
+
+warning: method `set__reserved_0_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:110:5
+    |
+110 |     _reserved_0: bool,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0_checked`
+
+warning: method `with__reserved_1` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:113:5
+    |
+113 |     _reserved_1: B2,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1`
+
+warning: method `with__reserved_1_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:113:5
+    |
+113 |     _reserved_1: B2,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1_checked`
+
+warning: method `set__reserved_1` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:113:5
+    |
+113 |     _reserved_1: B2,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1`
+
+warning: method `set__reserved_1_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:113:5
+    |
+113 |     _reserved_1: B2,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1_checked`
+
+warning: method `with__reserved_2` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:115:5
+    |
+115 |     _reserved_2: B12,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_2`
+
+warning: method `with__reserved_2_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:115:5
+    |
+115 |     _reserved_2: B12,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_2_checked`
+
+warning: method `set__reserved_2` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:115:5
+    |
+115 |     _reserved_2: B12,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_2`
+
+warning: method `set__reserved_2_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:115:5
+    |
+115 |     _reserved_2: B12,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_2_checked`
+
+warning: method `with__reserved` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:137:5
+    |
+137 |     _reserved: B24,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved`
+
+warning: method `with__reserved_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:137:5
+    |
+137 |     _reserved: B24,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_checked`
+
+warning: method `set__reserved` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:137:5
+    |
+137 |     _reserved: B24,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved`
+
+warning: method `set__reserved_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/apic/lapic.rs:137:5
+    |
+137 |     _reserved: B24,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_checked`
+
+warning: method `with__reserved` should have a snake case name
+  --> kernel/src/dev/hal/x86_64/apic/madt.rs:92:5
+   |
+92 |     _reserved: B12,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved`
+
+warning: method `with__reserved_checked` should have a snake case name
+  --> kernel/src/dev/hal/x86_64/apic/madt.rs:92:5
+   |
+92 |     _reserved: B12,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_checked`
+
+warning: method `set__reserved` should have a snake case name
+  --> kernel/src/dev/hal/x86_64/apic/madt.rs:92:5
+   |
+92 |     _reserved: B12,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved`
+
+warning: method `set__reserved_checked` should have a snake case name
+  --> kernel/src/dev/hal/x86_64/apic/madt.rs:92:5
+   |
+92 |     _reserved: B12,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_checked`
+
+warning: method `with__bar_space` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:233:5
+    |
+233 |     _bar_space: bool,
+    |     ^^^^^^^^^^ help: convert the identifier to snake case: `with_bar_space`
+
+warning: method `with__bar_space_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:233:5
+    |
+233 |     _bar_space: bool,
+    |     ^^^^^^^^^^ help: convert the identifier to snake case: `with_bar_space_checked`
+
+warning: method `set__bar_space` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:233:5
+    |
+233 |     _bar_space: bool,
+    |     ^^^^^^^^^^ help: convert the identifier to snake case: `set_bar_space`
+
+warning: method `set__bar_space_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:233:5
+    |
+233 |     _bar_space: bool,
+    |     ^^^^^^^^^^ help: convert the identifier to snake case: `set_bar_space_checked`
+
+warning: method `with__reserved` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:262:9
+    |
+262 |     pub _reserved: B3,
+    |         ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved`
+
+warning: method `with__reserved_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:262:9
+    |
+262 |     pub _reserved: B3,
+    |         ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_checked`
+
+warning: method `set__reserved` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:262:9
+    |
+262 |     pub _reserved: B3,
+    |         ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved`
+
+warning: method `set__reserved_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:262:9
+    |
+262 |     pub _reserved: B3,
+    |         ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_checked`
+
+warning: method `with__table_offset` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:266:5
+    |
+266 |     _table_offset: B29,
+    |     ^^^^^^^^^^^^^ help: convert the identifier to snake case: `with_table_offset`
+
+warning: method `with__table_offset_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:266:5
+    |
+266 |     _table_offset: B29,
+    |     ^^^^^^^^^^^^^ help: convert the identifier to snake case: `with_table_offset_checked`
+
+warning: method `set__table_offset` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:266:5
+    |
+266 |     _table_offset: B29,
+    |     ^^^^^^^^^^^^^ help: convert the identifier to snake case: `set_table_offset`
+
+warning: method `set__table_offset_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:266:5
+    |
+266 |     _table_offset: B29,
+    |     ^^^^^^^^^^^^^ help: convert the identifier to snake case: `set_table_offset_checked`
+
+warning: method `with__pending_bit_offset` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:268:5
+    |
+268 |     _pending_bit_offset: B29,
+    |     ^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `with_pending_bit_offset`
+
+warning: method `with__pending_bit_offset_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:268:5
+    |
+268 |     _pending_bit_offset: B29,
+    |     ^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `with_pending_bit_offset_checked`
+
+warning: method `set__pending_bit_offset` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:268:5
+    |
+268 |     _pending_bit_offset: B29,
+    |     ^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `set_pending_bit_offset`
+
+warning: method `set__pending_bit_offset_checked` should have a snake case name
+   --> kernel/src/dev/hal/x86_64/pci/mod.rs:268:5
+    |
+268 |     _pending_bit_offset: B29,
+    |     ^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `set_pending_bit_offset_checked`
+
+warning: method `with__reserved_0` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:128:5
+    |
+128 |     _reserved_0: B3,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0`
+
+warning: method `with__reserved_0_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:128:5
+    |
+128 |     _reserved_0: B3,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0_checked`
+
+warning: method `set__reserved_0` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:128:5
+    |
+128 |     _reserved_0: B3,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0`
+
+warning: method `set__reserved_0_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:128:5
+    |
+128 |     _reserved_0: B3,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0_checked`
+
+warning: method `with__reserved_1` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:143:5
+    |
+143 |     _reserved_1: u32,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1`
+
+warning: method `with__reserved_1_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:143:5
+    |
+143 |     _reserved_1: u32,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1_checked`
+
+warning: method `set__reserved_1` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:143:5
+    |
+143 |     _reserved_1: u32,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1`
+
+warning: method `set__reserved_1_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:143:5
+    |
+143 |     _reserved_1: u32,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1_checked`
+
+warning: method `with__reserved_0` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:151:5
+    |
+151 |     _reserved_0: u32,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0`
+
+warning: method `with__reserved_0_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:151:5
+    |
+151 |     _reserved_0: u32,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0_checked`
+
+warning: method `set__reserved_0` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:151:5
+    |
+151 |     _reserved_0: u32,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0`
+
+warning: method `set__reserved_0_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:151:5
+    |
+151 |     _reserved_0: u32,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0_checked`
+
+warning: method `with__reserved_1` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:153:5
+    |
+153 |     _reserved_1: B9,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1`
+
+warning: method `with__reserved_1_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:153:5
+    |
+153 |     _reserved_1: B9,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1_checked`
+
+warning: method `set__reserved_1` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:153:5
+    |
+153 |     _reserved_1: B9,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1`
+
+warning: method `set__reserved_1_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:153:5
+    |
+153 |     _reserved_1: B9,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1_checked`
+
+warning: method `with__reserved_0` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:306:5
+    |
+306 |     _reserved_0: bool,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0`
+
+warning: method `with__reserved_0_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:306:5
+    |
+306 |     _reserved_0: bool,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0_checked`
+
+warning: method `set__reserved_0` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:306:5
+    |
+306 |     _reserved_0: bool,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0`
+
+warning: method `set__reserved_0_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:306:5
+    |
+306 |     _reserved_0: bool,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0_checked`
+
+warning: method `with__reserved_1` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:311:5
+    |
+311 |     _reserved_1: B128,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1`
+
+warning: method `with__reserved_1_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:311:5
+    |
+311 |     _reserved_1: B128,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1_checked`
+
+warning: method `set__reserved_1` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:311:5
+    |
+311 |     _reserved_1: B128,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1`
+
+warning: method `set__reserved_1_checked` should have a snake case name
+   --> kernel/src/dev/storage/ahci/mod.rs:311:5
+    |
+311 |     _reserved_1: B128,
+    |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1_checked`
+
+warning: method `with__reserved_0` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:24:5
+   |
+24 |     _reserved_0: B5,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0`
+
+warning: method `with__reserved_0_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:24:5
+   |
+24 |     _reserved_0: B5,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0_checked`
+
+warning: method `set__reserved_0` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:24:5
+   |
+24 |     _reserved_0: B5,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0`
+
+warning: method `set__reserved_0_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:24:5
+   |
+24 |     _reserved_0: B5,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0_checked`
+
+warning: method `TO` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:25:5
+   |
+25 |     TO: u8,
+   |     ^^ help: convert the identifier to snake case: `to`
+
+warning: method `TO_or_err` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:25:5
+   |
+25 |     TO: u8,
+   |     ^^ help: convert the identifier to snake case: `to_or_err`
+
+warning: method `with_TO` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:25:5
+   |
+25 |     TO: u8,
+   |     ^^ help: convert the identifier to snake case: `with_to`
+
+warning: method `with_TO_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:25:5
+   |
+25 |     TO: u8,
+   |     ^^ help: convert the identifier to snake case: `with_to_checked`
+
+warning: method `set_TO` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:25:5
+   |
+25 |     TO: u8,
+   |     ^^ help: convert the identifier to snake case: `set_to`
+
+warning: method `set_TO_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:25:5
+   |
+25 |     TO: u8,
+   |     ^^ help: convert the identifier to snake case: `set_to_checked`
+
+warning: method `with__reserved_1` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:30:5
+   |
+30 |     _reserved_1: B2,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1`
+
+warning: method `with__reserved_1_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:30:5
+   |
+30 |     _reserved_1: B2,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1_checked`
+
+warning: method `set__reserved_1` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:30:5
+   |
+30 |     _reserved_1: B2,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1`
+
+warning: method `set__reserved_1_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:30:5
+   |
+30 |     _reserved_1: B2,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1_checked`
+
+warning: method `with__reserved_2` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:33:5
+   |
+33 |     _reserved_2: u8,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_2`
+
+warning: method `with__reserved_2_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:33:5
+   |
+33 |     _reserved_2: u8,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_2_checked`
+
+warning: method `set__reserved_2` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:33:5
+   |
+33 |     _reserved_2: u8,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_2`
+
+warning: method `set__reserved_2_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:33:5
+   |
+33 |     _reserved_2: u8,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_2_checked`
+
+warning: method `with__reserved_0` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:45:5
+   |
+45 |     _reserved_0: u32,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0`
+
+warning: method `with__reserved_0_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:45:5
+   |
+45 |     _reserved_0: u32,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0_checked`
+
+warning: method `set__reserved_0` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:45:5
+   |
+45 |     _reserved_0: u32,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0`
+
+warning: method `set__reserved_0_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:45:5
+   |
+45 |     _reserved_0: u32,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0_checked`
+
+warning: method `with__reserved_1` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:47:5
+   |
+47 |     _reserved_1: u32,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1`
+
+warning: method `with__reserved_1_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:47:5
+   |
+47 |     _reserved_1: u32,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1_checked`
+
+warning: method `set__reserved_1` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:47:5
+   |
+47 |     _reserved_1: u32,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1`
+
+warning: method `set__reserved_1_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:47:5
+   |
+47 |     _reserved_1: u32,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1_checked`
+
+warning: method `with__reserved_0` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:59:5
+   |
+59 |     _reserved_0: B3,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0`
+
+warning: method `with__reserved_0_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:59:5
+   |
+59 |     _reserved_0: B3,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0_checked`
+
+warning: method `set__reserved_0` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:59:5
+   |
+59 |     _reserved_0: B3,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0`
+
+warning: method `set__reserved_0_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:59:5
+   |
+59 |     _reserved_0: B3,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0_checked`
+
+warning: method `with__reserved_1` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:66:5
+   |
+66 |     _reserved_1: u8,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1`
+
+warning: method `with__reserved_1_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:66:5
+   |
+66 |     _reserved_1: u8,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1_checked`
+
+warning: method `set__reserved_1` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:66:5
+   |
+66 |     _reserved_1: u8,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1`
+
+warning: method `set__reserved_1_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:66:5
+   |
+66 |     _reserved_1: u8,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1_checked`
+
+warning: method `with__reserved` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:79:5
+   |
+79 |     _reserved: B26,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved`
+
+warning: method `with__reserved_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:79:5
+   |
+79 |     _reserved: B26,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_checked`
+
+warning: method `set__reserved` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:79:5
+   |
+79 |     _reserved: B26,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved`
+
+warning: method `set__reserved_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:79:5
+   |
+79 |     _reserved: B26,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_checked`
+
+warning: method `with__reserved_0` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:88:5
+   |
+88 |     _reserved_0: B4,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0`
+
+warning: method `with__reserved_0_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:88:5
+   |
+88 |     _reserved_0: B4,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_0_checked`
+
+warning: method `set__reserved_0` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:88:5
+   |
+88 |     _reserved_0: B4,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0`
+
+warning: method `set__reserved_0_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:88:5
+   |
+88 |     _reserved_0: B4,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_0_checked`
+
+warning: method `with__reserved_1` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:92:5
+   |
+92 |     _reserved_1: u64,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1`
+
+warning: method `with__reserved_1_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:92:5
+   |
+92 |     _reserved_1: u64,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_1_checked`
+
+warning: method `set__reserved_1` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:92:5
+   |
+92 |     _reserved_1: u64,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1`
+
+warning: method `set__reserved_1_checked` should have a snake case name
+  --> kernel/src/dev/storage/nvme/mod.rs:92:5
+   |
+92 |     _reserved_1: u64,
+   |     ^^^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_1_checked`
+
+warning: method `with__reserved` should have a snake case name
+   --> kernel/src/dev/storage/nvme/mod.rs:109:5
+    |
+109 |     _reserved: u32,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved`
+
+warning: method `with__reserved_checked` should have a snake case name
+   --> kernel/src/dev/storage/nvme/mod.rs:109:5
+    |
+109 |     _reserved: u32,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `with_reserved_checked`
+
+warning: method `set__reserved` should have a snake case name
+   --> kernel/src/dev/storage/nvme/mod.rs:109:5
+    |
+109 |     _reserved: u32,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved`
+
+warning: method `set__reserved_checked` should have a snake case name
+   --> kernel/src/dev/storage/nvme/mod.rs:109:5
+    |
+109 |     _reserved: u32,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `set_reserved_checked`
+
+warning: constant `reg_offset_controller_configuration` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:145:15
+    |
+145 |         const reg_offset_controller_configuration: u64 = 0x14;
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `REG_OFFSET_CONTROLLER_CONFIGURATION`
+    |
+    = note: `#[warn(non_upper_case_globals)]` on by default
+
+warning: constant `reg_offset_controller_status` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:146:15
+    |
+146 |         const reg_offset_controller_status: u64 = 0x1C;
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `REG_OFFSET_CONTROLLER_STATUS`
+
+warning: constant `shutdown_status_normal` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:147:15
+    |
+147 |         const shutdown_status_normal: u8 = 0b00;
+    |               ^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `SHUTDOWN_STATUS_NORMAL`
+
+warning: constant `shutdown_status_completed` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:148:15
+    |
+148 |         const shutdown_status_completed: u8 = 0b10;
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `SHUTDOWN_STATUS_COMPLETED`
+
+warning: constant `shutdown_notification_abrupt_shutdown` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:149:15
+    |
+149 |         const shutdown_notification_abrupt_shutdown: u8 = 0b10;
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `SHUTDOWN_NOTIFICATION_ABRUPT_SHUTDOWN`
+
+warning: constant `admin_submission_queue_size` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:194:19
+    |
+194 |             const admin_submission_queue_size: isize = 8;
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `ADMIN_SUBMISSION_QUEUE_SIZE`
+
+warning: constant `admin_completion_queue_size` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:195:19
+    |
+195 |             const admin_completion_queue_size: isize = 8;
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `ADMIN_COMPLETION_QUEUE_SIZE`
+
+warning: constant `arbitration_mechanism_round_robin` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:223:15
+    |
+223 |         const arbitration_mechanism_round_robin: u8 = 0x00;
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `ARBITRATION_MECHANISM_ROUND_ROBIN`
+
+warning: constant `command_set_nvme` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:224:15
+    |
+224 |         const command_set_nvme: u8 = 0x00;
+    |               ^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `COMMAND_SET_NVME`
+
+warning: constant `memory_page_size_4kb` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:225:15
+    |
+225 |         const memory_page_size_4kb: u8 = 0x00;
+    |               ^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `MEMORY_PAGE_SIZE_4KB`
+
+warning: constant `shutdown_notification_none` should have an upper case name
+   --> kernel/src/dev/storage/nvme/mod.rs:226:15
+    |
+226 |         const shutdown_notification_none: u8 = 0x00;
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to upper case: `SHUTDOWN_NOTIFICATION_NONE`
+
+warning: constant `fuse_normal` should have an upper case name
+   --> kernel/src/dev/storage/nvme/queue.rs:117:15
+    |
+117 |         const fuse_normal: u8 = 0x00;
+    |               ^^^^^^^^^^^ help: convert the identifier to upper case: `FUSE_NORMAL`
+
+warning: constant `psdt_use_prp` should have an upper case name
+   --> kernel/src/dev/storage/nvme/queue.rs:118:15
+    |
+118 |         const psdt_use_prp: u8 = 0x00;
+    |               ^^^^^^^^^^^^ help: convert the identifier to upper case: `PSDT_USE_PRP`
+
+warning: unused `Result` that must be used
+   --> kernel/src/dev/filesystem/fat/fat.rs:313:21
+    |
+313 |                     self.fat_fs.drive.lock().write_block(sec, self.fat_buffer.as_mut_slice());
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+   --> kernel/src/dev/filesystem/fat/dir.rs:205:25
+    |
+205 | ...   self.fat_fs.drive.lock().read_block(self.fat_fs.cluster_to_sector(self.cluster.unwrap()) as u64, self.buffer.as_mut_ptr());
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+   --> kernel/src/dev/filesystem/fat/dir.rs:207:25
+    |
+207 | ...   self.fat_fs.drive.lock().read_block(self.fat_fs.cluster_to_sector(self.cluster.unwrap()) as u64 + self.sector as u64, self.buffer.as_mut_ptr());
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: unused `Result` that must be used
+   --> kernel/src/dev/filesystem/fat/dir.rs:214:21
+    |
+214 |                     self.fat_fs.drive.lock().read_block(self.fat_fs.root_dir_sector as u64 + self.sector as u64, self.buffer.as_mut_ptr());
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+
+warning: variable `SYSTEM_CALL_MESSAGE_QUEUE_COUNT` should have a snake case name
+  --> kernel/src/syscall.rs:22:9
+   |
+22 |         SYSTEM_CALL_MESSAGE_QUEUE_COUNT => _available_messages(arg0 as u32),
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `system_call_message_queue_count`
+
+warning: `adenos` (lib) generated 336 warnings
+   Compiling adenos v0.2.0 (/home/linfinity/GitHub/AdenOS/adenos/kernel)
+error: language item required, but not found: `eh_personality`
+  |
+  = note: this can occur when a binary crate with `#![no_std]` is compiled for a target where `eh_personality` is defined in the standard library
+  = help: you may be able to compile for a target that doesn't need `eh_personality`, specify a target with `--target` or in `.cargo/config`
+
+error: could not compile `adenos` due to previous error

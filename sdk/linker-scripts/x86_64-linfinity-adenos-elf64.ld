@@ -4,7 +4,7 @@ INPUT(main)
 OUTPUT(main.elf)
 
 MEMORY {
-    TEXT(rx): ORIGIN = 0x40000000, LENGTH = 8K
+    TEXT(rx): ORIGIN = 0x40000000, LENGTH = 256M
 }
 
 SECTIONS {

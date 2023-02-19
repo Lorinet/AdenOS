@@ -1,7 +1,0 @@
-Linfinity Aden OS Build Tool
-<==============================>
-Working dir: /home/linfinity/GitHub/AdenCoreOS/kernel
-Created bootable disk image at /home/linfinity/GitHub/AdenCoreOS/kernel/target/x86_64-adenos/debug/boot-bios-adenos.img
-IOAPIC Version: 0x11
-IOAPIC Redirection entries: 24
-11111110111000000000100000000000

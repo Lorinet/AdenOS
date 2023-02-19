@@ -1,4 +1,8 @@
 {
     "rust.target": "thumbv7em-none-eabihf",
-    "rust.all_targets": false
+    "rust.all_targets": false,
+    "files.associations": {
+        "stdlib.h": "c"
+    },
+    "cmake.configureOnOpen": false
 }
