@@ -5,6 +5,7 @@
 pub mod arch;
 
 pub mod os;
+pub mod ipc;
 pub mod error;
 pub mod allocator;
 

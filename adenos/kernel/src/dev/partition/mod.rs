@@ -43,11 +43,11 @@ impl Debug for Partition {
 impl Partition {
     fn mount_file_system(&mut self) -> Result<(), Error> {
        // autodetect filesystems
-        /*let fat = filesystem::fat::FATFileSystem::new(self.resource_path_string())?;
+        let fat = filesystem::fat::FATFileSystem::new(self.resource_path_string())?;
         if let Some(fat) = fat {
             namespace::register_resource(fat);
             return Ok(())
-        }*/
+        }
         Ok(())
     }
 }

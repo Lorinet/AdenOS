@@ -3,4 +3,5 @@ members = [
     "bootloader",
     "kernel",
     "infinity",
+    "test_driver",
 ]

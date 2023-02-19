@@ -11,8 +11,6 @@ use spin::Mutex;
 use core::cell::RefCell;
 use alloc::string::{String, ToString};
 
-pub mod lpc;
-
 pub struct MessageQueue {
     owner: u32,
     endpoint: Endpoint,
@@ -30,8 +28,14 @@ impl MessageQueue {
 }
 
 impl MessageTransport for MessageQueue {
-    fn send(&self, message: Message) {
+    fn send(&self, message: Message) -> Result<(), Error> {
+        if let Endpoint::Process(pid) = self.endpoint {
+            if pid != message.from {
+                return Err(Error::Permissions)
+            }
+        }
         self.queue.lock().push(message);
+        Ok(())
     }
 
     fn receive(&self) -> Result<Message, Error> {
@@ -71,7 +75,7 @@ impl MessageTransport for MessageQueue {
 
 
 pub trait MessageTransport {
-    fn send(&self, message: Message);
+    fn send(&self, message: Message) -> Result<(), Error>;
     fn receive(&self) -> Result<Message, Error>;
     fn peek_len(&self) -> Result<usize, Error>;
     fn available(&self) -> usize;
@@ -125,7 +129,7 @@ impl MessageTransport for MessageChannel {
         self.channel.peek_len()
     }
 
-    fn send(&self, message: Message) {
+    fn send(&self, message: Message) -> Result<(), Error> {
         self.channel.send(message)
     }
 
@@ -183,30 +187,22 @@ impl Resource for MessageChannel {
     }
 }
 
+#[repr(u32)]
 #[derive(Copy, Clone, Debug)]
 pub enum Endpoint {
-    Any,
+    Any = 0,
     Process(u32),
 }
 
-impl Into<usize> for Endpoint {
-    fn into(self) -> usize {
+impl Into<u32> for Endpoint {
+    fn into(self) -> u32 {
         match self {
             Endpoint::Any => 0,
-            Endpoint::Process(pid) => pid as usize,
+            Endpoint::Process(pid) => pid,
         }
     }
 }
 
-impl From<usize> for Endpoint {
-    fn from(val: usize) -> Self {
-        if val == 0 {
-            Endpoint::Any
-        } else {
-            Endpoint::Process(val as u32)
-        }
-    }
-}
 impl From<u32> for Endpoint {
     fn from(val: u32) -> Self {
         if val == 0 {
@@ -233,12 +229,12 @@ impl BidirectionalChannel {
 
 impl Read for BidirectionalChannel {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error> {
-        Error::from_code_to_usize(syscall::_read(self.receiver as usize, buf.as_mut_ptr(), buf.len()))
+        Error::from_code_to_usize(syscall::_read(self.receiver as usize, buf.as_mut_ptr(), buf.len()) as i64)
     }
 }
 
 impl Write for BidirectionalChannel {
     fn write(&mut self, buf: &[u8]) -> Result<usize, Error> {
-        Error::from_code_to_usize(syscall::_write(self.sender as usize, buf.as_ptr(), buf.len()))
+        Error::from_code_to_usize(syscall::_write(self.sender as usize, buf.as_ptr(), buf.len()) as i64)
     }
 }

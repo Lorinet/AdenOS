@@ -3,7 +3,7 @@ use alloc::string::String;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-#[repr(isize)]
+#[repr(i64)]
 #[derive(Debug, FromPrimitive)]
 pub enum Error {
     UnknownError = -1,
@@ -29,13 +29,13 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn code(&self) -> isize {
-        *self as isize
+    pub fn code(&self) -> i64 {
+        *self as i64
     }
 
-    pub fn from_code_to_usize(code: isize) -> Result<usize, Error> {
+    pub fn from_code_to_usize(code: i64) -> Result<usize, Error> {
         if code < 0 {
-            if let Some(err) = FromPrimitive::from_isize(code) {
+            if let Some(err) = FromPrimitive::from_i64(code) {
                 Err(err)
             } else {
                 Err(Error::UnknownError)
@@ -45,9 +45,9 @@ impl Error {
         }
     }
 
-    pub fn from_code_to_u32(code: isize) -> Result<u32, Error> {
+    pub fn from_code_to_u32(code: i64) -> Result<u32, Error> {
         if code < 0 {
-            if let Some(err) = FromPrimitive::from_isize(code) {
+            if let Some(err) = FromPrimitive::from_i64(code) {
                 Err(err)
             } else {
                 Err(Error::UnknownError)
@@ -57,9 +57,9 @@ impl Error {
         }
     }
 
-    pub fn from_code_to_nothing(code: isize) -> Result<(), Error> {
+    pub fn from_code_to_nothing(code: i64) -> Result<(), Error> {
         if code < 0 {
-            if let Some(err) = FromPrimitive::from_isize(code) {
+            if let Some(err) = FromPrimitive::from_i64(code) {
                 Err(err)
             } else {
                 Err(Error::UnknownError)
@@ -74,7 +74,7 @@ impl Error {
 macro_rules! result_code_val {
     ($a:expr) => {
         match $a {
-            Ok(i) => i as isize,
+            Ok(i) => i as i64,
             Err(err) => err.code(),
         }
     }

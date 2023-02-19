@@ -10,7 +10,7 @@ use cstr_core::CStr;
 pub extern "C" fn system_call(syscall: usize, arg0: usize, arg1: usize, arg2: usize, arg3: usize) -> isize {
     //serial_println!("syscall {:x} {:x} {:x} {:x} {:x}", syscall, arg0, arg1, arg2, arg3);
     match syscall {
-        SYSTEM_CALL_READ => _read(arg0, arg1 as *mut u8, arg2),
+        SYSTEM_CALL_READ => _read(arg0, arg1 as *mut u8, arg2) as isize,
         SYSTEM_CALL_WRITE => _write(arg0, arg1 as *const u8, arg2),
         SYSTEM_CALL_SEEK => _seek(arg0, arg1 as i64, arg2 == 1),
         SYSTEM_CALL_RESERVED0 => 0,
@@ -33,7 +33,7 @@ fn c_str(addr: usize) -> &'static str {
 
 pub fn _write(_handle: usize, _buffer: *const u8, _count: usize) -> isize {
     if let Some(hndl) = namespace::get_rw_handle(_handle as u32) {
-        result_code_val!(hndl.write(unsafe { slice::from_raw_parts(_buffer, _count) }))
+        result_code_val!(hndl.write(unsafe { slice::from_raw_parts(_buffer, _count) })) as isize
     } else {
         Error::InvalidHandle.code() as isize
     }
@@ -41,7 +41,7 @@ pub fn _write(_handle: usize, _buffer: *const u8, _count: usize) -> isize {
 
 pub fn _read(_handle: usize, _buffer: *mut u8, _count: usize) -> isize {
     if let Some(hndl) = namespace::get_rw_handle(_handle as u32) {
-        result_code_val!(hndl.read(unsafe { slice::from_raw_parts_mut(_buffer, _count) }))
+        result_code_val!(hndl.read(unsafe { slice::from_raw_parts_mut(_buffer, _count) })) as isize
     } else {
         Error::InvalidHandle.code() as isize
     }
@@ -50,9 +50,9 @@ pub fn _read(_handle: usize, _buffer: *mut u8, _count: usize) -> isize {
 pub fn _seek(_handle: usize, _offset: i64, relative: bool) -> isize {
     if let Some(hndl) = namespace::get_seek_handle(_handle as u32) {
         if relative {
-            result_code!(hndl.seek_relative(_offset))
+            result_code!(hndl.seek_relative(_offset)) as isize
         } else {
-            result_code!(hndl.seek(_offset as u64))
+            result_code!(hndl.seek(_offset as u64)) as isize
         }
     } else {
         Error::InvalidHandle.code() as isize
@@ -77,21 +77,21 @@ pub fn _create_message_queue(name: &str, endpoint: u32) -> isize {
 pub fn _acquire_handle(resource_path: &str) -> isize {
     match namespace::acquire_handle(resource_path.to_string(), scheduler::current_process()) {
         Ok(hndl) => hndl.id as isize,
-        Err(err) => err.code(),
+        Err(err) => err.code() as isize,
     }
 }
 
 pub fn _release_handle(id: u32) -> isize {
     match namespace::release_handle(id) {
         Ok(()) => 0,
-        Err(err) => err.code(),
+        Err(err) => err.code() as isize,
     }
 }
 
 pub fn _available_messages(handle: u32) -> isize {
     match namespace::get_message_channel_handle(handle) {
         Some(que) => que.available() as isize,
-        None => Error::InvalidHandle.code(),
+        None => Error::InvalidHandle.code() as isize,
     }
 }
 
@@ -99,8 +99,8 @@ pub fn _available_message_size(handle: u32) -> isize {
     match namespace::get_message_channel_handle(handle) {
         Some(que) => match que.peek_len() {
             Ok(len) => len as isize,
-            Err(err) => err.code(),
+            Err(err) => err.code() as isize,
         },
-        None => Error::InvalidHandle.code(),
+        None => Error::InvalidHandle.code() as isize,
     }
 }
