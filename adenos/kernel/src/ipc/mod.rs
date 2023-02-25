@@ -39,25 +39,27 @@ impl MessageTransport for MessageQueue {
     }
 
     fn receive(&self) -> Result<Message, Error> {
-        if scheduler::current_process() != self.owner {
+        panic!("Fuck you");
+       /*if scheduler::current_thread() != self.owner {
             return Err(Error::Permissions);
         }
         if let Some(mesg) = self.queue.lock().dequeue() {
             Ok(mesg)
         } else {
             Err(Error::NoData)
-        }
+        }*/
     }
 
     fn peek_len(&self) -> Result<usize, Error> {
-        if scheduler::current_process() != self.owner {
+        panic!("Fuck you");
+        /*if scheduler::current_thread() != self.owner {
             return Err(Error::Permissions);
         }
         if let Some(mesg) = self.queue.lock().peek() {
             Ok(mesg.bytes.len())
         } else {
             Err(Error::NoData)
-        }
+        }*/
     }
 
     fn available(&self) -> usize {

@@ -60,22 +60,22 @@ pub fn _seek(_handle: usize, _offset: i64, relative: bool) -> isize {
 }
 
 pub fn _exit() -> isize {
-    scheduler::terminate(scheduler::current_process());
+    scheduler::terminate_thread(scheduler::current_thread());
     0
 }
 
 pub fn _get_process_id() -> isize {
-    scheduler::current_process() as isize
+    scheduler::current_thread() as isize
 }
 
 pub fn _create_message_queue(name: &str, endpoint: u32) -> isize {
     let endpoint = endpoint.into();
-    namespace::register_resource(MessageChannel::new(name.to_string(), Box::new(MessageQueue::new(scheduler::current_process(), endpoint, 128))));
-    _acquire_handle(namespace::concat_resource_path(vec!["Processes".to_string(), scheduler::current_process().to_string(), "MessageQueues".to_string(), name.to_string()]).as_str())
+    namespace::register_resource(MessageChannel::new(name.to_string(), Box::new(MessageQueue::new(scheduler::current_thread() as u32, endpoint, 128))));
+    _acquire_handle(namespace::concat_resource_path(vec!["Processes".to_string(), scheduler::current_thread().to_string(), "MessageQueues".to_string(), name.to_string()]).as_str())
 }
 
 pub fn _acquire_handle(resource_path: &str) -> isize {
-    match namespace::acquire_handle(resource_path.to_string(), scheduler::current_process()) {
+    match namespace::acquire_handle(resource_path.to_string(), scheduler::current_thread() as u32) {
         Ok(hndl) => hndl.id as isize,
         Err(err) => err.code() as isize,
     }

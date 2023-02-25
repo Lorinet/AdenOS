@@ -89,11 +89,14 @@ impl TaskContext {
 pub struct Task {
     pub state: TaskContext,
     pub page_table: u64,
+    pub process_id: u32,
     pub zombie: bool,
+    pub suspended: bool,
+    pub joiner: Option<u32>,
 }
 
 impl Task {
-    pub fn new(code_addr: u64, stack_addr: u64, page_table: u64, user_mode: bool) -> Task {
+    pub fn new(code_addr: u64, stack_addr: u64, page_table: u64, user_mode: bool, process_id: u32) -> Task {
         Task {
             state: match user_mode {
                 true => TaskContext::new(code_addr, stack_addr),
@@ -101,6 +104,9 @@ impl Task {
             },
             page_table,
             zombie: false,
+            suspended: false,
+            process_id,
+            joiner: None,
         }
     }
 
@@ -120,7 +126,7 @@ impl Task {
         page_mapper::unmap_userspace_page_tables(self.page_table);
     }
 
-    pub unsafe fn exec_new(application: ExecutableInfo) -> Result<(), Error> {
+    pub unsafe fn exec_new(application: ExecutableInfo, process_id: u32) -> Result<Task, Error> {
         asm!("cli");
         let user_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
         let user_page_table_phys = (user_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
@@ -163,37 +169,14 @@ impl Task {
                 let stack_frame = FRAME_ALLOCATOR.allocate_frame();
                 page_mapper::map_addr(user_page_table, user_stack_virt_base + (i * 0x1000), stack_frame, flags);
             }
-
-            scheduler::add_process(Task::new(application.virt_entry_point as u64, user_stack_virt_base + 0x8000, user_page_table_phys, true));
             asm!("sti");
-            Ok(())
+            Ok(Task::new(application.virt_entry_point as u64, user_stack_virt_base + 0x8000, user_page_table_phys, true, process_id))
         } else {
-            return Err(Error::EntryNotFound);
+            Err(Error::EntryNotFound)
         }
     }
 
-    pub unsafe fn exec(application: unsafe extern "C" fn()) {
-        asm!("cli");
-        let user_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
-        let user_page_table_phys = (user_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
-        let flags = Some(PageTableFlags::WRITABLE | PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE);
-        let user_virt_base = 0x40000000;
-        let user_phys_base = page_mapper::translate_addr(application as usize).unwrap();
-        for i in 0..128 {
-            let off = i * 0x1000;
-            page_mapper::map_addr(user_page_table, user_virt_base + off, user_phys_base + off, flags);
-        }
-        let user_stack_virt_base = 0x60000000;
-        for i in 0..8 {
-            let stack_frame = FRAME_ALLOCATOR.allocate_frame();
-            page_mapper::map_addr(user_page_table, user_stack_virt_base + (i * 0x1000), stack_frame, flags);
-        }
-        let user_entry_point_offset = user_phys_base % 0x1000;
-        scheduler::add_process(Task::new((user_virt_base + user_entry_point_offset + 1) as u64, (user_stack_virt_base + 0x8000) as u64, user_page_table_phys, true));
-        asm!("sti");
-    }
-
-    pub unsafe fn kexec(application: unsafe fn()) {
+    pub unsafe fn kexec(application: unsafe fn(), process_id: u32) -> Task {
         asm!("cli");
         let child_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
         let child_page_table_phys = (child_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
@@ -202,24 +185,33 @@ impl Task {
             let stack_frame = FRAME_ALLOCATOR.allocate_frame();
             page_mapper::map_addr(child_page_table, child_stack_virt_base + (i * 0x1000), stack_frame, None);
         }
-        scheduler::add_process(Task::new(application as u64, (child_stack_virt_base + 0x8000) as u64, child_page_table_phys, false));
         asm!("sti");
+        Task::new(application as u64, (child_stack_virt_base + 0x8000) as u64, child_page_table_phys, false, process_id)
     }
 }
+
+#[naked]
 
 #[naked]
 #[no_mangle]
 pub unsafe extern "C" fn timer_handler_save_context() {
     asm!("cli; push r15; push r14; push r13; push r12; push r11; push r10; push r9;\
     push r8; push rdi; push rsi; push rdx; push rcx; push rbx; push rax; push rbp;\
-    mov rdi, rsp; call timer_handler_scheduler_part_2;", options(noreturn));
+    mov rdi, rsp; call timer_handler_context_switch_part_2;", options(noreturn));
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn timer_handler_scheduler_part_2(context: *const TaskContext) {
+pub unsafe extern "C" fn timer_handler_context_switch_part_2(context: *const TaskContext) {
     cpu::DO_CONTEXT_SWITCH_NEXT_TIME = false;
     pic::end_of_interrupt(interrupts::HardwareInterrupt::Timer);
-    scheduler::context_switch(Some((*context).clone()));
+    scheduler::context_switch(Some((*context).clone()), true);
+}
+
+pub fn trigger_context_switch() {
+    cpu::enable_interrupts();
+    unsafe {
+        asm!("int 0x20"); // trigger timer interrupt
+    }
 }
 
 #[inline(always)]

@@ -1,5 +1,6 @@
 use crate::*;
 use crate::dev::hal::mem::page_mapper;
+use crate::exec::thread;
 use dev::*;
 use crate::dev::*;
 use crate::ipc::*;
@@ -32,6 +33,7 @@ fn init_system() -> Result<(), Error> {
     dev::hal::init();
     early_print!("[{} MB Memory Available]\n", unsafe { mem::FREE_MEMORY } / 1048576 + 1);
     println!("");
+    scheduler::init();
     let devices = namespace::namespace().get_subtree(String::from("Devices")).unwrap();
     for (_, dev) in devices.iter_mut_bf() {
         if let Some(dev) = dev {
@@ -51,7 +53,7 @@ fn init_system() -> Result<(), Error> {
     let file = file::File::open(String::from("/Files/adenfs/main.elf"))?;
     let exe_inf = exec::elf::ELFLoader::load_executable(file.id)?;
     unsafe {
-        task::Task::exec_new(exe_inf.clone())?;
+        scheduler::exec(exe_inf.clone())?;
     }
     serial_println!("{:#x?}", exe_inf);
 
@@ -60,8 +62,9 @@ fn init_system() -> Result<(), Error> {
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
     scheduler::kexec(kernel_executor::run);
-    scheduler::kexec(test_kernel_thread_with_ipc_recv);
+    //scheduler::kexec(test_kernel_thread_with_ipc_recv);
     //scheduler::kexec(test_kernel_thread_with_ipc_send);
+    scheduler::kexec(test_kernel_thread_joiner);
     cpu::enable_scheduler();
     kernel_executor::run();
     Ok(())
@@ -102,4 +105,44 @@ fn test_kernel_thread_with_ipc_send() {
     }
     syscall::_exit();
     loop {}
+}
+
+fn test_kernel_thread_joiner() {
+    loop {
+        println!("Creating new threads");
+        let mut thrd = thread::Thread::new(test_kernel_thread_joinee);
+        let mut thrd2 = thread::Thread::new(test_kernel_thread_joinee2);
+        thrd.run();
+        thrd2.run();
+        println!("Joining new thread");
+        thrd.join();
+        thrd2.join();
+        println!("Done!");
+    }
+}
+
+fn test_kernel_thread_joinee() {
+    println!("0 Sleeping for 0.5sec...");
+    thread::sleep(500);
+    println!("0 Creating new thread");
+    let mut thrd = thread::Thread::new(test_kernel_thread_joinee3);
+    thrd.run();
+    println!("0 Joining new thread");
+    thrd.join();
+    println!("0 Done!");
+    thread::exit();
+}
+
+fn test_kernel_thread_joinee2() {
+    println!("1 Sleeping for 1sec...");
+    thread::sleep(1000);
+    println!("1 Done sleeping");
+    thread::exit();
+}
+
+fn test_kernel_thread_joinee3() {
+    println!("2 Sleeping for 2sec...");
+    thread::sleep(2000);
+    println!("2 Done sleeping");
+    thread::exit();
 }

@@ -3,6 +3,7 @@ use alloc::{string::String, vec::Vec};
 use self::elf::ELFLoader;
 
 pub mod elf;
+pub mod thread;
 pub mod scheduler;
 
 #[derive(Copy, Clone, PartialEq, Debug)]

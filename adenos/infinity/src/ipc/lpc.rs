@@ -25,4 +25,10 @@ impl LPCServer {
     pub fn register_function(&mut self, id: u32, function: fn(*const u8) -> i64) {
         self.functions.insert(id, function);
     }
+
+    pub fn run() {
+        loop {
+            
+        }
+    }
 }

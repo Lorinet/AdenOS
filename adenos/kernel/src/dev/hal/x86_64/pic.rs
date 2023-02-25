@@ -55,7 +55,7 @@ pub fn init() {
     }
     let mut pit_cmd: port::Port = port::Port::new(0x43);
     let mut pit_data: port::Port = port::Port::new(0x40);
-    let divisor: u16 = (1193180 / 100) as u16;
+    let divisor: u16 = (1193180 / 1000) as u16;
     cpu::atomic_no_interrupts(|| {
         write_one!(pit_cmd, 0x36).unwrap();
         write_one!(pit_data, (divisor & 0xFF) as u8).unwrap();
