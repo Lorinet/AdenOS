@@ -27,14 +27,14 @@ cargo install --path .
 ### Build AdenOS
 
 ```
-cd kernel
+cd adenos
 n
 ```
 
 ### Run AdenOS
 
 ```
-cd kernel
+cd adenos
 ```
 
 This requires `qemu-system-x86_64` to be installed on your system.
@@ -52,7 +52,7 @@ This runs QEMU with `-s -S`, and you can attach GDB to `localhost:1234` to debug
 ## Run on real hardware
 
 ```
-cd kernel
+cd adenos
 ```
 
 Plug in a USB stick, and find its device path (e.g. `/dev/sdc`). Afterwards, run the following command:
