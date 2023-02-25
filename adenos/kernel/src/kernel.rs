@@ -65,6 +65,8 @@ fn init_system() -> Result<(), Error> {
     //scheduler::kexec(test_kernel_thread_with_ipc_recv);
     //scheduler::kexec(test_kernel_thread_with_ipc_send);
     scheduler::kexec(test_kernel_thread_joiner);
+    scheduler::kexec(test_kernel_thread_killer);
+    scheduler::kexec(test_kernel_thread_clean);
     cpu::enable_scheduler();
     kernel_executor::run();
     Ok(())
@@ -107,9 +109,17 @@ fn test_kernel_thread_with_ipc_send() {
     loop {}
 }
 
+fn test_kernel_thread_killer() {
+    println!("You live for 8 seconds, then you die.");
+    thread::sleep(8000);
+    scheduler::terminate_process(2);
+    println!("Done with ya!");
+    scheduler::terminate_process(scheduler::current_process());
+}
+
 fn test_kernel_thread_joiner() {
     loop {
-        println!("Creating new threads");
+        println!("Creating new threads PID {}", scheduler::current_process());
         let mut thrd = thread::Thread::new(test_kernel_thread_joinee);
         let mut thrd2 = thread::Thread::new(test_kernel_thread_joinee2);
         thrd.run();
@@ -144,5 +154,20 @@ fn test_kernel_thread_joinee3() {
     println!("2 Sleeping for 2sec...");
     thread::sleep(2000);
     println!("2 Done sleeping");
+    thread::exit();
+}
+
+fn test_kernel_thread_clean() {
+    loop {
+        let mut thrd = thread::Thread::new(test_kernel_thread_clean_task);
+        thrd.run();
+        thread::sleep(500);
+    }
+}
+
+fn test_kernel_thread_clean_task() {
+    println!("Wating 0.2s");
+    thread::sleep(200);
+    println!("Finished");
     thread::exit();
 }

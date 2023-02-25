@@ -3,10 +3,12 @@ use {dev::*, namespace};
 use core::arch::asm;
 use dev::hal::{cpu, pic, mem::*, interrupts};
 use exec::scheduler;
-use x86_64::structures::paging::PageTableFlags;
+use x86_64::structures::paging::{PageTableFlags, PageTable};
 use core::slice;
 
 use super::mem::page_mapper::addr_to_page_table;
+
+const STACK_SIZE: u64 = 0x4000;
 
 #[repr(C, align(2))]
 #[derive(Debug, Clone)]
@@ -86,9 +88,34 @@ impl TaskContext {
 }
 
 #[derive(Debug, Clone)]
+pub struct Process {
+    page_table: u64,
+    pub threads: Vec<u32>,
+}
+
+impl Process {
+    pub fn new(page_table: u64) -> Process {
+        Process {
+            page_table,
+            threads: Vec::new(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn die(&self) {
+        unsafe {
+            enable_page_table(addr_to_page_table(KERNEL_PAGE_TABLE));
+        }
+        page_mapper::unmap_userspace_page_tables(self.page_table);
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Task {
     pub state: TaskContext,
     pub page_table: u64,
+    pub stack_base: u64,
+    pub stack_size: u64,
     pub process_id: u32,
     pub zombie: bool,
     pub suspended: bool,
@@ -96,13 +123,15 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn new(code_addr: u64, stack_addr: u64, page_table: u64, user_mode: bool, process_id: u32) -> Task {
+    pub fn new(code_addr: u64, stack_top: u64, stack_base: u64, page_table: u64, user_mode: bool, process_id: u32) -> Task {
         Task {
             state: match user_mode {
-                true => TaskContext::new(code_addr, stack_addr),
-                false => TaskContext::knew(code_addr, stack_addr),
+                true => TaskContext::new(code_addr, stack_top),
+                false => TaskContext::knew(code_addr, stack_top),
             },
             page_table,
+            stack_base,
+            stack_size: stack_top - stack_base,
             zombie: false,
             suspended: false,
             process_id,
@@ -119,14 +148,20 @@ impl Task {
     }
 
     #[inline(always)]
-    pub fn die(&mut self) {
-        unsafe {
-            enable_page_table(addr_to_page_table(KERNEL_PAGE_TABLE));
+    pub fn die(&self) {
+        let page_table = unsafe { ((self.page_table + PHYSICAL_MEMORY_OFFSET ) as *mut PageTable).as_mut().unwrap() };
+        // free up memory used as stack
+        for i in (self.stack_base..(self.stack_base + self.stack_size)).step_by(0x1000) {
+            if let Some(tran) = page_mapper::translate_addr_using_table(page_table, i as usize) {
+                page_mapper::unmap_addr(page_table, i);
+                unsafe {
+                    FRAME_ALLOCATOR.free_frame(tran);
+                }
+            }
         }
-        page_mapper::unmap_userspace_page_tables(self.page_table);
     }
 
-    pub unsafe fn exec_new(application: ExecutableInfo, process_id: u32) -> Result<Task, Error> {
+    pub unsafe fn exec(application: ExecutableInfo, process_id: u32) -> Result<(), Error> {
         asm!("cli");
         let user_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
         let user_page_table_phys = (user_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
@@ -162,31 +197,60 @@ impl Task {
                     }
                 }
             }
-
-            // prepare stack
-            let user_stack_virt_base = 0x60000000;
-            for i in 0..8 {
-                let stack_frame = FRAME_ALLOCATOR.allocate_frame();
-                page_mapper::map_addr(user_page_table, user_stack_virt_base + (i * 0x1000), stack_frame, flags);
-            }
-            asm!("sti");
-            Ok(Task::new(application.virt_entry_point as u64, user_stack_virt_base + 0x8000, user_page_table_phys, true, process_id))
+            // create process
+            scheduler::add_process(Process::new(user_page_table_phys))?;
+            // create main thread
+            scheduler::add_thread(process_id, Self::exec_thread(application.virt_entry_point as u64, process_id)?);
+            Ok(())
         } else {
             Err(Error::EntryNotFound)
         }
     }
 
-    pub unsafe fn kexec(application: unsafe fn(), process_id: u32) -> Task {
+    pub unsafe fn exec_thread(entry_point: u64, process_id: u32) -> Result<Task, Error> {
+        asm!("cli");
+        let user_page_table = ((scheduler::get_process(process_id)?.page_table + PHYSICAL_MEMORY_OFFSET) as *mut PageTable).as_mut().unwrap();
+        let user_page_table_phys = (user_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
+        let flags = Some(PageTableFlags::WRITABLE | PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE);
+        // prepare stack
+        let mut user_stack_virt_base = 0x60000000;
+        // find location for new stack
+        while let Some(_) = page_mapper::translate_addr(user_stack_virt_base as usize) {
+            user_stack_virt_base += STACK_SIZE;
+        }
+        for i in 0..(STACK_SIZE / 0x1000) {
+            let stack_frame = FRAME_ALLOCATOR.allocate_frame();
+            page_mapper::map_addr(user_page_table, user_stack_virt_base + (i * 0x1000), stack_frame, flags);
+        }
+        asm!("sti");
+        Ok(Task::new(entry_point, user_stack_virt_base + STACK_SIZE, user_stack_virt_base, user_page_table_phys, true, process_id))
+    }
+
+    pub unsafe fn kexec(application: unsafe fn(), process_id: u32) -> Result<(), Error> {
         asm!("cli");
         let child_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
         let child_page_table_phys = (child_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
-        let child_stack_virt_base = 0x60000000;
-        for i in 0..8 {
+        scheduler::add_process(Process::new(child_page_table_phys));
+        scheduler::add_thread(process_id, Self::kexec_thread(application, process_id)?);
+        asm!("sti");
+        Ok(())
+    }
+
+    pub unsafe fn kexec_thread(application: unsafe fn(), process_id: u32) -> Result<Task, Error> {
+        asm!("cli");
+        let child_page_table = ((scheduler::get_process(process_id)?.page_table + PHYSICAL_MEMORY_OFFSET) as *mut PageTable).as_mut().unwrap();
+        let child_page_table_phys = (child_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
+        let mut child_stack_virt_base = 0x60000000;
+        // find location for new stack
+        while let Some(_) = page_mapper::translate_addr_using_table(child_page_table, child_stack_virt_base as usize) {
+            child_stack_virt_base += STACK_SIZE;
+        }
+        for i in 0..(STACK_SIZE / 0x1000) {
             let stack_frame = FRAME_ALLOCATOR.allocate_frame();
             page_mapper::map_addr(child_page_table, child_stack_virt_base + (i * 0x1000), stack_frame, None);
         }
         asm!("sti");
-        Task::new(application as u64, (child_stack_virt_base + 0x8000) as u64, child_page_table_phys, false, process_id)
+        Ok(Task::new(application as u64, (child_stack_virt_base + STACK_SIZE) as u64, child_stack_virt_base, child_page_table_phys, false, process_id))
     }
 }
 

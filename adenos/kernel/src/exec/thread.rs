@@ -15,12 +15,13 @@ impl Thread {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), Error> {
         unsafe {
-            if let Ok(tid) = scheduler::add_thread(scheduler::current_process(), task::Task::kexec(self.function, scheduler::current_process())) {
+            if let Ok(tid) = scheduler::add_thread(scheduler::current_process(), task::Task::kexec_thread(self.function, scheduler::current_process())?) {
                 let _ = self.thread_id.insert(tid);
             }
         }
+        Ok(())
     }
 
     pub fn join(&self) -> Result<(), Error> {

@@ -10,7 +10,7 @@ static mut SCHEDULER: Option<Scheduler> = None;
 pub static DUMMY: &str = "hello";
 
 pub struct Scheduler {
-    processes: BTreeMap<u32, Vec<u32>>,
+    processes: BTreeMap<u32, task::Process>,
     threads: FlatMap<task::Task>,
     running_queue: Vec<u32>,
     suspended_queue: Vec<u32>,
@@ -71,9 +71,17 @@ impl Scheduler {
             let tid = self.running_queue[self.current_thread_queue_index as usize];
             let current_thread = &mut self.threads[tid];
             if current_thread.zombie {
+                let pid = self.threads[tid].process_id;
                 self.threads[tid].die();
+                let index = self.processes[&pid].threads.iter().position(|&dt| dt == tid).unwrap();
+                self.processes.get_mut(&pid).unwrap().threads.remove(index);
                 self.threads.remove(tid);
                 self.running_queue.remove(self.current_thread_queue_index as usize);
+                if self.processes[&pid].threads.len() == 0 {
+                    // remove process if no threads left in it
+                    self.processes[&pid].die();
+                    self.processes.remove(&pid);
+                }
                 if self.current_thread_queue_index as usize >= self.running_queue.len() {
                     self.current_thread_queue_index = 0;
                 }
@@ -99,30 +107,31 @@ impl Scheduler {
             return Err(Error::EntryNotFound)
         }
         let tid = self.threads.insert_where_you_can(task.clone());
-        self.processes.get_mut(&process_id).unwrap().push(tid);
+        self.processes.get_mut(&process_id).unwrap().threads.push(tid);
         self.running_queue.push(tid);
         Ok(tid)
     }
 
-    fn add_process(&mut self, task: task::Task) {
+    fn add_process(&mut self, task: task::Process) -> Result<u32, Error> {
         let pid = self.get_new_process_id();
-        self.processes.insert(pid, Vec::new());
-        self.add_thread(pid, task).expect("Cannot find process just created.");
+        self.processes.insert(pid, task);
+        Ok(pid)
     }
 
     fn exec(&mut self, application: ExecutableInfo) -> Result<(), Error> {
         let pid = self.get_new_process_id();
         unsafe {
-            self.add_process(task::Task::exec_new(application, pid)?);
+            task::Task::exec(application, pid)?;
             Ok(())
         }
     }
 
-    fn kexec(&mut self, application: unsafe fn()) {
+    fn kexec(&mut self, application: unsafe fn()) -> Result<(), Error> {
         let pid = self.get_new_process_id();
         unsafe {
-            self.add_process(task::Task::kexec(application, pid));
+            task::Task::kexec(application, pid)?;
         }
+        Ok(())
     }
 
     fn terminate_thread(&mut self, thread_id: u32) -> Result<(), Error> {
@@ -149,15 +158,15 @@ impl Scheduler {
     }
 
     fn resume_thread(&mut self, thread_id: u32) -> Result<(), Error> {
-        let quin = self.suspended_queue.iter().position(|x| *x == thread_id).unwrap();
-        if let Some(tid) = self.suspended_queue.get(quin) {
-            self.suspended_queue.remove(quin);
-            self.running_queue.push(thread_id);
-            self.threads[thread_id].suspended = false;
-            Ok(())
-        } else {
-            Err(Error::EntryNotFound)
+        if let Some(quin) = self.suspended_queue.iter().position(|x| *x == thread_id) {
+            if let Some(tid) = self.suspended_queue.get(quin) {
+                self.suspended_queue.remove(quin);
+                self.running_queue.push(thread_id);
+                self.threads[thread_id].suspended = false;
+                return Ok(())
+            }
         }
+        Err(Error::EntryNotFound)
     }
 
     fn delay_thread(&mut self, thread_id: u32, milliseconds: u32) -> Result<(), Error> {
@@ -194,11 +203,11 @@ impl Scheduler {
         if let None = self.processes.get(&process_id) {
             return Err(Error::EntryNotFound);
         }
-        let thrdlist = self.processes.get(&process_id).unwrap().clone();
+        let thrdlist = self.processes.get(&process_id).unwrap().threads.clone();
         for thrd in thrdlist {
-            self.terminate_thread(thrd);
+            self.threads[thrd].zombie = true;
         }
-        self.processes.remove(&process_id);
+        task::trigger_context_switch();
         Ok(())
     }
 
@@ -207,6 +216,17 @@ impl Scheduler {
             self.next_process_id += 1;
         }
         self.next_process_id
+    }
+
+    fn get_main_thread(&self, process_id: u32) -> Result<&task::Task, Error> {
+        if let Some(proc) = self.processes.get(&process_id) {
+            if let Some(tid) = proc.threads.get(0) {
+                if let Some(task) = self.threads.get(*tid) {
+                    return Ok(task);
+                }
+            }
+        }
+        Err(Error::EntryNotFound)
     }
 }
 
@@ -254,12 +274,16 @@ pub fn delay_thread(thread_id: u32, milliseconds: u32) {
     }
 }
 
-pub fn terminate_thread(process: u32) {
-    unsafe { SCHEDULER.as_mut().unwrap().terminate_thread(process); }
+pub fn terminate_thread(thread: u32) {
+    unsafe { SCHEDULER.as_mut().unwrap().terminate_thread(thread); }
 }
 
-pub fn add_process(process: task::Task) {
-    unsafe { SCHEDULER.as_mut().unwrap().add_process(process); }
+pub fn terminate_process(process: u32) {
+    unsafe { SCHEDULER.as_mut().unwrap().terminate_process(process); }
+}
+
+pub fn add_process(process: task::Process) -> Result<u32, Error> {
+    unsafe { SCHEDULER.as_mut().unwrap().add_process(process) }
 }
 
 pub fn add_thread(process_id: u32, task: task::Task) -> Result<u32, Error> {
@@ -271,5 +295,14 @@ pub fn add_thread(process_id: u32, task: task::Task) -> Result<u32, Error> {
 pub fn join_thread(joiner: u32, joinee: u32) -> Result<(), Error> {
     unsafe {
         SCHEDULER.as_mut().unwrap().join_thread(joiner, joinee)
+    }
+}
+
+pub fn get_process(process_id: u32) -> Result<&'static task::Process, Error> {
+    unsafe {
+        if let Some(proc) = SCHEDULER.as_mut().unwrap().processes.get(&process_id) {
+            return Ok(proc);
+        }
+        Err(Error::EntryNotFound)
     }
 }

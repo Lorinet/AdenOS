@@ -143,6 +143,29 @@ pub fn map_addr(l4_table: &mut PageTable, virt_addr: u64, phys_addr: u64, flags:
     unsafe { table_entry(page_table, VirtAddr::new(virt_addr).p1_index(), (phys_addr / 0x1000) * 0x1000, flags, Some(virt_addr)); }
 }
 
+pub fn unmap_addr(page_table: &mut PageTable, virt_addr: u64) {
+    let mut frame = page_table as *const _ as u64 - unsafe { PHYSICAL_MEMORY_OFFSET };
+    let virt_addr = VirtAddr::new(virt_addr as u64);
+    let table_indexes = [
+        virt_addr.p4_index(), virt_addr.p3_index(), virt_addr.p2_index(), virt_addr.p1_index()
+    ];
+    for i in 0..4 {
+        let table_virt_addr = frame + unsafe { PHYSICAL_MEMORY_OFFSET };
+        let table = unsafe { &mut *(table_virt_addr as *mut PageTable) };
+        let ent = &mut table[table_indexes[i]];
+        frame = if ent.is_unused() {
+            return;
+        } else {
+            if i == 3 {
+                ent.set_unused();
+                return;
+            } else {
+                align(ent.addr().as_u64())
+            }
+        };
+    }
+}
+
 pub fn map_page_to_frame(l4_table: &mut PageTable,page: u64, frame: u64, flags: Option<PageTableFlags>) {
     let page_table = map_l1_table(l4_table, page, flags).unwrap();
     unsafe { table_entry(page_table, VirtAddr::new(page).p1_index(), frame, flags, Some(page)); }
@@ -166,6 +189,25 @@ pub fn free_frame(frame: u64) {
 pub fn translate_addr(virt_addr: usize) -> Option<u64> {
     let (frame, _) = Cr3::read();
     let mut frame = frame.start_address().as_u64();
+    let virt_addr = VirtAddr::new(virt_addr as u64);
+    let table_indexes = [
+        virt_addr.p4_index(), virt_addr.p3_index(), virt_addr.p2_index(), virt_addr.p1_index()
+    ];
+    for i in 0..4 {
+        let table_virt_addr = frame + unsafe { PHYSICAL_MEMORY_OFFSET };
+        let table = unsafe { &*(table_virt_addr as *const PageTable) };
+        let ent = &table[table_indexes[i]];
+        frame = if ent.is_unused() {
+            return None
+        } else {
+            align(ent.addr().as_u64())
+        };
+    }
+    Some(frame + u64::from(virt_addr.page_offset()))
+}
+
+pub fn translate_addr_using_table(page_table: &PageTable, virt_addr: usize) -> Option<u64> {
+    let mut frame = page_table as *const _ as u64 - unsafe { PHYSICAL_MEMORY_OFFSET };
     let virt_addr = VirtAddr::new(virt_addr as u64);
     let table_indexes = [
         virt_addr.p4_index(), virt_addr.p3_index(), virt_addr.p2_index(), virt_addr.p1_index()
