@@ -1,4 +1,4 @@
-# AdenOS Loader
+# AdenOS Bootloader
 
 ## Forked from https://github.com/rust-osdev/bootloader
 ## Original author: Philipp Oppermann <dev@phil-opp.com>
