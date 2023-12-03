@@ -4,11 +4,22 @@ use alloc::{vec, vec::Vec, string::ToString, boxed::Box};
 use {namespace, ipc::*};
 use cstr_core::CStr;
 
+pub const SYSTEM_CALL_READ: usize = 0;
+pub const SYSTEM_CALL_WRITE: usize = 1;
+pub const SYSTEM_CALL_SEEK: usize = 2;
+pub const SYSTEM_CALL_RESERVED0: usize = 3;
+pub const SYSTEM_CALL_EXIT: usize = 4;
+pub const SYSTEM_CALL_GET_PROCESS_ID: usize = 5;
+pub const SYSTEM_CALL_CREATE_MESSAGE_QUEUE: usize = 6;
+pub const SYSTEM_CALL_ACQUIRE_HANDLE: usize = 7;
+pub const SYSTEM_CALL_RELEASE_HANDLE: usize = 8;
+pub const SYSTEM_CALL_MESSAGE_QUEUE_COUNT: usize = 9;
+pub const SYSTEM_CALL_AVAILABLE_MESSAGE_SIZE: usize = 10;
+
 #[no_mangle]
 #[inline(always)]
 #[allow(unused_variables)]
 pub extern "C" fn system_call(syscall: usize, arg0: usize, arg1: usize, arg2: usize, arg3: usize) -> isize {
-    //serial_println!("syscall {:x} {:x} {:x} {:x} {:x}", syscall, arg0, arg1, arg2, arg3);
     match syscall {
         SYSTEM_CALL_READ => _read(arg0, arg1 as *mut u8, arg2) as isize,
         SYSTEM_CALL_WRITE => _write(arg0, arg1 as *const u8, arg2),

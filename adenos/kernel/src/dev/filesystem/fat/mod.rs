@@ -1,20 +1,20 @@
-use crate::*;
 use crate::file::{File, FilePermissions};
-use dev::{*, filesystem::*};
-use namespace::{self, *};
+use crate::*;
 use alloc::{boxed::Box, string::ToString};
-use modular_bitfield::{bitfield, specifiers::*};
-use core::{str, fmt::Debug};
-use core::num;
 use alloc::{string::String, sync::Arc, vec, vec::Vec};
+use core::num;
+use core::{fmt::Debug, str};
+use dev::{filesystem::*, *};
+use modular_bitfield::{bitfield, specifiers::*};
+use namespace::{self, *};
 use spin::Mutex;
 
-mod fat;
 mod dir;
+mod fat;
 mod file;
 
-use fat::*;
 use dir::*;
+use fat::*;
 use file::*;
 
 #[derive(Debug)]
@@ -94,19 +94,19 @@ pub struct FATFileSystem {
 impl Debug for FATFileSystem {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("FATFileSystem")
-        .field("drive", &self.drive.lock().resource_path_string())
-        .field("fat_type", &self.fat_type)
-        .field("total_sectors", &self.total_sectors)
-        .field("fat_size", &self.fat_size)
-        .field("root_dir_sectors", &self.root_dir_sectors)
-        .field("first_data_sector", &self.first_data_sector)
-        .field("first_fat_sector", &self.first_fat_sector)
-        .field("data_sectors", &self.data_sectors)
-        .field("total_clusters", &self.total_clusters)
-        .field("root_dir_sector", &self.root_dir_sector)
-        .field("bytes_per_sector", &self.sector_size)
-        .field("sectors_per_cluster", &self.sectors_per_cluster)
-        .finish()
+            .field("drive", &self.drive.lock().resource_path_string())
+            .field("fat_type", &self.fat_type)
+            .field("total_sectors", &self.total_sectors)
+            .field("fat_size", &self.fat_size)
+            .field("root_dir_sectors", &self.root_dir_sectors)
+            .field("first_data_sector", &self.first_data_sector)
+            .field("first_fat_sector", &self.first_fat_sector)
+            .field("data_sectors", &self.data_sectors)
+            .field("total_clusters", &self.total_clusters)
+            .field("root_dir_sector", &self.root_dir_sector)
+            .field("bytes_per_sector", &self.sector_size)
+            .field("sectors_per_cluster", &self.sectors_per_cluster)
+            .finish()
     }
 }
 
@@ -116,8 +116,16 @@ impl FATFileSystem {
             let mut bpb = [0; 512];
             drive.read_block(0, bpb.as_mut_ptr())?;
             let bpb = unsafe { (&bpb as *const _ as *const BPB).as_ref().unwrap() };
-            let ebpb16 = unsafe { (&bpb.extension as *const _ as *const eBPB16).as_ref().unwrap() };
-            let ebpb32 = unsafe { (&bpb.extension as *const _ as *const eBPB32).as_ref().unwrap() };
+            let ebpb16 = unsafe {
+                (&bpb.extension as *const _ as *const eBPB16)
+                    .as_ref()
+                    .unwrap()
+            };
+            let ebpb32 = unsafe {
+                (&bpb.extension as *const _ as *const eBPB32)
+                    .as_ref()
+                    .unwrap()
+            };
 
             if bpb._jmp[0] != 0xEB || bpb._jmp[2] != 0x90 {
                 return Ok(None);
@@ -131,18 +139,24 @@ impl FATFileSystem {
                 0 => ebpb32.fat_size as u32,
                 _ => bpb.fat_size as u32,
             };
-            let root_dir_sectors = ((bpb.root_directory_entries as u32 * 32) + (bpb.bytes_per_sector as u32 - 1)) / bpb.bytes_per_sector as u32;
-            let first_data_sector = bpb.reserved_sector_count as u32 + (bpb.file_allocation_tables as u32 * fat_size) + root_dir_sectors;
+            let root_dir_sectors = ((bpb.root_directory_entries as u32 * 32)
+                + (bpb.bytes_per_sector as u32 - 1))
+                / bpb.bytes_per_sector as u32;
+            let first_data_sector = bpb.reserved_sector_count as u32
+                + (bpb.file_allocation_tables as u32 * fat_size)
+                + root_dir_sectors;
             let first_fat_sector = bpb.reserved_sector_count as u32;
             let data_sectors = match bpb.sector_count {
                 0 => bpb.large_sector_count,
                 c => c as u32,
-            } - (bpb.reserved_sector_count as u32 + (bpb.file_allocation_tables as u32 * fat_size) + root_dir_sectors);
+            } - (bpb.reserved_sector_count as u32
+                + (bpb.file_allocation_tables as u32 * fat_size)
+                + root_dir_sectors);
             let total_clusters = data_sectors / bpb.sectors_per_cluster as u32;
             let sector_size = drive.block_size() as u32;
             let cluster_size = bpb.sectors_per_cluster as u32 * sector_size;
 
-            let fat_type = if total_clusters < 4085 {
+            let mut fat_type = if total_clusters < 4085 {
                 FATType::FAT12
             } else if total_clusters < 65525 {
                 FATType::FAT16
@@ -159,14 +173,30 @@ impl FATFileSystem {
             // check signature
             if let Ok(signature) = str::from_utf8(signature) {
                 if signature != check_signature {
-                    return Ok(None);
+                    if let FATType::FAT16 = fat_type {
+                        let signature = &ebpb32.extension.fat_type;
+                        match str::from_utf8(signature) {
+                            Ok(signature) => {
+                                if signature == "FAT32" {
+                                    fat_type = FATType::FAT32;
+                                } else {
+                                    return Ok(None);
+                                }
+                            }
+                            Err(_) => return Ok(None),
+                        };
+                    } else {
+                        return Ok(None);
+                    }
                 }
             } else {
                 return Ok(None);
             }
 
             let root_dir_sector = match fat_type {
-                FATType::FAT32 => ebpb32.root_directory_cluster as u32 * bpb.sectors_per_cluster as u32,
+                FATType::FAT32 => {
+                    ebpb32.root_directory_cluster as u32 * bpb.sectors_per_cluster as u32
+                }
                 _ => first_data_sector - root_dir_sectors,
             };
 
@@ -175,7 +205,7 @@ impl FATFileSystem {
                 _ => eBPB::eBPB16(ebpb16.clone()),
             };
 
-            let mut fat_fs = FATFileSystem {
+            let fat_fs = FATFileSystem {
                 drive: Arc::new(Mutex::new(drive)),
                 bpb: bpb.clone(),
                 ebpb,
@@ -204,7 +234,11 @@ impl FATFileSystem {
     }
 
     fn read_cluster(&self, cluster: u32, buffer: &mut [u8]) -> Result<(), Error> {
-        self.drive.lock().read_blocks(self.cluster_to_sector(cluster) as u64, self.sectors_per_cluster as u64, buffer.as_mut_ptr())
+        self.drive.lock().read_blocks(
+            self.cluster_to_sector(cluster) as u64,
+            self.sectors_per_cluster as u64,
+            buffer.as_mut_ptr(),
+        )
     }
 
     fn fat_iter(&self, start_cluster: u32) -> Result<FATIterator, Error> {
@@ -213,7 +247,9 @@ impl FATFileSystem {
 
     fn root_dir_raw_iter(&self) -> Result<DirectoryRawIterator<'_>, Error> {
         match self.ebpb {
-            eBPB::eBPB32(ebpb) => DirectoryRawIterator::new(self, Some(ebpb.root_directory_cluster)),
+            eBPB::eBPB32(ebpb) => {
+                DirectoryRawIterator::new(self, Some(ebpb.root_directory_cluster))
+            }
             _ => DirectoryRawIterator::new(self, None),
         }
     }
@@ -250,7 +286,8 @@ impl FATFileSystem {
         if let Err(e) = iter.advance_by(n) {
             return Err(Error::OutOfSpace);
         }
-        let mut iter = ClusterAllocator::new(self, Some(first), ClusterAllocatorMode::Allocate).unwrap();
+        let mut iter =
+            ClusterAllocator::new(self, Some(first), ClusterAllocatorMode::Allocate).unwrap();
         if let Err(e) = iter.advance_by(n) {
             return Err(Error::OutOfSpace);
         }
@@ -260,7 +297,11 @@ impl FATFileSystem {
         Ok(first)
     }
 
-    fn create_directory_entry(&self, dir: impl Iterator<Item = DirectoryRawEntry>, ent: DirectoryEntry) -> Result<DirectoryEntry, Error> {
+    fn create_directory_entry(
+        &self,
+        dir: impl Iterator<Item = DirectoryRawEntry>,
+        ent: DirectoryEntry,
+    ) -> Result<DirectoryEntry, Error> {
         let name_entries_needed = (ent.name.len() + 13) / 13;
         let mut dir_entries = Vec::new();
         dir_entries.push(DirectoryRawEntry::FileDirectoryEntry(ent.metadata));
@@ -281,14 +322,18 @@ impl FATFileSystem {
             } else {
                 &uniname[i..i + 13]
             };
-            dir_entries.push(DirectoryRawEntry::LongFileNameEntry(LongFileNameEntry::new(name_part, ord, check_sum.0)));
+            dir_entries.push(DirectoryRawEntry::LongFileNameEntry(
+                LongFileNameEntry::new(name_part, ord, check_sum.0),
+            ));
         }
         dir_entries.reverse();
 
         let mut slot = Vec::new();
         let mut streak = 0;
         for dir_ent in dir {
-            if let DirectoryRawEntry::UnusedEntry(sec, off) | DirectoryRawEntry::FreeEntry(sec, off) = dir_ent {
+            if let DirectoryRawEntry::UnusedEntry(sec, off)
+            | DirectoryRawEntry::FreeEntry(sec, off) = dir_ent
+            {
                 slot.push((sec, off));
                 streak += 1;
                 if streak == name_entries_needed + 1 {
@@ -310,14 +355,26 @@ impl FATFileSystem {
             self.drive.lock().read_block(sec as u64, buf.as_mut_ptr())?;
             match ent {
                 DirectoryRawEntry::FileDirectoryEntry(ent) => {
-                    *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.clone();
+                    *unsafe {
+                        (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry)
+                            .as_mut()
+                            .unwrap()
+                    } = ent.clone();
                     short_sec = sec;
                     short_off = off;
-                },
-                DirectoryRawEntry::LongFileNameEntry(ent) => *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut LongFileNameEntry).as_mut().unwrap() } = ent.clone(),
+                }
+                DirectoryRawEntry::LongFileNameEntry(ent) => {
+                    *unsafe {
+                        (buf.as_mut_ptr().offset(off as isize) as *mut LongFileNameEntry)
+                            .as_mut()
+                            .unwrap()
+                    } = ent.clone()
+                }
                 _ => (),
             }
-            self.drive.lock().write_block(sec as u64, buf.as_mut_slice())?;
+            self.drive
+                .lock()
+                .write_block(sec as u64, buf.as_mut_slice())?;
         }
 
         let mut updated_ent = ent;
@@ -328,22 +385,37 @@ impl FATFileSystem {
     }
 
     fn in_place_update_directory_entry(&self, ent: &DirectoryEntry) -> Result<(), Error> {
-        let (sec, off) = (ent.short_directory_entry_sector.unwrap(), ent.short_directory_entry_offset.unwrap());
+        let (sec, off) = (
+            ent.short_directory_entry_sector.unwrap(),
+            ent.short_directory_entry_offset.unwrap(),
+        );
         serial_println!("Upd dir ent {} {}", sec, off);
         let mut buf = vec![0; self.sector_size as usize];
         self.drive.lock().read_block(sec as u64, buf.as_mut_ptr())?;
-        *unsafe { (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry).as_mut().unwrap() } = ent.metadata.clone();
-        self.drive.lock().write_block(sec as u64, buf.as_mut_slice())?;
+        *unsafe {
+            (buf.as_mut_ptr().offset(off as isize) as *mut FileDirectoryEntry)
+                .as_mut()
+                .unwrap()
+        } = ent.metadata.clone();
+        self.drive
+            .lock()
+            .write_block(sec as u64, buf.as_mut_slice())?;
         Ok(())
     }
 }
 
 impl FileSystem for FATFileSystem {
     fn volume_label(&self) -> String {
-        String::from_utf8(match self.ebpb {
-            eBPB::eBPB16(ebpb) => ebpb.volume_label,
-            eBPB::eBPB32(ebpb) => ebpb.extension.volume_label,
-        }.to_vec()).unwrap().trim().to_string()
+        String::from_utf8(
+            match self.ebpb {
+                eBPB::eBPB16(ebpb) => ebpb.volume_label,
+                eBPB::eBPB32(ebpb) => ebpb.extension.volume_label,
+            }
+            .to_vec(),
+        )
+        .unwrap()
+        .trim()
+        .to_string()
     }
 
     fn create_file(&self, path: String) -> Result<File, Error> {
@@ -360,7 +432,15 @@ impl FileSystem for FATFileSystem {
 
         //let cluster = self.allocate_clusters((size as usize + self.cluster_size as usize - 1) / self.cluster_size as usize)?;
         let dir_ent = DirectoryEntry::new(String::from(file_name), 0, 0);
-        Ok(File::new(self.resource_path_string() + "/" + path.as_str(), unsafe { (self as *const FATFileSystem).as_ref().unwrap() }, Box::new(FATFile::new(self, self.create_directory_entry(dir.raw_iter(), dir_ent)?)?), FilePermissions::READ | FilePermissions::WRITE))
+        Ok(File::new(
+            self.resource_path_string() + "/" + path.as_str(),
+            unsafe { (self as *const FATFileSystem).as_ref().unwrap() },
+            Box::new(FATFile::new(
+                self,
+                self.create_directory_entry(dir.raw_iter(), dir_ent)?,
+            )?),
+            FilePermissions::READ | FilePermissions::WRITE,
+        ))
     }
 
     fn open_file(&self, path: String) -> Result<File, Error> {
@@ -377,10 +457,19 @@ impl FileSystem for FATFileSystem {
         let file_entry = dir.find(|ent| ent.name == file_name);
         if let Some(file_entry) = file_entry {
             let mut perms = FilePermissions::READ;
-            if !file_entry.metadata.attributes.contains(FileAttributes::READ_ONLY) {
+            if !file_entry
+                .metadata
+                .attributes
+                .contains(FileAttributes::READ_ONLY)
+            {
                 perms |= FilePermissions::WRITE;
             }
-            Ok(File::new(self.resource_path_string() + "/" + path.as_str(), unsafe { (self as *const FATFileSystem).as_ref().unwrap() }, Box::new(FATFile::new(self, file_entry)?), perms))
+            Ok(File::new(
+                self.resource_path_string() + "/" + path.as_str(),
+                unsafe { (self as *const FATFileSystem).as_ref().unwrap() },
+                Box::new(FATFile::new(self, file_entry)?),
+                perms,
+            ))
         } else {
             Err(Error::EntryNotFound)
         }

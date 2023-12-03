@@ -10,6 +10,7 @@ static mut HANDLE_ID: u32 = 0;
 
 pub enum ResourceType<'a> {
     Device(&'a mut dyn Device),
+    ReadWriteDevice(&'a mut dyn ReadWrite),
     FileSystem(&'a mut dyn FileSystem),
     File(&'a mut file::File),
     MessageChannel(&'a mut ipc::MessageChannel),
@@ -201,6 +202,7 @@ pub fn get_rw_handle(handle: u32) -> Option<&'static mut dyn ReadWrite> {
             match hndl.unwrap().unwrap() {
                 ResourceType::File(file) => Some(file),
                 ResourceType::MessageChannel(que) => Some(que),
+                ResourceType::ReadWriteDevice(dev) => Some(dev),
                 _ => None,
             }
         } else {

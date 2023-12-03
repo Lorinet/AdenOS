@@ -4,7 +4,7 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
 #[repr(i64)]
-#[derive(Debug, FromPrimitive)]
+#[derive(Copy, Clone, Debug, FromPrimitive)]
 pub enum Error {
     UnknownError = -1,
     InitFailure = -2,

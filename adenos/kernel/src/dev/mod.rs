@@ -1,20 +1,19 @@
 use crate::*;
-use alloc::{vec, vec::Vec, string::String};
-use namespace::*;
-use enum_iterator::Sequence;
+use alloc::{string::String, vec, vec::Vec};
 use core::fmt::Debug;
+use enum_iterator::Sequence;
+use namespace::*;
 
 pub mod char;
-pub mod hal;
-pub mod power;
-pub mod input;
-pub mod storage;
-pub mod partition;
 pub mod filesystem;
 pub mod framebuffer;
+pub mod hal;
+pub mod input;
+pub mod partition;
+pub mod power;
+pub mod storage;
 
 use framebuffer::*;
-
 
 pub enum DeviceClass<'a> {
     ReadDevice(&'a mut dyn Read),
@@ -27,12 +26,19 @@ pub enum DeviceClass<'a> {
 }
 
 pub trait Device: Resource + Debug {
-    fn init_device(&mut self) -> Result<(), Error> { Ok(()) }
-    fn deinit_device(&mut self) -> Result<(), Error> { Ok(()) }
+    fn init_device(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
+    fn deinit_device(&mut self) -> Result<(), Error> {
+        Ok(())
+    }
     fn device_path(&self) -> Vec<String>;
-    fn unwrap(&mut self) -> DeviceClass;/* {
-        DeviceClass::Other
-    }*/
+    fn is_in_use(&self) -> bool {
+        true
+    }
+    fn unwrap(&mut self) -> DeviceClass; /* {
+                                             DeviceClass::Other
+                                         }*/
 }
 
 pub trait Write {
@@ -43,7 +49,7 @@ pub trait Write {
 macro_rules! write_one {
     ($a:expr, $b:expr) => {
         $a.write(&[$b])
-    }
+    };
 }
 
 pub trait Read {
@@ -52,12 +58,10 @@ pub trait Read {
 
 #[macro_export]
 macro_rules! read_one {
-    ($a:expr) => {
-        {
-            let mut _buf: [u8; 1] = [0];
-            $a.read(&mut _buf).and_then(|_| Ok(_buf[0]))
-        }
-    }
+    ($a:expr) => {{
+        let mut _buf: [u8; 1] = [0];
+        $a.read(&mut _buf).and_then(|_| Ok(_buf[0]))
+    }};
 }
 
 pub trait ReadWrite: Read + Write {}
@@ -124,13 +128,28 @@ impl<T: Device> Resource for T {
     }
 
     fn unwrap(&mut self) -> namespace::ResourceType {
-        namespace::ResourceType::Device(self)
+        let ptr = unsafe {
+            self as *mut dyn Device
+        };
+        let x = Device::unwrap(self);
+        match x {
+            DeviceClass::ReadWriteDevice(dev) => namespace::ResourceType::ReadWriteDevice(dev),
+            _ => namespace::ResourceType::Device(unsafe { &mut *ptr }),
+        }
+    }
+
+    fn is_open(&self) -> bool {
+        self.is_in_use()
     }
 }
 
 pub trait StaticDevice {
-    fn init_device() -> Result<(), Error> { Ok(()) }
-    fn deinit_device() -> Result<(), Error> { Ok(()) }
+    fn init_device() -> Result<(), Error> {
+        Ok(())
+    }
+    fn deinit_device() -> Result<(), Error> {
+        Ok(())
+    }
     fn device_path() -> Vec<String>;
 }
 

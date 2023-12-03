@@ -5,13 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "LLDB",
+            "type": "lldb",
+            "request": "custom",
+            "targetCreateCommands": ["target create ${workspaceRoot}/adenos/target/x86_64-adenos/debug/adenos"],
+            "processCreateCommands": ["gdb-remote 127.0.0.1:1234", "settings set target.x86-disassembly-flavor intel"],
+            "preLaunchTask": "n debug"
+        },
+        {
             "type": "gdb",
             "request": "attach",
             "name": "GDB",
-            "executable": "${workspaceRoot}/kernel/target/x86_64-adenos/debug/adenos",
+            "executable": "${workspaceRoot}/adenos/target/x86_64-adenos/debug/adenos",
             "target": "127.0.0.1:1234",
             "remote": true,
             "cwd": "${workspaceRoot}",
+            "preLaunchTask": "n debug"
         }
     ]
 }

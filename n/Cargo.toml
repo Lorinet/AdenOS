@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 bootloader-locator = "0.0.4"
 sudo = "0.6.0"
+fork = "0.1.22"
+gpt = "4.0.0-rc.1"

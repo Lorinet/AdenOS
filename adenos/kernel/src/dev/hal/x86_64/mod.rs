@@ -21,6 +21,7 @@ pub fn init() {
     mem::init();
     acpi::init();
     unsafe {
+        namespace::register_resource(dev::char::KernelLogger::new());
         namespace::register_resource(kernel_console::EARLY_FRAMEBUFFER.take().unwrap());
         let fb = kernel_console::FRAMEBUFFER.insert(namespace::get_resource(String::from("/Devices/Framebuffer/VesaVbeFramebuffer")).unwrap());
         namespace::register_resource(kernel_console::EARLY_KERNEL_CONSOLE.take().unwrap());

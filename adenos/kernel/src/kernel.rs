@@ -50,11 +50,9 @@ fn init_system() -> Result<(), Error> {
             println!("{}", dev.resource_path_string());
         }
     }
-    let file = file::File::open(String::from("/Files/adenfs/main.elf"))?;
+    let file = file::File::open(String::from("/Files/AdenOS/test.elf"))?;
     let exe_inf = exec::elf::ELFLoader::load_executable(file.id)?;
-    unsafe {
-        scheduler::exec(exe_inf.clone())?;
-    }
+    scheduler::exec(exe_inf.clone())?;
     serial_println!("{:#x?}", exe_inf);
 
     kernel_console::set_color(ConsoleColor::BrightBlue,  ConsoleColor::BrightBlack);
@@ -64,11 +62,10 @@ fn init_system() -> Result<(), Error> {
     scheduler::kexec(kernel_executor::run);
     //scheduler::kexec(test_kernel_thread_with_ipc_recv);
     //scheduler::kexec(test_kernel_thread_with_ipc_send);
-    scheduler::kexec(test_kernel_thread_joiner);
-    scheduler::kexec(test_kernel_thread_killer);
-    scheduler::kexec(test_kernel_thread_clean);
+    //scheduler::kexec(test_kernel_thread_joiner);
+    //scheduler::kexec(test_kernel_thread_killer);
+    //scheduler::kexec(test_kernel_thread_clean);
     cpu::enable_scheduler();
-    kernel_executor::run();
     Ok(())
 }
 

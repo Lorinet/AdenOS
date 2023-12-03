@@ -109,7 +109,10 @@ impl Device for AHCIDrive {
             },
         };
         for partition in partitions {
-            namespace::register_resource(partition).init_device()?;
+            let result = namespace::register_resource(partition).init_device();
+            if let Err(err) = result {
+                println!("Partition initialization failed: {:?}", err);
+            }
         }
         Ok(())
     }
