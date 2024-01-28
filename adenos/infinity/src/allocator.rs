@@ -1,3 +1,3 @@
-use slab_allocator_rs::LockedHeap;
+use slab_allocator::LockedHeap;
 #[global_allocator]
 pub static ALLOCATOR: LockedHeap = LockedHeap::empty();

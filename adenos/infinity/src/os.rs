@@ -12,6 +12,16 @@ pub const SYSTEM_CALL_ACQUIRE_HANDLE: usize = 7;
 pub const SYSTEM_CALL_RELEASE_HANDLE: usize = 8;
 pub const SYSTEM_CALL_AVAILABLE_MESSAGES: usize = 9;
 pub const SYSTEM_CALL_AVAILABLE_MESSAGE_SIZE: usize = 10;
+pub const SYSTEM_CALL_CREATE_THREAD: usize = 11;
+pub const SYSTEM_CALL_RUN_THREAD: usize = 12;
+pub const SYSTEM_CALL_JOIN_THREAD: usize = 13;
+pub const SYSTEM_CALL_SLEEP_THREAD: usize = 14;
+pub const SYSTEM_CALL_SUSPEND_THREAD: usize = 15;
+pub const SYSTEM_CALL_TERMINATE_THREAD: usize = 16;
+pub const SYSTEM_CALL_GET_THREAD_ID: usize = 17;
+pub const SYSTEM_CALL_TERMINATE_PROCESS: usize = 18;
+pub const SYSTEM_CALL_EXEC: usize = 19;
+pub const SYSTEM_CALL_KERNEL_EXEC: usize = 20;
 
 #[repr(usize)]
 pub enum IOHandle {

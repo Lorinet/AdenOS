@@ -50,7 +50,7 @@ fn run_ready_tasks() {
     }
 }
 
-pub fn run() {
+pub extern "C" fn run(argc: u32, argv: *const *const u8) {
     loop {
         run_ready_tasks();
         let task_queue = KERNEL_TASK_QUEUE.try_get().expect("\nKERNEL_EXECUTOR_NOT_INITIALIZED");

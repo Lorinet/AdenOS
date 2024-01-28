@@ -2,6 +2,7 @@
 members = [
     "bootloader",
     "kernel",
+    "slab_allocator",
     "infinity",
     "test_driver",
 ]

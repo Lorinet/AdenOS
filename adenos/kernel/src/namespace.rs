@@ -1,5 +1,7 @@
-use crate::*;
+use crate::{*, dev::hal::mem};
+use exec::thread::*;
 use alloc::{boxed::Box, string::String, vec, vec::Vec, collections::BTreeMap};
+use infinity::allocator;
 use {dev::*, collections::tree::*, ipc::*};
 use crate::{*, dev::{*, filesystem::FileSystem}};
 
@@ -13,6 +15,7 @@ pub enum ResourceType<'a> {
     FileSystem(&'a mut dyn FileSystem),
     File(&'a mut file::File),
     MessageChannel(&'a mut ipc::MessageChannel),
+    //Thread(&'a mut Thread),
     Other
 }
 
@@ -115,6 +118,8 @@ pub fn get_resource_non_generic_parts(path: Vec<String>) -> Option<&'static mut 
 
 pub fn register_resource<T: Resource + 'static>(resource: T) -> &'static mut T {
     let path = resource.resource_path();
+    unsafe {
+    }
     namespace().insert_node_by_path(path.clone(), Some(Box::new(resource)));
     get_resource_parts(path).unwrap()
 }
@@ -191,7 +196,8 @@ pub fn drop_resource(path: String) -> Result<(), Error> {
 
 pub fn drop_resource_parts(path: Vec<String>) -> Result<(), Error> {
     unsafe {
-        NAMESPACE.remove_node_by_path(path)
+        let ret = NAMESPACE.remove_node_by_path(path);
+        ret
     }
 }
 

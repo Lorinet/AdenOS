@@ -1,7 +1,7 @@
-use core::fmt::Display;
-
+use core::{fmt::Display, mem::size_of};
 use alloc::{vec, vec::Vec};
 use crate::*;
+
 pub struct Tree<K, V>
 where
     K: PartialEq + Clone + Display,
@@ -12,8 +12,7 @@ where
 }
 
 impl<K, V> Tree<K, V>
-where
-    K: PartialEq + Clone + Display,
+where K: PartialEq + Clone + Display,
 {
     pub const fn new(root_key: K, root_value: Option<V>) -> Tree<K, V> {
         Tree {
@@ -63,7 +62,7 @@ where
         for node in &path[..path.len() - 1] {
             if let Some(subtree) = &mut subtree {
                 if let None = subtree.get_subtree(node.clone()) {
-                    subtree.insert_subtree(node.clone(), None);
+                    return Err(Error::EntryNotFound);
                 }
             }
             subtree = subtree.unwrap().get_subtree(node.clone());

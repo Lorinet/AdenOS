@@ -129,7 +129,7 @@ pub fn enable_scheduler() {
     disable_interrupts();
     unsafe {
         IDT[interrupts::HardwareInterrupt::Timer.as_usize()].set_handler_addr(VirtAddr::new(task::timer_handler_save_context as u64)).set_stack_index(SCHEDULER_INTERRUPT_IST_INDEX);
-        scheduler::context_switch(None, false);
+        scheduler::context_switch(None);
     }
 }
 

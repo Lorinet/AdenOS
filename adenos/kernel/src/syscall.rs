@@ -104,3 +104,7 @@ pub fn _available_message_size(handle: u32) -> isize {
         None => Error::InvalidHandle.code() as isize,
     }
 }
+
+pub fn _create_thread(entry_point: u64, argc: u64, argv: u64) {
+    
+}

@@ -36,15 +36,15 @@ pub struct TaskContext {
 }
 
 impl TaskContext {
-    pub fn new(rip: u64, rsp: u64) -> TaskContext {
+    pub fn new(rip: u64, rsp: u64, rdi: u64, rsi: u64) -> TaskContext {
         TaskContext {
             rbp: 0,
             rax: 0,
             rbx: 0,
             rcx: 0,
             rdx: 0,
-            rsi: 0,
-            rdi: 0,
+            rsi,
+            rdi,
             r8: 0,
             r9: 0,
             r10: 0,
@@ -61,15 +61,15 @@ impl TaskContext {
         }
     }
 
-    pub fn knew(rip: u64, rsp: u64) -> TaskContext {
+    pub fn knew(rip: u64, rsp: u64, rdi: u64, rsi: u64) -> TaskContext {
         TaskContext {
             rbp: 0,
             rax: 0,
             rbx: 0,
             rcx: 0,
             rdx: 0,
-            rsi: 0,
-            rdi: 0,
+            rsi,
+            rdi,
             r8: 0,
             r9: 0,
             r10: 0,
@@ -123,11 +123,11 @@ pub struct Task {
 }
 
 impl Task {
-    pub fn new(code_addr: u64, stack_top: u64, stack_base: u64, page_table: u64, user_mode: bool, process_id: u32) -> Task {
+    pub fn new(code_addr: u64, stack_top: u64, stack_base: u64, page_table: u64, user_mode: bool, argc: u64, argv: u64, process_id: u32) -> Task {
         Task {
             state: match user_mode {
-                true => TaskContext::new(code_addr, stack_top),
-                false => TaskContext::knew(code_addr, stack_top),
+                true => TaskContext::new(code_addr, stack_top, argc, argv),
+                false => TaskContext::knew(code_addr, stack_top, argc, argv),
             },
             page_table,
             stack_base,
@@ -161,7 +161,7 @@ impl Task {
         }
     }
 
-    pub unsafe fn exec(application: ExecutableInfo, process_id: u32) -> Result<(), Error> {
+    pub unsafe fn exec(application: ExecutableInfo, process_id: u32, argc: u32, argv: *const *const u8) -> Result<(), Error> {
         asm!("cli");
         let user_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
         let user_page_table_phys = (user_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
@@ -200,14 +200,15 @@ impl Task {
             // create process
             scheduler::add_process(Process::new(user_page_table_phys))?;
             // create main thread
-            scheduler::add_thread(process_id, Self::exec_thread(application.virt_entry_point as u64, process_id)?);
+            let tid = scheduler::add_thread(process_id, Self::exec_thread(application.virt_entry_point as u64, process_id, argc, argv)?)?;
+            scheduler::resume_thread(tid)?;
             Ok(())
         } else {
             Err(Error::EntryNotFound)
         }
     }
 
-    pub unsafe fn exec_thread(entry_point: u64, process_id: u32) -> Result<Task, Error> {
+    pub unsafe fn exec_thread(entry_point: u64, process_id: u32, argc: u32, argv: *const *const u8) -> Result<Task, Error> {
         asm!("cli");
         let user_page_table = ((scheduler::get_process(process_id)?.page_table + PHYSICAL_MEMORY_OFFSET) as *mut PageTable).as_mut().unwrap();
         let user_page_table_phys = (user_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
@@ -223,20 +224,21 @@ impl Task {
             page_mapper::map_addr(user_page_table, user_stack_virt_base + (i * 0x1000), stack_frame, flags);
         }
         asm!("sti");
-        Ok(Task::new(entry_point, user_stack_virt_base + STACK_SIZE, user_stack_virt_base, user_page_table_phys, true, process_id))
+        Ok(Task::new(entry_point, user_stack_virt_base + STACK_SIZE, user_stack_virt_base, user_page_table_phys, true, argc as u64, argv as u64, process_id))
     }
 
-    pub unsafe fn kexec(application: unsafe fn(), process_id: u32) -> Result<(), Error> {
+    pub unsafe fn kexec(application: unsafe extern "C" fn(u32, *const *const u8), process_id: u32, argc: u32, argv: *const *const u8) -> Result<(), Error> {
         asm!("cli");
         let child_page_table = page_mapper::copy_over_kernel_tables_but_not_userspace_ones();
         let child_page_table_phys = (child_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
-        scheduler::add_process(Process::new(child_page_table_phys));
-        scheduler::add_thread(process_id, Self::kexec_thread(application, process_id)?);
+        scheduler::add_process(Process::new(child_page_table_phys))?;
+        let tid = scheduler::add_thread(process_id, Self::kexec_thread(application, process_id, argc, argv)?)?;
+        scheduler::resume_thread(tid)?;
         asm!("sti");
         Ok(())
     }
 
-    pub unsafe fn kexec_thread(application: unsafe fn(), process_id: u32) -> Result<Task, Error> {
+    pub unsafe fn kexec_thread(application: unsafe extern "C" fn(u32, *const *const u8), process_id: u32, argc: u32, argv: *const *const u8) -> Result<Task, Error> {
         asm!("cli");
         let child_page_table = ((scheduler::get_process(process_id)?.page_table + PHYSICAL_MEMORY_OFFSET) as *mut PageTable).as_mut().unwrap();
         let child_page_table_phys = (child_page_table as *const _ as u64) - PHYSICAL_MEMORY_OFFSET;
@@ -249,8 +251,9 @@ impl Task {
             let stack_frame = FRAME_ALLOCATOR.allocate_frame();
             page_mapper::map_addr(child_page_table, child_stack_virt_base + (i * 0x1000), stack_frame, None);
         }
+
         asm!("sti");
-        Ok(Task::new(application as u64, (child_stack_virt_base + STACK_SIZE) as u64, child_stack_virt_base, child_page_table_phys, false, process_id))
+        Ok(Task::new(application as u64, (child_stack_virt_base + STACK_SIZE) as u64, child_stack_virt_base, child_page_table_phys, false, argc as u64, argv as u64, process_id))
     }
 }
 
@@ -268,7 +271,7 @@ pub unsafe extern "C" fn timer_handler_save_context() {
 pub unsafe extern "C" fn timer_handler_context_switch_part_2(context: *const TaskContext) {
     cpu::DO_CONTEXT_SWITCH_NEXT_TIME = false;
     pic::end_of_interrupt(interrupts::HardwareInterrupt::Timer);
-    scheduler::context_switch(Some((*context).clone()), true);
+    scheduler::context_switch(Some((*context).clone()));
 }
 
 pub fn trigger_context_switch() {

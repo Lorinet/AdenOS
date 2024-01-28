@@ -25,7 +25,6 @@ dependencies = [
  "pic8259",
  "raw-cpuid",
  "ringbuffer",
- "slab_allocator_rs",
  "spin 0.9.5",
  "uart_16550",
  "x86_64",
@@ -442,7 +441,7 @@ dependencies = [
  "enum-iterator",
  "num-derive",
  "num-traits",
- "slab_allocator_rs",
+ "slab_allocator",
 ]
 
 [[package]]
@@ -726,10 +725,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "slab_allocator_rs"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31a8e8ee8bbe463a97fb0d7bbd5a539a84923b5561f6e151f49895c349693669"
+name = "slab_allocator"
+version = "1.0.3"
 dependencies = [
  "buddy_system_allocator",
  "spin 0.9.5",

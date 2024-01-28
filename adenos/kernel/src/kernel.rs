@@ -2,6 +2,7 @@ use crate::*;
 use crate::dev::hal::mem::page_mapper;
 use crate::exec::thread;
 use dev::*;
+use infinity::allocator;
 use crate::dev::*;
 use crate::ipc::*;
 use file;
@@ -53,7 +54,7 @@ fn init_system() -> Result<(), Error> {
     let file = file::File::open(String::from("/Files/adenfs/main.elf"))?;
     let exe_inf = exec::elf::ELFLoader::load_executable(file.id)?;
     unsafe {
-        scheduler::exec(exe_inf.clone())?;
+        scheduler::exec(exe_inf.clone(), &[])?;
     }
     serial_println!("{:#x?}", exe_inf);
 
@@ -61,14 +62,13 @@ fn init_system() -> Result<(), Error> {
     kernel_executor::init();
     dev::input::PS2KeyboardPIC8259::set_input_handler(test_input_keyboard);
     dev::input::PS2KeyboardPIC8259::init_device().unwrap();
-    scheduler::kexec(kernel_executor::run);
-    //scheduler::kexec(test_kernel_thread_with_ipc_recv);
-    //scheduler::kexec(test_kernel_thread_with_ipc_send);
-    scheduler::kexec(test_kernel_thread_joiner);
-    scheduler::kexec(test_kernel_thread_killer);
-    scheduler::kexec(test_kernel_thread_clean);
+    scheduler::kexec(kernel_executor::run, &[]);
+    //scheduler::kexec(test_kernel_thread_with_ipc_recv, &[]);
+    //scheduler::kexec(test_kernel_thread_with_ipc_send, &[]);
+    thread::spawn(|| test_kernel_thread_clean());
     cpu::enable_scheduler();
-    kernel_executor::run();
+    //kernel_executor::run();
+    loop {}
     Ok(())
 }
 
@@ -78,7 +78,7 @@ fn test_input_keyboard(key: keyboard::Key) {
     }
 }
 
-fn test_kernel_thread_with_ipc_recv() {
+extern "C" fn test_kernel_thread_with_ipc_recv(argc: usize, argv: *const u8) {
     let pid = syscall::_get_process_id() as u32;
     println!("PID: {}", pid);
     let mq = namespace::register_resource(MessageChannel::new("hello".to_string(), Box::new(MessageQueue::new(pid, ipc::Endpoint::Any, 128))));
@@ -100,7 +100,7 @@ fn test_kernel_thread_with_ipc_recv() {
     loop {}
 }
 
-fn test_kernel_thread_with_ipc_send() {
+extern "C" fn test_kernel_thread_with_ipc_send() {
     let mq = namespace::get_resource::<MessageQueue>(String::from("Processes/1/MessageQueues/0")).unwrap();
     for i in 0..128000 {
         mq.send(Message::new((String::from("Hello world") + i.to_string().as_str()).as_bytes()));
@@ -109,65 +109,21 @@ fn test_kernel_thread_with_ipc_send() {
     loop {}
 }
 
-fn test_kernel_thread_killer() {
-    println!("You live for 8 seconds, then you die.");
-    thread::sleep(8000);
-    scheduler::terminate_process(2);
-    println!("Done with ya!");
-    scheduler::terminate_process(scheduler::current_process());
-}
-
-fn test_kernel_thread_joiner() {
-    loop {
-        println!("Creating new threads PID {}", scheduler::current_process());
-        let mut thrd = thread::Thread::new(test_kernel_thread_joinee);
-        let mut thrd2 = thread::Thread::new(test_kernel_thread_joinee2);
-        thrd.run();
-        thrd2.run();
-        println!("Joining new thread");
-        thrd.join();
-        thrd2.join();
-        println!("Done!");
-    }
-}
-
-fn test_kernel_thread_joinee() {
-    println!("0 Sleeping for 0.5sec...");
-    thread::sleep(500);
-    println!("0 Creating new thread");
-    let mut thrd = thread::Thread::new(test_kernel_thread_joinee3);
-    thrd.run();
-    println!("0 Joining new thread");
-    thrd.join();
-    println!("0 Done!");
-    thread::exit();
-}
-
-fn test_kernel_thread_joinee2() {
-    println!("1 Sleeping for 1sec...");
-    thread::sleep(1000);
-    println!("1 Done sleeping");
-    thread::exit();
-}
-
-fn test_kernel_thread_joinee3() {
-    println!("2 Sleeping for 2sec...");
-    thread::sleep(2000);
-    println!("2 Done sleeping");
-    thread::exit();
-}
-
 fn test_kernel_thread_clean() {
+    serial_println!("aaa");
     loop {
-        let mut thrd = thread::Thread::new(test_kernel_thread_clean_task);
-        thrd.run();
-        thread::sleep(500);
+        serial_println!("{} Spawning", scheduler::current_thread());
+        let thrd = thread::spawn(|| test_kernel_thread_clean_task());
+        serial_println!("{} Joining", scheduler::current_thread());
+        thrd.unwrap().join().unwrap();
+        serial_println!("{} Joined", scheduler::current_thread());
+        thread::sleep(3).unwrap();
     }
 }
 
 fn test_kernel_thread_clean_task() {
-    println!("Wating 0.2s");
-    thread::sleep(200);
-    println!("Finished");
-    thread::exit();
+    /*println!("Wating 0.2s");
+    thread::sleep(20);
+    println!("Finished");*/
+    println!("Payload");
 }

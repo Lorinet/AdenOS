@@ -1,0 +1,13 @@
+[package]
+edition = "2021"
+name = "slab_allocator"
+version = "1.0.3"
+description = "Slab allocator for no_std systems. Uses multiple slabs with blocks of different sizes and a buddy system allocator for blocks larger than 4096 bytes. Updated to latest nightly rust"
+
+license = "MIT"
+
+[dependencies.buddy_system_allocator]
+version = "0.9.0"
+
+[dependencies.spin]
+version = "0.9.4"
